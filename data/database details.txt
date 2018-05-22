@@ -1,0 +1,31 @@
+photos.db:
+    0  FullPath         text        Database-relative path to the photo
+    1  Folder           text        Database-relative folder the photo is in
+    2  DatabaseFolder   text
+    3  OriginalDate     integer
+    4  OriginalSize     integer
+    5  Rename           text
+    6  ImportDate       integer
+    7  ModifiedDate     integer
+    8  Tags             text
+    9  Edited           integer
+    10 OriginalFile     text
+    11 Owner            text
+    12 Export           integer
+    13 Orientation      integer
+
+thumbnails.db:
+    0  FullPath         text        Database-relative path to the photo
+    1  ModifiedDate     integer
+    2  Thumbnail        blob
+    3  Orientation      integer
+
+folders.db:
+    0  Path             text
+    1  Title            text
+    2  Description      text
+    
+imported.db:
+    0  FullPath         text
+    1  File             text
+    2  ModifiedDate     integer
