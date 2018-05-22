@@ -29,5 +29,5 @@ Manual Installation:
         ffpyplayer (Tested with 4.0.1)
         Pillow (Tested with 3.1.2 and 4.1.1)
     
-    For video conversions, the ffmpeg executable must be installed in a path that Python can find (the root directory of Snu Photo Manager will work).
-    Tested with 2.8.11
+    For video conversions, the ffmpeg executable must be installed in a path that Python can find
+    (the root directory of Snu Photo Manager will work).  Tested with 2.8.11
