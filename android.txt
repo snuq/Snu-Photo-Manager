@@ -1,0 +1,3 @@
+title=Snu Photo Manager
+author=Hudson
+orientation=landscape

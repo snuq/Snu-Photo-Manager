@@ -1,0 +1,3 @@
+1.7778:party-horizontal.jpg
+1:party-square.jpg
+0.5625:party-vertical.jpg

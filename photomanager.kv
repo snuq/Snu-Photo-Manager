@@ -1,0 +1,3966 @@
+#:kivy 1.0
+#:import kivy kivy
+
+<FileBrowser>:
+    size_hint: 1, 1
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: .75, 1
+        ShortLabel:
+            text: root.path
+            size_hint_y: None
+            height: app.button_scale
+        NormalRecycleView:
+            size_hint_x: 1
+            id: fileList
+            viewclass: 'FileBrowserItem'
+            SelectableRecycleBoxLayout:
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: 1
+        size_hint_x: .25
+        NormalButton:
+            text: 'Up A Directory...'
+            size_hint_x: 1
+            on_release: root.go_up()
+        NormalRecycleView:
+            size_hint_x: 1
+            id: locationsList
+            viewclass: 'FileBrowserItem'
+            SelectableRecycleBoxLayout:
+        NormalInput:
+            height: app.button_scale if not root.directory_select else 0
+            opacity: 1 if not root.directory_select else 0
+            disabled: not root.file_editable
+            size_hint_x: 1
+            text: root.file
+        NormalButton:
+            text: root.ok_text
+            disabled: not root.target_selected
+            size_hint_x: 1
+            on_release: root.dispatch('on_ok')
+        NormalButton:
+            size_hint_x: 1
+            text: root.cancel_text
+            on_release: root.dispatch('on_cancel')
+
+<FileBrowserItem>:
+    canvas.before:
+        Color:
+            rgba: self.bgcolor
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    size_hint_x: 1
+    height: app.button_scale
+    Image:
+        size_hint_x: None
+        width: app.button_scale
+        source: 'atlas://data/images/defaulttheme/filechooser_%s' % ('folder' if root.type == 'folder' else 'file')
+    NormalLabel:
+        size_hint_y: None
+        height: app.button_scale
+        text_size: (self.width - 20, None)
+        text: root.text
+        halign: 'left'
+        valign: 'center'
+
+<HeaderLabel@Label>:
+    font_size: int(app.text_scale * 1.5)
+    size_hint_y: None
+    height: app.button_scale
+    bold: True
+
+<VGridLine@Widget>:
+    canvas.before:
+        Color:
+            rgba: 1,1,1,.5
+        Rectangle:
+            pos: self.pos
+            size: 1, self.size[1]
+
+<HGridLine@Widget>:
+    size_hint: 1, 1
+    canvas.before:
+        Color:
+            rgba: 1,1,1,.5
+        Rectangle:
+            pos: self.pos
+            size: self.size[0], 1
+
+<RotationGrid>:
+    RelativeLayout:
+        size_hint: 1, 1
+        VGridLine:
+            pos_hint: {"x": 0.0}
+        VGridLine:
+            pos_hint: {"x": 0.1}
+        VGridLine:
+            pos_hint: {"x": 0.2}
+        VGridLine:
+            pos_hint: {"x": 0.3}
+        VGridLine:
+            pos_hint: {"x": 0.4}
+        VGridLine:
+            pos_hint: {"x": 0.5}
+        VGridLine:
+            pos_hint: {"x": 0.6}
+        VGridLine:
+            pos_hint: {"x": 0.7}
+        VGridLine:
+            pos_hint: {"x": 0.8}
+        VGridLine:
+            pos_hint: {"x": 0.9}
+        VGridLine:
+            pos_hint: {"x": 1.0}
+    RelativeLayout:
+        size_hint: 1, 1
+        HGridLine:
+            pos_hint: {"y": 0.0}
+        HGridLine:
+            pos_hint: {"y": 0.1}
+        HGridLine:
+            pos_hint: {"y": 0.2}
+        HGridLine:
+            pos_hint: {"y": 0.3}
+        HGridLine:
+            pos_hint: {"y": 0.4}
+        HGridLine:
+            pos_hint: {"y": 0.5}
+        HGridLine:
+            pos_hint: {"y": 0.6}
+        HGridLine:
+            pos_hint: {"y": 0.7}
+        HGridLine:
+            pos_hint: {"y": 0.8}
+        HGridLine:
+            pos_hint: {"y": 0.9}
+        HGridLine:
+            pos_hint: {"y": 1.0}
+
+<NormalRecycleView>:
+    size_hint: 1, 1
+    do_scroll_x: False
+    do_scroll_y: True
+    scroll_distance: 10
+    scroll_timeout: 200
+    bar_width: int(app.button_scale * .5)
+    scroll_type: ['bars', 'content']
+
+<SelectableRecycleBoxLayout>:
+    default_size_hint: 1, None
+    default_size: self.width, app.button_scale
+    spacing: 2
+    size_hint_x: 1
+    orientation: 'vertical'
+    size_hint_y: None
+    height: self.minimum_height
+    multiselect: False
+    touch_multiselect: False
+
+<SelectableRecycleGrid>:
+    cols: max(1, int(self.width / ((app.button_scale * 4) + (app.button_scale / 2))))
+    spacing: int(app.button_scale / 2)
+    padding: int(app.button_scale / 2)
+    focus: False
+    touch_multiselect: True
+    multiselect: True
+    default_size: app.button_scale * 4, app.button_scale * 4
+    default_size_hint: None, None
+    height: self.minimum_height
+    size_hint_y: None
+
+<SelectableRecycleGridWide@SelectableRecycleGrid>:
+    cols: max(1, int(self.width / ((app.button_scale * 8) + (app.button_scale / 2))))
+    default_size: (app.button_scale * 8), (app.button_scale * 4)
+
+<StiffScroll>:
+
+<InfoLabel>:
+    canvas.before:
+        Color:
+            rgba: root.bgcolor
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    text: app.infotext
+    color: 0, 0, 0, 1
+
+<DatabaseLabel@ShortLabel>:
+    text: app.database_update_text
+
+<CropOverlay>:
+    size_hint: None, None
+    resizable_left: True
+    resizable_right: True
+    resizable_up: True
+    resizable_down: True
+    resize_lock: False
+    resizable_border: 40
+    resizable_border_offset: 0.5
+    RelativeLayout:
+        size_hint: 1, 1
+        VGridLine:
+            pos_hint: {"x": 0.0}
+        VGridLine:
+            pos_hint: {"x": 0.3333333}
+        VGridLine:
+            pos_hint: {"x": 0.6666666}
+        VGridLine:
+            pos_hint: {"x": .999}
+    RelativeLayout:
+        size_hint: 1, 1
+        HGridLine:
+            pos_hint: {"y": 0.0}
+        HGridLine:
+            pos_hint: {"y": 0.3333333}
+        HGridLine:
+            pos_hint: {"y": 0.6666666}
+        HGridLine:
+            pos_hint: {"y": .999}
+
+<NormalPopup>:
+    background: 'panelbg.png'
+
+<CustomImage>:
+    allow_stretch: True
+
+<Curves>:
+
+<ColorPickerCustom>:
+    canvas.before:
+        Color:
+            rgba: self.color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    size_hint_y: None
+    height: sp(33)*10
+    foreground_color: (1, 1, 1, 1) if self.hsv[2] * wheel.a < .5 else (0, 0, 0, 1)
+    wheel: wheel
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: '5sp'
+        ColorWheel:
+            id: wheel
+            color: root.color
+            on_color: root.color[:3] = args[1][:3]
+        StackLayout:
+            orientation: 'tb-lr'
+            size_hint_y: None
+            height: sp(33) * 3
+            canvas:
+                Color:
+                    rgba: root.color
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+
+            ColorPicker_Selector:
+                mroot: root
+                text: 'R'
+                clr_idx: 0
+                color: wheel.r
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                size_hint_x: .5
+                height: '33sp'
+
+            ColorPicker_Selector:
+                mroot: root
+                text: 'G'
+                clr_idx: 1
+                color: wheel.g
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                size_hint_x: .5
+                height: '33sp'
+
+            ColorPicker_Selector:
+                mroot: root
+                text: 'B'
+                clr_idx: 2
+                color: wheel.b
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                size_hint_x: .5
+                height: '33sp'
+                
+            ColorPicker_Selector:
+                mroot: root
+                mode: 'hsv'
+                text: 'H'
+                clr_idx: 0
+                color: root.hsv[0]
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                size_hint_x: .5
+                height: '33sp'
+                
+            ColorPicker_Selector:
+                mroot: root
+                mode: 'hsv'
+                text: 'S'
+                clr_idx: 1
+                color: root.hsv[1]
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                size_hint_x: .5
+                height: '33sp'
+                
+            ColorPicker_Selector:
+                mroot: root
+                mode: 'hsv'
+                text: 'V'
+                clr_idx: 2
+                color: root.hsv[2]
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                size_hint_x: .5
+                height: '33sp'
+
+<ExternalProgramEditor>:
+    cols: 1
+    height: self.minimum_height
+    size_hint: 1, None
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Name: '
+        NormalInput:
+            text: root.name
+            multiline: False
+            input_filter: app.test_album
+            on_focus: root.set_name(self)
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Command: '
+        WideButton:
+            text: root.command
+            text_size: (self.size[0] - app.padding*2, None)
+            shorten: True
+            on_press: root.select_command()
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Argument: '
+        NormalInput:
+            text: root.argument
+            multiline: False
+            input_filter: app.test_album
+            on_focus: root.set_argument(self)
+    NormalLabel:
+        text: 'For The Argument: '
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: '"%i"'
+        ShortLabel:
+            text: 'Is the image filename'
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: '"%%"'
+        ShortLabel:
+            text: 'Is a single "%"'
+
+<ExpandableButton>:
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+    GridLayout:
+        cols: 3
+        size_hint: 1, None
+        height: app.button_scale
+        CheckBox:
+            active: root.expanded
+            size_hint: None, None
+            height: app.button_scale
+            width: app.button_scale
+            background_checkbox_normal: 'tree_closed.png'
+            background_checkbox_down: 'tree_opened.png'
+            on_press: root.set_expanded(self.active)
+        WideButton:
+            on_press: root.dispatch('on_press')
+            text: root.text
+        RemoveButton:
+            on_press: root.dispatch('on_remove')
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: (1, 1, 1, 1) if root.expanded else (0, 0, 0, 0)
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        cols: 2
+        size_hint: 1, None
+        height: self.minimum_height
+        GridLayout:
+            padding: app.padding
+            cols: 1
+            size_hint: 1, None
+            height: self.minimum_height
+            id: contentContainer
+
+<ScanningPopup>:
+    GridLayout:
+        cols: 1
+        NormalLabel:
+            id: scanningText
+            text: root.scanning_text
+            text_size: self.size
+        ProgressBar:
+            id: scanningProgress
+            value: root.scanning_percentage
+            max: 100
+        WideButton:
+            id: scanningButton
+            text: 'Cancel'
+
+<Scroller>:
+    scroll_distance: 10
+    scroll_timeout: 200
+    bar_width: int(app.button_scale * .5)
+    scroll_type: ['bars', 'content']
+
+<TreeViewInfo>:
+    color_selected: app.selected_color
+    odd_color: app.color_odd
+    even_color: app.color_even
+    size_hint_y: None
+    height: app.button_scale
+    orientation: 'horizontal'
+    ShortLabel:
+        text: root.title
+    ShortLabel:
+        text: root.content
+
+<FolderDetails>:
+    size_hint_y: None
+    height: app.button_scale if app.simple_interface else int(app.button_scale * 2)
+    orientation: 'horizontal'
+    Header:
+        height: app.button_scale if app.simple_interface else (app.button_scale * 2)
+        ShortLabel:
+            text: 'Title:'
+        NormalInput:
+            height: app.button_scale if app.simple_interface else (app.button_scale * 2)
+            id: folderTitle
+            input_filter: app.test_album
+            multiline: False
+            text: ''
+            on_focus: app.new_title(self, root.owner)
+        SmallBufferX:
+        ShortLabel:
+            text: 'Description:'
+        NormalInput:
+            id: folderDescription
+            height: app.button_scale if app.simple_interface else (app.button_scale * 2)
+            input_filter: app.test_description
+            multiline: True
+            text: ''
+            on_focus: app.new_description(self, root.owner)
+
+<AlbumDetails>:
+    size_hint_y: None
+    height: app.button_scale if app.simple_interface else (app.button_scale * 2)
+    orientation: 'horizontal'
+    Header:
+        height: app.button_scale if app.simple_interface else (app.button_scale * 2)
+        ShortLabel:
+            text: 'Description:'
+        NormalInput:
+            id: albumDescription
+            height: app.button_scale if app.simple_interface else (app.button_scale * 2)
+            input_filter: app.test_description
+            multiline: True
+            text: ''
+            on_focus: app.new_description(self, root.owner)
+
+<NormalTreeView@TreeView>:
+    color_selected: app.selected_color
+    odd_color: app.color_odd
+    even_color: app.color_even
+    indent_level: int(app.button_scale * .5)
+    size_hint: 1, None
+    height: self.minimum_height
+    hide_root: True
+
+<MultiTreeView>:
+    color_selected: app.selected_color
+    odd_color: app.color_odd
+    even_color: app.color_even
+    indent_level: int(app.button_scale * .5)
+    size_hint: 1, None
+    height: self.minimum_height
+    hide_root: True
+
+<DatabaseSortDropDown>:
+    canvas.before:
+        Color:
+            rgba: (0, 0, 0, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    MenuButton:
+        text: 'Folder Name'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'Title'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'Import Date'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'Modified Date'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'Total Photos'
+        on_release: root.select(self.text)
+
+<AlbumSortDropDown>:
+    canvas.before:
+        Color:
+            rgba: (0, 0, 0, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    MenuButton:
+        text: 'File Name'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'File Path'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'Import Date'
+        on_release: root.select(self.text)
+    MenuButton:
+        text: 'Modified Date'
+        on_release: root.select(self.text)
+
+<AspectRatioDropDown>:
+    canvas.before:
+        Color:
+            rgba: (0, 0, 0, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    MenuButton:
+        text: 'Current Ratio'
+        on_release: root.select('current')
+    MenuButton:
+        text: '6 x 4'
+        on_release: root.select('6x4')
+    MenuButton:
+        text: '7 x 5'
+        on_release: root.select('7x5')
+    MenuButton:
+        text: '11 x 8.5'
+        on_release: root.select('11x8.5')
+    MenuButton:
+        text: '4 x 3'
+        on_release: root.select('4x3')
+    MenuButton:
+        text: '16 x 9'
+        on_release: root.select('16x9')
+    MenuButton:
+        text: '1 x 1'
+        on_release: root.select('1x1')
+
+<MainArea@BoxLayout>:
+    canvas.before:
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: 'mainbg.png'
+
+<SplitterStrip>:
+    background_normal: 'splitterbgup.png'
+    background_down: 'splitterbgdown.png'
+
+<SplitterPanel>:
+    canvas.before:
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: 'panelbg.png'
+    #keep_within_parent: True
+    min_size: int(app.button_scale / 2)
+    size_hint: None, 1
+    strip_size: int(app.button_scale / 3)
+
+<SplitterPanelRight>:
+    width: self.display_width
+    opacity: 0 if self.hidden else 1
+    disabled: self.hidden
+    sizable_from: 'left'
+
+<SplitterPanelLeft>:
+    width: self.display_width
+    opacity: 0 if self.hidden else 1
+    disabled: self.hidden
+    sizable_from: 'right'
+
+<InputPopup>:
+    cols:1
+    NormalLabel:
+        text: root.text
+    NormalInput:
+        id: input
+        multiline: False
+        hint_text: root.hint
+        input_filter: app.test_album
+        text: root.input_text
+        focus: True
+    Label:
+    GridLayout:
+        cols: 2
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'OK'
+            on_release: root.dispatch('on_answer','yes')
+        WideButton:
+            text: 'Cancel'
+            on_release: root.dispatch('on_answer', 'no')
+
+<InputPopupTag>:
+    cols:1
+    NormalLabel:
+        text: root.text
+    NormalInput:
+        id: input
+        multiline: False
+        hint_text: root.hint
+        input_filter: app.test_tag
+        text: root.input_text
+        focus: True
+    Label:
+    GridLayout:
+        cols: 2
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'OK'
+            on_release: root.dispatch('on_answer','yes')
+        WideButton:
+            text: 'Cancel'
+            on_release: root.dispatch('on_answer', 'no')
+
+<ConfirmPopup>:
+    cols:1
+    NormalLabel:
+        text: root.text
+    Label:
+    GridLayout:
+        cols: 2
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Yes'
+            on_release: root.dispatch('on_answer','yes')
+        WideButton:
+            text: 'No'
+            on_release: root.dispatch('on_answer', 'no')
+
+<MessagePopup>:
+    cols:1
+    NormalLabel:
+        text: root.text
+    Label:
+    GridLayout:
+        cols:1
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            id: button
+            text: root.button_text
+            on_release: root.close()
+
+<AboutPopup>:
+    background: 'panelbg.png'
+    size_hint: .5, None
+    height: self.width/2
+    BoxLayout:
+        orientation: 'vertical'
+        BoxLayout:
+            orientation: 'horizontal'
+            Image:
+                source: 'icon.png'
+                size_hint_x: None
+                size_hint_y: 1
+                width: self.height
+            Scroller:
+                do_scroll_x: False
+                ShortLabel:
+                    size_hint_y: None
+                    height: self.texture_size[1] + 20
+                    text: app.about_text
+        WideButton:
+            id: button
+            text: root.button_text
+            on_release: root.close()
+
+<TreenodeDrag>:
+    canvas.before:
+        Color:
+            rgba: (.2, .2, .4, .4)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    orientation: 'vertical'
+    size_hint_x: None
+    width: 100
+    size_hint_y: None
+    height: app.button_scale
+    NormalLabel:
+        text_size: (self.width - 20, None)
+        halign: 'left'
+        text: root.text
+    NormalLabel:
+        id: subtext
+        text_size: (self.width - 20, None)
+        font_size: app.text_scale
+        color: .66, .66, .66, 1
+        halign: 'left'
+        size_hint_y: None
+        height: 0
+        text: root.subtext
+
+<RecycleTreeViewButton>:
+    orientation: 'vertical'
+    size_hint_y: None
+    #height: int((app.button_scale * 1.5 if self.subtext else app.button_scale) + (app.button_scale * .1 if self.end else 0))
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba: root.bgcolor
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        orientation: 'horizontal'
+        Widget:
+            width: (app.button_scale * .25) + (app.button_scale * 0.5 * root.indent)
+            size_hint_x: None
+        Image:
+            width: self.texture_size[0]
+            size_hint_x: None
+            source: 'tree_opened.png' if root.expanded else 'tree_closed.png'
+            opacity: 1 if root.expandable else 0
+        BoxLayout:
+            orientation: 'vertical'
+            NormalLabel:
+                markup: True
+                text_size: (self.width - 20, None)
+                halign: 'left'
+                text: root.folder_name + '   [b]' + root.total_photos + '[/b]'
+            NormalLabel:
+                id: subtext
+                text_size: (self.width - 20, None)
+                font_size: app.text_scale
+                color: .66, .66, .66, 1
+                halign: 'left'
+                size_hint_y: None
+                height: app.button_scale * .5 if root.subtext else 0
+                text: root.subtext
+    Widget:
+        canvas.before:
+            Color:
+                rgba: 0, 0, 0, .2 if root.end else 0
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        size_hint_y: None
+        height: int(app.button_scale * .1) if root.end else 0
+
+<TreeViewButton>:
+    color_selected: app.selected_color
+    odd_color: app.color_odd
+    even_color: app.color_even
+    orientation: 'vertical'
+    size_hint_y: None
+    height: app.button_scale
+    NormalLabel:
+        markup: True
+        text_size: (self.width - 20, None)
+        halign: 'left'
+        text: root.folder_name + '   [b]' + root.total_photos + '[/b]'
+    NormalLabel:
+        id: subtext
+        text_size: (self.width - 20, None)
+        font_size: app.text_scale
+        color: .66, .66, .66, 1
+        halign: 'left'
+        size_hint_y: None
+        height: 0
+        text: root.subtext
+
+<PhotoRecycleViewButton>:
+    canvas.before:
+        Color:
+            rgba: self.bgcolor
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    canvas.after:
+        Color:
+            rgba: 1, 1, 1, .5 if self.favorite else 0
+        Rectangle:
+            source: 'star.png'
+            pos: (self.pos[0]+(self.width-(self.height*.5)), self.pos[1]+(self.height*.5)-(self.height*.167))
+            size: (self.height*.33, self.height*.33)
+        Color:
+            rgba: 1, 1, 1, .5 if self.video else 0
+        Rectangle:
+            source: 'play_overlay.png'
+            pos: (self.pos[0]+(self.height*.25)), (self.pos[1]+(self.height*.25))
+            size: (self.height*.5), (self.height*.5)
+    size_hint_x: 1
+    height: (app.button_scale * 2)
+    AsyncThumbnail:
+        id: thumbnail
+        #photoinfo: root.photoinfo
+        #source: root.source
+        size_hint: None, None
+        width: (app.button_scale * 2)
+        height: (app.button_scale * 2)
+    NormalLabel:
+        size_hint_y: None
+        height: (app.button_scale * 2)
+        text_size: (self.width - 20, None)
+        text: root.text
+        halign: 'left'
+        valign: 'center'
+
+<SettingAboutButton>:
+    WideButton:
+        text: "About Snu Photo Manager"
+        size: root.size
+        pos: root.pos
+        font_size: '15sp'
+        on_press: app.about()
+
+<SettingDatabaseImport>:
+    WideButton:
+        text: 'Scan'
+        size: root.size
+        pos: root.pos
+        font_size: '15sp'
+        on_press: root.database_import()
+
+<SettingDatabaseClean>:
+    WideButton:
+        text: 'Deep Clean Database'
+        size: root.size
+        pos: root.pos
+        font_size: '15sp'
+        on_press: root.database_clean()
+
+<ProgramSelectButton>:
+    size_hint_x: 1
+
+<AlbumSelectButton>:
+    size_hint_x: 1
+
+<TagSelectButton>:
+    size_hint_x: 1
+
+<AsyncThumbnail>:
+    canvas.before:
+        PushMatrix
+        Rotate:
+            angle: self.angle
+            axis: 0,0,1
+            origin: self.center
+    canvas.after:
+        PopMatrix
+    allow_stretch: True
+
+<PhotoDrag>:
+    canvas.before:
+        PushMatrix
+        Rotate:
+            angle: root.angle
+            axis: 0,0,1
+            origin: root.center
+    canvas.after:
+        PopMatrix
+
+    height: (app.button_scale * 4)
+    width: (app.button_scale * 4)
+    size_hint_y: None
+    size_hint_x: None
+
+<PhotoRecycleThumb>:
+    canvas.before:
+        Color:
+            rgba: app.selected_color if self.selected else (0, 0, 0, 0)
+        Rectangle:
+            pos: (self.pos[0]-5, self.pos[1]-5)
+            size: (self.size[0]+10, self.size[1]+10)
+    canvas.after:
+        Color:
+            rgba: (1, 1, 1, 0) if self.found else(1, 0, 0, .33)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: 1, 1, 1, .5 if root.favorite else 0
+        Rectangle:
+            source: 'star.png'
+            pos: (self.pos[0]+(self.size[0]/2)-(self.size[0]*.05), self.pos[1]+(self.size[0]*.1))
+            size: (self.size[0]*.1, self.size[0]*.1)
+        Color:
+            rgba: 1, 1, 1, .5 if root.video else 0
+        Rectangle:
+            source: 'play_overlay.png'
+            pos: (self.pos[0]+self.width/8, self.pos[1]+self.width/8) if self.title else (self.pos[0]+self.width/4, self.pos[1]+self.width/4)
+            size: (self.width/4, self.width/4) if self.title else (self.width/2, self.width/2)
+
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 10000000
+    drag_distance: 0
+    width: (app.button_scale * 4)
+    height: (app.button_scale * 4)
+    size_hint_y: None
+    size_hint_x: None
+    orientation: 'horizontal'
+    AsyncThumbnail:
+        id: thumbnail
+
+<PhotoRecycleThumbWide>:
+    PhotoThumbLabel:
+        text: root.title
+
+<PhotoThumbLabel>:
+    valign: 'middle'
+    text_size: (self.width-10, self.height)
+    size_hint_y: None
+    size_hint_x: None
+    height: (app.button_scale * 4)
+    width: (app.button_scale * 4)
+    text: ''
+
+<RemoveButton>:
+    size_hint: None, None
+    height: app.button_scale
+    width: app.button_scale
+    text: 'X'
+
+<NormalInput@TextInput>:
+    write_tab: False
+    use_bubble: True
+    background_color: .2, .2, .3, .8
+    disabled_foreground_color: 1,1,1,.75
+    foreground_color: 1,1,1,1
+    size_hint_y: None
+    height: app.button_scale
+    font_size: app.text_scale
+
+<FloatInput>:
+    write_tab: False
+    background_color: .2, .2, .3, .8
+    disabled_foreground_color: 1,1,1,.75
+    foreground_color: 1,1,1,1
+    size_hint_y: None
+    height: app.button_scale
+    font_size: app.text_scale
+
+<IntegerInput>:
+    write_tab: False
+    background_color: .2, .2, .3, .8
+    disabled_foreground_color: 1,1,1,.75
+    foreground_color: 1,1,1,1
+    size_hint_y: None
+    height: app.button_scale
+    font_size: app.text_scale
+
+<WideButton>:
+    size_hint_y: None
+    height: app.button_scale
+    font_size: app.text_scale
+    background_normal: 'buttonlightup.png'
+    background_down: 'buttonlightdown.png'
+    background_disabled_down: 'buttondisabled.png'
+    background_disabled_normal: 'buttondisabled.png'
+
+<NormalButton>:
+    size_hint_y: None
+    height: app.button_scale
+    size_hint_x: None
+    font_size: app.text_scale
+    width: self.texture_size[0] + 20
+    background_normal: 'buttonlightup.png'
+    background_down: 'buttonlightdown.png'
+    background_disabled_down: 'buttondisabled.png'
+    background_disabled_normal: 'buttondisabled.png'
+
+<VerticalButton@ToggleButton>:
+    color: 1, 1, 1, 0
+    size_hint_y: None
+    width: app.button_scale
+    size_hint_x: None
+    font_size: app.text_scale
+    height: self.texture_size[0] + 100
+    background_normal: 'buttonlightup.png'
+    background_down: 'buttonsidetabdown.png'
+    Label:
+        center: self.parent.center
+        canvas.before:
+            PushMatrix
+            Rotate:
+                angle: 90
+                axis: 0,0,1
+                origin: self.center
+        canvas.after:
+            PopMatrix
+        text: self.parent.text
+
+<-NormalSlider@Slider>:
+    #:set sizing 18
+    canvas:
+        Color:
+            rgba: 1, 1, 1, 1 if not root.disabled else 0.3
+        BorderImage:
+            border: (0, sizing, 0, sizing)
+            pos: self.pos
+            size: self.size
+            source: 'sliderbg.png'
+        Rectangle:
+            pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
+            size: app.button_scale/2, app.button_scale
+            source: 'buttontoggleon.png'
+    size_hint_y: None
+    height: app.button_scale
+    min: -1
+    max: 1
+    value: 0
+    cursor_image: 'buttontoggleon.png'
+
+<-HalfSlider@Slider>:
+    #:set sizing 18
+    canvas:
+        Color:
+            rgba: 1, 1, 1, 1 if not root.disabled else 0.3
+        BorderImage:
+            border: (0, sizing, 0, sizing)
+            pos: self.pos
+            size: self.size
+            source: 'sliderbg.png'
+        Rectangle:
+            pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
+            size: app.button_scale/2, app.button_scale
+            source: 'buttontoggleon.png'
+    size_hint_y: None
+    height: app.button_scale
+    min: 0
+    max: 1
+    value: 0
+
+<NormalTabbedPanel@TabbedPanel>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        BorderImage:
+            size: self.size
+            pos: self.pos
+            source: 'mainbg.png'
+    tab_height: app.button_scale
+    tab_width: app.button_scale * 2
+    font_size: app.text_scale
+    background_image: 'tabbg.png'
+    strip_border: 0, 0, 0, 0
+    strip_image: 'headerbg.png'
+    spacing: 0, 0
+    padding: 0
+
+<StripLayout>:
+    spacing: 0, 0
+    padding: 0, 0, 0, -2
+
+<NormalTabbedPanelItem@TabbedPanelItem>:
+    font_size: app.text_scale
+    background_normal: 'buttontabup.png'
+    background_down: 'buttontabdown.png'
+    spacing: 0, 0
+
+<NormalDropDown>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: 'buttonmenu.png'
+
+<MenuButton>:
+    font_size: app.text_scale
+    size_hint_y: None
+    height: app.button_scale
+    background_normal: 'buttonup.png'
+    background_down: 'buttondown.png'
+
+<MenuStarterButton@Button>:
+    canvas.after:
+        Color:
+            rgba: 1, 1, 1, .5
+        Rectangle:
+            pos: (root.pos[0]+root.width-(root.height/1.5)), root.pos[1]
+            size: root.height/2, root.height
+            source: 'menuarrows.png'
+    size_hint_y: None
+    height: app.button_scale
+    size_hint_x: None
+    font_size: app.text_scale
+    width: self.texture_size[0] + app.button_scale
+    background_normal: 'buttonup.png'
+    background_down: 'buttondown.png'
+    background_disabled_down: 'buttondisabled.png'
+    background_disabled_normal: 'buttondisabled.png'
+
+<NormalToggle@ToggleButton>:
+    font_size: app.text_scale
+    size_hint_y: None
+    height: app.button_scale
+    size_hint_x: None
+    width: self.texture_size[0] + 20
+    background_normal: 'buttontoggleoff.png'
+    background_down: 'buttontoggleon.png'
+
+<NormalLabel>:
+    font_size: app.text_scale
+    size_hint_y: None
+    height: app.button_scale
+
+<ShortLabel>:
+    shorten: True
+    font_size: app.text_scale
+    size_hint_x: None
+    width: self.texture_size[0] + 20
+
+<FolderSettingsItem>:
+    deselected_color: 0, 0, 0, 1
+    selected_color: 0, 0, 1, 1
+
+<SettingMultiDirectory>:
+    id: multidirectory
+    Label:
+        text: root.value or ''
+        pos: root.pos
+        font_size: '15sp'
+
+<SettingsButton@NormalButton>:
+    text: 'Settings'
+    on_press: app.open_settings()
+
+<SmallBufferY@Widget>:
+    size_hint_y: None
+    height: int(app.button_scale / 4)
+
+<MediumBufferY@Widget>:
+    size_hint_y: None
+    height: int(app.button_scale / 2)
+    
+<LargeBufferY@Widget>:
+    size_hint_y: None
+    height: app.button_scale
+
+<SmallBufferX@Widget>:
+    size_hint_x: None
+    width: int(app.button_scale / 4)
+
+<MediumBufferX@Widget>:
+    size_hint_x: None
+    width: int(app.button_scale / 2)
+
+<LargeBufferX@Widget>:
+    size_hint_x: None
+    width: app.button_scale
+
+<HeaderBase@BoxLayout>:
+    size_hint_y: None
+    orientation: 'horizontal'
+
+<Header@HeaderBase>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: 'headerbg.png'
+    height: app.button_scale
+
+<MainHeader@HeaderBase>:
+    canvas.before:
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: 'headerbglight.png'
+    height: int(app.button_scale * 1.25)
+    padding: int(app.button_scale / 8)
+
+<TransferScreen>:
+    id: transferScreen
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            NormalToggle:
+                text: 'Quick Move' if self.state == 'normal' else 'Verify Move'
+                state: 'down' if app.config.get("Settings", "quicktransfer") == '0' else 'normal'
+                on_release: app.toggle_quicktransfer(self)
+            HeaderLabel:
+                text: 'Database Folder Transfer'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'vertical'
+                id: leftArea
+                Header:
+                    ShortLabel:
+                        text: 'Database Folder: '
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        id: leftDatabaseMenu
+                        text: root.left_database
+                        on_release: root.database_dropdown_left.open(self)
+                    LargeBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        text: root.left_sort_method
+                        on_release: root.left_sort_dropdown.open(self)
+                    NormalToggle:
+                        text: 'Reverse'
+                        state: 'down' if root.left_sort_reverse else 'normal'
+                        on_press: root.left_resort_reverse(self.state)
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: leftDatabaseArea.toggle_select()
+                MainArea:
+                    id: leftDatabaseHolder
+                    Scroller:
+                        do_scroll_x: False
+                        MultiTreeView:
+                            id: leftDatabaseArea
+            MediumBufferX:
+            BoxLayout:
+                orientation: 'vertical'
+                id: rightArea
+                Header:
+                    ShortLabel:
+                        text: 'Database Folder: '
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        id: rightDatabaseMenu
+                        text: root.right_database
+                        on_release: root.database_dropdown_right.open(self)
+                    LargeBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        text: root.right_sort_method
+                        on_release: root.right_sort_dropdown.open(self)
+                    NormalToggle:
+                        text: 'Reverse'
+                        state: 'down' if root.right_sort_reverse else 'normal'
+                        on_press: root.right_resort_reverse(self.state)
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: rightDatabaseArea.toggle_select()
+                MainArea:
+                    id: rightDatabaseHolder
+                    Scroller:
+                        do_scroll_x: False
+                        MultiTreeView:
+                            id: rightDatabaseArea
+
+<DatabaseScreen>:
+    id: databaseScreen
+    BoxLayout:
+        focus: True
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Import'
+                on_press: app.show_import()
+            NormalButton:
+                size_hint_x: None
+                width: self.texture_size[0] + 20
+                text: 'Update Database'
+                on_press: app.database_rescan()
+            NormalButton:
+                size_hint_x: None
+                width: self.texture_size[0] + 20
+                text: 'Database Transfer'
+                on_press: app.show_transfer()
+                disabled: app.single_database
+            HeaderLabel:
+                text: 'Photo Database'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            SplitterPanelLeft:
+                id: leftpanel
+                #width: app.leftpanel_width
+                BoxLayout:
+                    orientation: 'vertical'
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        ShortLabel:
+                            text: 'Sort By:'
+                        MenuStarterButton:
+                            size_hint_x: 1
+                            id: sortButton
+                            text: root.sort_method
+                            on_release: root.sort_dropdown.open(self)
+                        NormalToggle:
+                            id: sortReverseButton
+                            text: 'Reverse'
+                            state: root.sort_reverse_button
+                            on_press: root.resort_reverse(self.state)
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        NormalLabel:
+                            id: operationType
+                            text: ''
+                        NormalButton:
+                            id: newFolder
+                            size_hint_x: 1
+                            text: 'New'
+                            on_release: root.add_item()
+                        NormalButton:
+                            id: renameFolder
+                            disabled: True
+                            size_hint_x: 1
+                            text: 'Rename'
+                            on_release: root.rename_item()
+                        NormalButton:
+                            id: deleteFolder
+                            disabled: True
+                            size_hint_x: 1
+                            text: 'Delete'
+                            on_release: root.delete_item()
+                    PhotoListRecycleView:
+                        id: database
+                        viewclass: 'RecycleTreeViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            id: databaseInterior
+            MainArea:
+                orientation: 'vertical'
+                Header:
+                    ShortLabel:
+                        id: folderType
+                        text: ''
+                    NormalLabel:
+                        id: folderPath
+                        text: ''
+                    LargeBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: None
+                        width: self.texture_size[0] + 80
+                        id: albumSortButton
+                        text: root.album_sort_method
+                        on_release: root.album_sort_dropdown.open(self)
+                    NormalToggle:
+                        id: albumSortReverseButton
+                        text: 'Reverse'
+                        state: root.album_sort_reverse_button
+                        on_press: root.album_resort_reverse(self.state)
+                GridLayout:
+                    id: folderDetails
+                    cols: 1
+                    size_hint_y: None
+                    height: self.minimum_height
+                NormalRecycleView:
+                    data: root.data
+                    id: photosContainer
+                    viewclass: 'PhotoRecycleThumb'
+                    SelectableRecycleGrid:
+                        id: photos
+                Header:
+                    Label:
+                        text: ''
+                    NormalButton:
+                        text: 'Export'
+                        disabled: not root.can_export
+                        on_press: root.export()
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: root.toggle_select()
+                    NormalButton:
+                        id: deleteButton
+                        text: 'Delete Selected'
+                        disabled: True
+                        on_press: root.delete_selected_confirm()
+                    MenuStarterButton:
+                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
+                        opacity: 0 if app.simple_interface else 1
+                        id: albumButton
+                        text: 'Add To Album...'
+                        disabled: True
+                        on_release: root.album_menu.open(self)
+                    MenuStarterButton:
+                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
+                        opacity: 0 if app.simple_interface else 1
+                        id: tagButton
+                        text: 'Add Tag To...'
+                        disabled: True
+                        on_release: root.tag_menu.open(self)
+
+<VideoViewer>:
+    SpecialVideoPlayer:
+        canvas.after:
+            Color:
+                rgba: 1, 1, 1, .5 if root.favorite else 0
+            Rectangle:
+                source: 'star.png'
+                pos: (self.width/2)-(self.width*.025), 44
+                size: (self.width*.05, self.width*.05)
+        disabled: True if self.opacity == 0 else False
+        pos: root.pos
+        size: root.size
+        id: player
+        favorite: root.favorite
+        photoinfo: root.photoinfo
+        source: root.file
+        options: {'allow_stretch': True}
+    GridLayout:
+        opacity: 0
+        id: overlay
+        pos: root.pos
+        size: root.size
+        RelativeLayout:
+            id: photoShow
+            height: root.height - 44
+            width: root.width
+            size_hint: None, None
+        HalfSlider:
+            disabled: True if self.parent.opacity == 0 else False
+            size_hint_y: None
+            width: root.width
+            value: root.position
+            on_value: root.position = self.value
+            height: 44
+
+<VideoThumbnail>:
+    pos_hint: {'x': 0, 'y': 0}
+    image_overlay_play: 'atlas://data/images/defaulttheme/player-play-overlay'
+    image_loading: 'data/images/image-loading.gif'
+    AsyncThumbnail:
+        photoinfo: root.photoinfo
+        loadfullsize: False
+        allow_stretch: True
+        mipmap: True
+        source: root.source
+        color: (.5, .5, .5, 1)
+        pos_hint: {'x': 0, 'y': 0}
+    Image:
+        source: root.image_overlay_play if not root.click_done else root.image_loading
+        pos_hint: {'x': 0, 'y': 0}
+
+<PhotoViewer>:
+    orientation: 'vertical'
+    StencilViewTouch:
+        size_hint_y: 1
+        canvas.after:
+            Color:
+                rgba: 1, 1, 1, .5 if root.favorite else 0
+            Rectangle:
+                source: 'star.png'
+                pos: (self.width/2)-(self.width*.025), int(app.button_scale)
+                size: (self.width*.05, self.width*.05)
+        id: photoStencil
+        LimitedScatterLayout:
+            bypass: root.bypass
+            id: wrapper
+            size: photoStencil.size
+            size_hint: None, None
+            scale_min: 1
+            scale_max: root.scale_max
+            do_rotation: False
+            PhotoShow:
+                bypass: root.bypass
+                id: photoShow
+                pos: photoStencil.pos
+                size_hint: 1, 1
+                AsyncThumbnail:
+                    canvas.before:
+                        PushMatrix
+                        Scale:
+                            x: 1 if root.angle == 0 or self.width == 0 else ((self.height/self.width) if (self.height/self.width) > .75 else .75)
+                            y: 1 if root.angle == 0 or self.width == 0 else ((self.height/self.width) if (self.height/self.width) > .75 else .75)
+                            origin: photoStencil.center
+                    canvas.after:
+                        PopMatrix
+                    photoinfo: root.photoinfo
+                    loadanyway: True
+                    loadfullsize: True
+                    source: root.file
+                    mirror: root.mirror
+                    allow_stretch: True
+                    id: image
+                    mipmap: True
+    BoxLayout:
+        opacity: 0 if root.set_fullscreen or app.simple_interface else 1
+        disabled: True if root.set_fullscreen or (root.edit_mode != 'main') or app.simple_interface else False
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: 0 if  root.set_fullscreen or app.simple_interface else app.button_scale
+        Label:
+            size_hint_x: .25
+        ShortLabel:
+            size_hint_y: None
+            height: app.button_scale
+            text: "Zoom:"
+        NormalSlider:
+            size_hint_y: None
+            height: app.button_scale
+            id: zoomSlider
+            min: 0
+            max: 1
+            value: root.zoom
+            on_value: root.zoom = self.value
+        Label:
+            size_hint_x: .25
+
+<AlbumScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            HeaderLabel:
+                text: root.folder_title
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            SplitterPanelLeft:
+                id: leftpanel
+                #width: app.leftpanel_width
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_x: .25
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        ShortLabel:
+                            text: 'Sort By:'
+                        MenuStarterButton:
+                            size_hint_x: 1
+                            id: sortButton
+                            text: root.sort_method
+                            on_release: root.sort_dropdown.open(self)
+                        NormalToggle:
+                            id: sortReverseButton
+                            text: 'Reverse'
+                            state: root.sort_reverse_button
+                            on_press: root.resort_reverse(self.state)
+                    PhotoListRecycleView:
+                        size_hint: 1, 1
+                        id: albumContainer
+                        viewclass: 'PhotoRecycleViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            id: album
+                            default_size: self.width, (app.button_scale * 2)
+                    BoxLayout:
+                        size_hint_y: None
+                        disabled: app.simple_interface
+                        opacity: 0 if app.simple_interface else 1
+                        height: 0 if app.simple_interface else app.button_scale
+                        orientation: 'horizontal'
+                        WideButton:
+                            text: 'Previous'
+                            on_press: root.previous_photo()
+                        WideButton:
+                            text: 'Next'
+                            on_press: root.next_photo()
+            MainArea:
+                size_hint_x: .5
+                orientation: 'vertical'
+                RelativeLayout:
+                    id: photoViewerContainer
+                Header:
+                    id: buttonsFooter
+                    NormalButton:
+                        text: 'View Full Screen'
+                        on_press: root.fullscreen()
+                    Label:
+                        text: ''
+                    NormalToggle:
+                        text: 'Favorite'
+                        id: favoriteButton
+                        state: 'down' if root.favorite else 'normal'
+                        on_press: root.set_favorite()
+                    NormalButton:
+                        width: self.texture_size[0] + 20 if root.canprint else 0
+                        opacity: 1 if root.canprint else 0
+                        disabled: not root.canprint
+                        id: printButton
+                        text: 'Print'
+                        on_press: app.print_photo()
+                    #NormalButton:
+                    #    text: 'Refresh Photo Info'
+                    #    on_press: app.refresh_photo(root.fullpath, force=True)
+                    NormalButton:
+                        id: deleteButton
+                        text: 'Delete Photo...'
+                        on_press: root.delete_selected_confirm()
+            SplitterPanelRight:
+                id: rightpanel
+                FloatLayout:
+                    BoxLayout:
+                        opacity: 1 if root.view_panel == 'info' else 0
+                        disabled: False if root.view_panel == 'info' else True
+                        size_hint_x: 1 if root.view_panel == 'info' else 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        Scroller:
+                            NormalTreeView:
+                                id: panelInfo
+                    BoxLayout:
+                        id: editPanelContainer
+                        opacity: 1 if root.view_panel == 'edit' else 0
+                        disabled: False if root.view_panel == 'edit' else True
+                        size_hint_x: 1 if root.view_panel == 'edit' else 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        ScrollerContainer:
+                            cols: 1
+                            id: editScroller
+                            do_scroll_x: False
+                            GridLayout:
+                                id: panelEdit
+                                cols: 1
+                                size_hint: 1, None
+                                height: self.minimum_height
+                    BoxLayout:
+                        opacity: 1 if root.view_panel == 'tags' else 0
+                        disabled: False if root.view_panel == 'tags' else True
+                        size_hint_x: 1 if root.view_panel == 'tags' else 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        Scroller:
+                            size_hint: 1, 1
+                            do_scroll_x: False
+                            GridLayout:
+                                size_hint: 1, None
+                                cols: 1
+                                height: self.minimum_height
+                                GridLayout:
+                                    canvas.before:
+                                        Color:
+                                            rgba: 1, 1, 1, .25
+                                        BorderImage:
+                                            pos: self.pos
+                                            size: self.size
+                                            source: 'buttonmenu.png'
+                                    padding: app.padding
+                                    id: displayTags
+                                    cols: 1
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    NormalLabel:
+                                        id: albumLabel
+                                        text:"Current Tags:"
+                                    GridLayout:
+                                        id: panelDisplayTags
+                                        size_hint: 1, None
+                                        cols: 2
+                                        height: self.minimum_height
+                                MediumBufferY:
+                                GridLayout:
+                                    canvas.before:
+                                        Color:
+                                            rgba: 1, 1, 1, .25
+                                        BorderImage:
+                                            pos: self.pos
+                                            size: self.size
+                                            source: 'buttonmenu.png'
+                                    padding: app.padding
+                                    id: addToTags
+                                    cols: 1
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    NormalLabel:
+                                        id: albumLabel
+                                        text:"Add Tags:"
+                                    GridLayout:
+                                        id: panelTags
+                                        size_hint: 1, None
+                                        cols: 2
+                                        height: self.minimum_height
+                                MediumBufferY:
+                                GridLayout:
+                                    canvas.before:
+                                        Color:
+                                            rgba: 1, 1, 1, .25
+                                        BorderImage:
+                                            pos: self.pos
+                                            size: self.size
+                                            source: 'buttonmenu.png'
+                                    padding: app.padding
+                                    cols: 1
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    NormalLabel:
+                                        text: "Create Tags:"
+                                    BoxLayout:
+                                        orientation: 'horizontal'
+                                        size_hint: 1, None
+                                        height: app.button_scale
+                                        NormalInput:
+                                            id: newTag
+                                            multiline: False
+                                            hint_text: 'Tag Name'
+                                            input_filter: app.test_tag
+                                        NormalButton:
+                                            disabled: not root.can_add_tag(newTag.text)
+                                            text: 'New'
+                                            on_press: root.add_tag()
+                                            size_hint_y: None
+                                            height: app.button_scale
+            StackLayout:
+                size_hint_x: None
+                width: app.button_scale
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'info' else 'normal'
+                    text: "Photo Info"
+                    on_press: root.show_info_panel()
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'edit' else 'normal'
+                    text: "Editing"
+                    on_press: root.show_edit_panel()
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'tags' else 'normal'
+                    text: "Tags"
+                    on_press: root.show_tags_panel()
+
+<PhotoScreen>:
+    FloatLayout:
+        FloatLayout:
+            id: photoViewerContainer
+        NormalButton:
+            pos: (0, root.height-int(app.button_scale))
+            size_hint_y: None
+            height: app.button_scale
+            text: 'Back'
+            on_press: app.show_album(None)
+
+<TreeViewNodeSpacer>:
+    no_selection: True
+    odd_color: 0, 0, 0, 0
+    even_color: 0, 0, 0, 0
+    height: int(app.button_scale / 2)
+
+<ImportPresetArea>:
+    cols: 3
+    size_hint_y: None
+    height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
+    GridLayout:
+        cols: 2
+        ShortLabel:
+            text: 'Preset Name: '
+        NormalInput:
+            size_hint_x: 1
+            text: root.title
+            multiline: False
+            input_filter: app.test_album
+            on_focus: root.set_title(self)
+        ShortLabel:
+            text: 'Folder Name: '
+        NormalLabel:
+            text: root.naming_example
+        ShortLabel:
+            text: 'Naming Method: '
+        NormalInput:
+            size_hint_x: 1
+            text: root.naming_method
+            multiline: False
+            input_filter: root.test_naming_method
+            on_focus: root.new_naming_method(self)
+        ShortLabel:
+            text: 'Delete Originals: '
+        NormalToggle:
+            size_hint_x: 1
+            state: 'down' if root.delete_originals == True else 'normal'
+            text: str(root.delete_originals)
+            on_press: root.set_delete_originals(self.state)
+        ShortLabel:
+            text: 'Import To Folders: '
+        NormalToggle:
+            size_hint_x: 1
+            state: 'down' if root.single_folder == True else 'normal'
+            text: 'Single Folder' if root.single_folder == True else 'Dated Folders'
+            on_press: root.set_single_folder(self.state)
+        ShortLabel:
+            text: 'Import To:'
+        NormalButton:
+            id: importToButton
+            size_hint_x: 1
+            text: root.import_to
+            on_release: root.imports_dropdown.open(self)
+    MediumBufferX:
+    NormalTreeView:
+        id: importPresetFolders
+        hide_root: False
+        root_options: {'text': 'Import From Folders:', 'font_size':app.text_scale}
+
+    Label:
+    MediumBufferX:
+    NormalButton:
+        size_hint_x: .5
+        text: 'Add Folder...'
+        on_press: root.add_folder()
+
+<ScaleSettings>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        BorderImage:
+            size: self.size
+            pos: self.pos
+            source: 'tabbg.png'
+    padding: app.padding
+    cols: 3
+    size_hint_y: None
+    height: (app.button_scale * 2) + (app.padding * 2)
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Scale To Size:'
+        NormalInput:
+            input_filter: 'int'
+            text: str(root.owner.scale_size)
+            on_focus: root.owner.set_scale_size(self)
+    LargeBufferX:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Scale Size To:'
+        MenuStarterButton:
+            id: scaleSizeToButton
+            size_hint_x: 1
+            text: root.owner.scale_size_to_text
+            on_release: root.owner.scale_size_to_dropdown.open(self)
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            id: jpegQualityValue
+            text: 'JPEG Quality: '+str(root.owner.jpeg_quality)+'%'
+        NormalSlider:
+            size_hint_x: 1
+            min: 1
+            max: 100
+            value: root.owner.jpeg_quality
+            on_value: root.owner.set_jpeg_quality(self)
+
+<WatermarkSettings>:
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        BorderImage:
+            size: self.size
+            pos: self.pos
+            source: 'tabbg.png'
+    padding: app.padding
+    cols: 3
+    size_hint_y: None
+    height: (app.button_scale * 5) + (app.padding * 2)
+    GridLayout:
+        cols: 1
+        size_hint_x: .67
+        size_hint_y: None
+        height: (app.button_scale * 5)
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Watermark Image:'
+            NormalButton:
+                size_hint_x: 1
+                text: root.owner.watermark_image
+                #text_size: self.size
+                on_press: root.owner.select_watermark()
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                size_hint_x: .5
+                id: watermarkOpacityValue
+                text: 'Watermark Opacity:'+str(root.owner.watermark_opacity)+'%'
+            NormalSlider:
+                size_hint_x: .5
+                min: 0
+                max: 100
+                value: root.owner.watermark_opacity
+                on_value: root.owner.set_watermark_opacity(self)
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                size_hint_x: .5
+                id: watermarkHorizontalValue
+                text: 'Horizontal Position:'+str(root.owner.watermark_horizontal)+'%'
+            NormalSlider:
+                size_hint_x: .5
+                min: 0
+                max: 100
+                value: root.owner.watermark_horizontal
+                on_value: root.owner.set_watermark_horizontal(self)
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                size_hint_x: .5
+                id: watermarkVerticalValue
+                text: 'Vertical Position:'+str(root.owner.watermark_vertical)+'%'
+            NormalSlider:
+                size_hint_x: .5
+                min: 0
+                max: 100
+                value: root.owner.watermark_vertical
+                on_value: root.owner.set_watermark_vertical(self)
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                size_hint_x: .5
+                id: watermarkSizeValue
+                text: 'Watermark Size:'+str(root.owner.watermark_size)+'%'
+            NormalSlider:
+                size_hint_x: .5
+                min: 1
+                max: 100
+                value: root.owner.watermark_size
+                on_value: root.owner.set_watermark_size(self)
+    LargeBufferX:
+    FloatLayout:
+        canvas.before:
+            Rectangle:
+                size: self.size
+                pos: self.pos
+                source: 'test.png'
+        id: testImage
+        size_hint_x: None
+        size_hint_y: None
+        height: (app.button_scale * 5)
+        width: int(app.button_scale * 6.67)
+
+<FolderToggleSettings>:
+    cols: 2
+    size_hint_y: None
+    height: app.button_scale
+    NormalInput:
+        id: exportTo
+        input_filter: root.owner.filename_filter
+        multiline: False
+        text: root.owner.export_folder
+        on_focus: root.owner.set_export_folder(self)
+    NormalButton:
+        text: ' Browse... '
+        on_press: root.owner.select_export()
+
+<FTPToggleSettings>:
+    cols: 1
+    size_hint_y: None
+    height: (app.button_scale * 2)
+    GridLayout:
+        size_hint_y: None
+        height: app.button_scale
+        cols: 3
+        BoxLayout:
+            orientation: 'horizontal'
+            ShortLabel:
+                text: 'FTP Address: '
+            NormalInput:
+                multiline: False
+                text: root.owner.ftp_address
+                input_filter: root.owner.ftp_filter
+                on_focus: root.owner.set_ftp_address(self)
+        MediumBufferX:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_x: .5
+                NormalToggle:
+                    size_hint_x: 1
+                    text: 'Passive Mode' if root.owner.ftp_passive else 'Active Mode'
+                    state: 'down' if root.owner.ftp_passive else 'normal'
+                    on_press: root.owner.set_ftp_passive(self)
+            MediumBufferX:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_x: .5
+                ShortLabel:
+                    text: 'Port: '
+                NormalInput:
+                    multiline: False
+                    text: str(root.owner.ftp_port)
+                    input_filter: 'int'
+                    on_focus: root.owner.set_ftp_port(self)
+    GridLayout:
+        size_hint_y: None
+        height: app.button_scale
+        cols: 3
+        BoxLayout:
+            orientation: 'horizontal'
+            ShortLabel:
+                text: 'User Name: '
+            NormalInput:
+                multiline: False
+                text: root.owner.ftp_user
+                on_focus: root.owner.set_ftp_user(self)
+        MediumBufferX:
+        BoxLayout:
+            orientation: 'horizontal'
+            ShortLabel:
+                text: 'Password: '
+            NormalInput:
+                password: True
+                multiline: False
+                text: root.owner.ftp_password
+                on_focus: root.owner.set_ftp_password(self)
+
+<ExportPresetArea>:
+    cols: 1
+    height: self.minimum_height
+    size_hint: 1, None
+    GridLayout:
+        height: app.button_scale
+        cols: 3
+        size_hint_y: None
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Title: '
+            NormalInput:
+                id: titleEditor
+                input_filter: app.test_album
+                multiline: False
+                text: root.name
+                on_focus: root.set_title(self)
+        LargeBufferX:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Ignore Tags: '
+            NormalInput:
+                id: ignoreTags
+                input_filter: root.test_tags
+                multiline: False
+                text: root.ignore_tags
+                on_focus: root.set_ignore_tags(self)
+    GridLayout:
+        cols: 3
+        size_hint_y: None
+        height: app.button_scale
+        NormalToggle:
+            size_hint_x: 1
+            state: 'down' if root.create_subfolder == True else 'normal'
+            text: 'Create Subfolder' if root.create_subfolder == True else "Don't Create Subfolder"
+            on_press: root.set_create_subfolder(self.state)
+        NormalToggle:
+            size_hint_x: 1
+            state: 'down' if root.export_info == True else 'normal'
+            text: 'Export Photo Info' if root.export_info == True else "Don't Export Info"
+            on_press: root.set_export_info(self.state)
+        NormalToggle:
+            size_hint_x: 1
+            state: 'down' if root.export_videos == True else 'normal'
+            text: 'Export Videos' if root.export_videos == True else "Don't Export Videos"
+            on_press: root.set_export_videos(self.state)
+    SmallBufferY:
+
+    GridLayout:
+        cols: 2
+        size_hint_y: None
+        height: app.button_scale
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_x: 1
+            ShortLabel:
+                text: 'Export To: '
+            NormalToggle:
+                size_hint_x: 1
+                id: toggleFolder
+                text: 'Folder'
+                group: 'exports'
+                on_press: root.toggle_exports(self)
+                background_normal: 'buttontabup.png'
+                background_down: 'buttontabdown.png'
+            NormalToggle:
+                size_hint_x: 1
+                id: toggleFTP
+                text: 'FTP'
+                group: 'exports'
+                on_press: root.toggle_exports(self)
+                background_normal: 'buttontabup.png'
+                background_down: 'buttontabdown.png'
+        BoxLayout:
+            size_hint_x: .33
+
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, 1
+            BorderImage:
+                size: self.size
+                pos: self.pos
+                source: 'tabbg.png'
+        padding: app.padding
+        id: toggleSettings
+        cols: 1
+        size_hint_y: None
+        height: self.minimum_height
+    SmallBufferY:
+
+    GridLayout:
+        cols: 3
+        size_hint_y: None
+        height: app.button_scale
+        NormalToggle:
+            size_hint_x: .33
+            state: 'down' if root.scale_image else 'normal'
+            text: 'Scale Photo' if root.scale_image else "Don't Scale Photo"
+            on_press: root.set_scale_image(self.state)
+            background_normal: 'buttonlightup.png'
+            background_down: 'buttontabdown.png'
+        BoxLayout:
+            size_hint_x: .67
+    GridLayout:
+        cols: 1
+        id: scaleSettings
+        height: self.minimum_height
+        size_hint_y: None
+    SmallBufferY:
+
+    GridLayout:
+        cols: 3
+        size_hint_y: None
+        height: app.button_scale
+        NormalToggle:
+            size_hint_x: .33
+            state: 'down' if root.watermark else 'normal'
+            text: 'Use Watermark' if root.watermark else "Don't Use Watermark"
+            on_press: root.set_watermark(self.state)
+            background_normal: 'buttonlightup.png'
+            background_down: 'buttontabdown.png'
+        BoxLayout:
+            size_hint_x: .67
+    GridLayout:
+        cols: 1
+        id: watermarkSettings
+        height: self.minimum_height
+        size_hint_y: None
+
+<ImportPresetFolder>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: app.button_scale
+    NormalLabel:
+        text: root.folder
+    RemoveButton:
+        id: importPresetFolderRemove
+        on_press: root.remove_folder()
+
+<ImportScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            HeaderLabel:
+                text: 'Import Photos'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: .75
+                Header:
+                    size_hint_y: None
+                    height: app.button_scale
+                    NormalLabel:
+                        text: 'Select An Import Preset:'
+                    NormalButton:
+                        id: newPresetButton
+                        disabled: True
+                        text: 'New Preset'
+                        on_press: root.add_preset()
+                MainArea:
+                    Scroller:
+                        id: presetsContainer
+                        do_scroll_x: False
+                        GridLayout:
+                            height: self.minimum_height
+                            size_hint_y: None
+                            cols: 1
+                            id: presets
+
+            LargeBufferX:
+            StackLayout:
+                size_hint_x: .25
+                NormalLabel:
+                    text_size: self.width, None
+                    height: self.texture_size[1]
+                    text: 'Naming Method Details\n\nYou may type in an import folder template into this field, the folder names will be generated from the template.  The following characters are not allowed: . \\ / : * ? < > | \nEncase the title and surrounding characters in < > to hide the surrounding characters if the title is not set.  "Folder< - %t>" would result in "Folder" if Title is not set.\n\nThe following keys will be replaced in the input to create a folder name:'
+                GridLayout:
+                    cols: 3
+                    size_hint_y: None
+                    height: (app.button_scale * 11)
+                    ShortLabel:
+                        text: '%Y'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Full Year (2016)'
+
+                    ShortLabel:
+                        text: '%y'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Year Decade Digits (16)'
+
+                    ShortLabel:
+                        text: '%B'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Full Month Name (January)'
+
+                    ShortLabel:
+                        text: '%b'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Month In 3 Letters (Jan)'
+
+                    ShortLabel:
+                        text: '%M'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Month In 2 Digits (01)'
+
+                    ShortLabel:
+                        text: '%m'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Month In Digits, No Padding (1)'
+
+                    ShortLabel:
+                        text: '%D'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Day Of Month In 2 Digits (04)'
+
+                    ShortLabel:
+                        text: '%d'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Day Of Month, No Padding (4)'
+
+                    ShortLabel:
+                        text: '%T'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Folder Title (My Pictures)'
+
+                    ShortLabel:
+                        text: '%t'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Folder Title With Underscores (My_Pictures)'
+
+                    ShortLabel:
+                        text: '%%'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Percent Sign (%)'
+
+<ImportingScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            MediumBufferX:
+            NormalButton:
+                text: 'Import Photos'
+                on_press: root.finalize_import()
+            MediumBufferX:
+            ShortLabel:
+                id: totalSize
+                text: ''
+            MediumBufferX:
+            NormalToggle:
+                state: 'down' if root.delete_originals == True else 'normal'
+                text: 'Delete Original Photos' if root.delete_originals else 'Dont Delete Original Photos'
+                on_press: root.set_delete_originals(self.state)
+            HeaderLabel:
+                text: 'Import Photos'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        MainArea:
+            orientation: 'horizontal'
+            SplitterPanelLeft:
+                id: leftpanel
+                #width: app.leftpanel_width
+                BoxLayout:
+                    orientation: 'vertical'
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        NormalLabel:
+                            text: 'Import To Folders:'
+                        NormalButton:
+                            text: 'Delete Folder'
+                            on_press: root.delete_folder()
+                        NormalButton:
+                            text: 'New Folder'
+                            on_press: root.add_folder()
+                    BoxLayout:
+                        Scroller:
+                            id: foldersContainer
+                            do_scroll_x: True
+                            NormalTreeView:
+                                id: folders
+            BoxLayout:
+                orientation: 'vertical'
+                Header:
+                    ShortLabel:
+                        text: 'Current Photos In:'
+                    NormalLabel:
+                        id: folderName
+                        text: ''
+                    LargeBufferX:
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: root.toggle_select()
+                    NormalButton:
+                        id: deleteButton
+                        text: 'Remove Selected'
+                        disabled: True
+                        on_press: root.delete()
+                BoxLayout:
+                    id: folderDetails
+                    size_hint_y: None
+                    height: (app.button_scale * 2)
+                    orientation: 'horizontal'
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Header:
+                            ShortLabel:
+                                text: 'Title:'
+                            NormalInput:
+                                disabled: True
+                                id: folderTitle
+                                input_filter: app.test_album
+                                multiline: False
+                                text: ''
+                                on_text: root.new_title(self)
+                        Label:
+                    LargeBufferX:
+                    Header:
+                        height: (app.button_scale * 2)
+                        BoxLayout:
+                            size_hint_x: None
+                            orientation: 'vertical'
+                            ShortLabel:
+                                text: 'Description:'
+                            ShortLabel:
+                        NormalInput:
+                            disabled: True
+                            id: folderDescription
+                            height: (app.button_scale * 2)
+                            input_filter: app.test_description
+                            multiline: True
+                            text: ''
+                            on_text: root.new_description(self)
+                NormalRecycleView:
+                    id: photosContainer
+                    viewclass: 'PhotoRecycleThumbWide'
+                    SelectableRecycleGridWide:
+                        id: photos
+
+<ExportScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            MediumBufferX:
+            HeaderLabel:
+                text: 'Export Photos'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: .5
+                Header:
+                    NormalLabel:
+                        text: 'Select An Export Preset:'
+                    NormalButton:
+                        id: newPresetButton
+                        text: 'New Preset'
+                        on_press: root.add_preset()
+                MainArea:
+                    Scroller:
+                        id: presetsContainer
+                        do_scroll_x: False
+                        GridLayout:
+                            height: self.minimum_height
+                            size_hint_y: None
+                            cols: 1
+                            id: presets
+
+            LargeBufferX:
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: .5
+                Header:
+                    ShortLabel:
+                        text: 'Select Photos To Export: '
+                    ShortLabel:
+                        text: root.target
+                    Label:
+                    MediumBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        id: sortButton
+                        text: root.sort_method
+                        on_release: root.sort_dropdown.open(self)
+                    NormalToggle:
+                        id: sortReverseButton
+                        text: 'Reverse'
+                        state: root.sort_reverse_button
+                        on_press: root.resort_reverse(self.state)
+                    MediumBufferX:
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: root.toggle_select()
+                MainArea:
+                    NormalRecycleView:
+                        id: photosContainer
+                        viewclass: 'PhotoRecycleThumb'
+                        SelectableRecycleGrid:
+                            id: photos
+
+<EditNone>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+
+<EditMain>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+    NormalButton:
+        size_hint_x: 1
+        text: 'Basic Color Adjustments'
+        on_press: root.owner.set_edit_panel('color')
+        #disabled: not root.owner.view_image
+    SmallBufferY:
+    NormalButton:
+        size_hint_x: 1
+        text: 'Advanced Color Adjustments'
+        on_press: root.owner.set_edit_panel('advanced')
+        #disabled: not root.owner.view_image
+    SmallBufferY:
+    NormalButton:
+        size_hint_x: 1
+        text: 'Filters'
+        on_press: root.owner.set_edit_panel('filter')
+        #disabled: not root.owner.view_image
+    SmallBufferY:
+    NormalButton:
+        size_hint_x: 1
+        text: 'Image Borders'
+        on_press: root.owner.set_edit_panel('border')
+        #disabled: not root.owner.view_image
+    SmallBufferY:
+    NormalButton:
+        height: app.button_scale if root.owner.opencv else 0
+        opacity: 1 if root.owner.opencv else 0
+        size_hint_x: 1
+        text: 'Denoise'
+        on_press: root.owner.set_edit_panel('denoise')
+        disabled: not root.owner.view_image or not root.owner.opencv
+    SmallBufferY:
+        height: int(app.button_scale / 4) if root.owner.opencv else 0
+    NormalButton:
+        size_hint_x: 1
+        text: 'Rotate Image'
+        on_press: root.owner.set_edit_panel('rotate')
+        disabled: not root.owner.view_image
+    SmallBufferY:
+    NormalButton:
+        size_hint_x: 1
+        text: 'Crop Image'
+        on_press: root.owner.set_edit_panel('crop')
+        disabled: not root.owner.view_image
+    SmallBufferY:
+    NormalButton:
+        size_hint_x: 1
+        text: 'Convert'
+        on_press: root.owner.set_edit_panel('convert')
+        disabled: root.owner.view_image
+    LargeBufferY:
+    NormalButton:
+        id: deleteOriginal
+        size_hint_x: 1
+        text: 'Delete Unedited Original File'
+        on_press: root.owner.delete_original()
+    SmallBufferY:
+    NormalButton:
+        id: undoEdits
+        size_hint_x: 1
+        text: 'Restore Original Unedited File'
+        on_press: root.owner.restore_original()
+    LargeBufferY:
+    GridLayout:
+        cols: 2
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            size_hint_x: 1
+            text: 'External Programs:'
+        NormalButton:
+            size_hint_x: None
+            text: 'New'
+            on_press: root.owner.add_program()
+    GridLayout:
+        id: externalPrograms
+        height: self.minimum_height
+        size_hint_y: None
+        cols: 1
+
+<InterpolationDropDown>:
+    canvas.before:
+        Color:
+            rgba: (0, 0, 0, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    MenuButton:
+        text: 'Linear'
+        on_release: root.select('Linear')
+    MenuButton:
+        text: 'Cosine'
+        on_release: root.select('Cosine')
+    MenuButton:
+        text: 'Cubic'
+        on_release: root.select('Cubic')
+    MenuButton:
+        text: 'Catmull-Rom'
+        on_release: root.select('Catmull-Rom')
+
+<VideoEncodePreset>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: int(app.button_scale * 1.5)
+    BoxLayout:
+        orientation: 'horizontal'
+        ShortLabel:
+            text: 'Video Encode:'
+        MenuStarterButton:
+            text: root.preset_name
+            size_hint_x: 1
+            on_release: root.preset_drop.open(self)
+    MediumBufferY:
+
+<EditColorImage>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    id: editColor
+    size_hint: 1, None
+    cols: 1
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.owner.save_edit()
+    WideButton:
+        id: loadLast
+        disabled: not root.owner.edit_color
+        text: "Load Last Settings"
+        on_press: root.load_last()
+    MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Color Adjustments:'
+        Label:
+        NormalButton:
+            text: 'Reset All'
+            on_press: root.reset_all()
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba:0,0,0,1
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        size_hint_y: None
+        height: self.width * .5
+        Image:
+            id: histogram
+            allow_stretch: True
+            keep_ratio: False
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        NormalToggle:
+            text: "Auto Contrast"
+            id: autocontrastToggle
+            state: 'down' if root.autocontrast else 'normal'
+            on_state: root.update_autocontrast(self.state)
+            size_hint_x: 1
+        #NormalToggle:
+        #    text: "Equalize Histogram"
+        #    id: equalizeToggle
+        #    state: 'down' if root.equalize else 'normal'
+        #    on_state: root.update_equalize(self.state)
+        #    size_hint_x: 1
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Equalize Histogram:'
+        Label:
+        NormalButton:
+            text: 'Reset'
+            on_press: root.reset_equalize()
+    HalfSlider:
+        id: equalizeSlider
+        value: root.equalize
+        on_value: root.equalize = self.value
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale if root.owner.opencv else 0
+        disabled: not root.owner.opencv
+        opacity: 1 if root.owner.opencv else 0
+        ShortLabel:
+            text: 'Adaptive Histogram Equalize:'
+        Label:
+        NormalButton:
+            text: 'Reset'
+            on_press: root.reset_adaptive()
+    HalfSlider:
+        disabled: not root.owner.opencv
+        opacity: 1 if root.owner.opencv else 0
+        height: app.button_scale if root.owner.opencv else 0
+        id: adaptiveSlider
+        value: root.adaptive
+        on_value: root.adaptive = self.value
+    SmallBufferY:
+        height: int(app.button_scale / 4) if root.owner.opencv else 0
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Brightness:'
+        Label:
+        NormalButton:
+            text: 'Reset'
+            on_press: root.reset_brightness()
+    NormalSlider:
+        id: brightnessSlider
+        value: root.brightness
+        on_value: root.brightness = self.value
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Gamma:'
+        Label:
+        NormalButton: 
+            text: 'Reset'
+            on_press: root.reset_gamma()
+    NormalSlider:
+        id: gammaSlider
+        value: root.gamma
+        on_value: root.gamma = self.value
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Contrast:'
+        Label:
+        NormalButton: 
+            text: 'Reset'
+            on_press: root.reset_contrast()
+    NormalSlider:
+        id: contrastSlider
+        value: root.contrast
+        on_value: root.contrast = self.value
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Saturation:'
+        Label:
+        NormalButton:
+            text: 'Reset'
+            on_press: root.reset_saturation()
+    NormalSlider:
+        id: saturationSlider
+        value: root.saturation
+        on_value: root.saturation = self.value
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Color Temperature:'
+        Label:
+        NormalButton:
+            text: 'Reset'
+            on_press: root.reset_temperature()
+    NormalSlider:
+        id: temperatureSlider
+        value: root.temperature
+        on_value: root.temperature = self.value
+
+<EditColorImageAdvanced>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    id: editColor
+    size_hint: 1, None
+    cols: 1
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.owner.save_edit()
+    WideButton:
+        id: loadLast
+        disabled: not root.owner.edit_advanced
+        text: "Load Last Settings"
+        on_press: root.load_last()
+    MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Color Adjustments:'
+        Label:
+        NormalButton:
+            text: 'Reset All'
+            on_press: root.reset_all()
+    BoxLayout:
+        canvas.before:
+            Color:
+                rgba:0,0,0,1
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        size_hint_y: None
+        height: self.width * .5
+        Image:
+            id: histogram
+            allow_stretch: True
+            keep_ratio: False
+    SmallBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Curves:'
+            Label:
+            NormalButton:
+                text: 'Remove Point'
+                on_press: root.remove_point()
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_curves()
+        BoxLayout:
+            size_hint_y: None
+            height: self.width * .66
+            Curves:
+                id: curves
+        #BoxLayout:
+        #    orientation: 'horizontal'
+        #    size_hint_y: None
+        #    height: app.button_scale
+        #    ShortLabel:
+        #        text: 'Interpolation Mode:'
+        #    MenuStarterButton:
+        #        size_hint_x: 1
+        #        id: interpolation
+        #        text: app.interpolation
+    SmallBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Tinting:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_tint()
+        BoxLayout:
+            size_hint_y: None
+            height: sp(33)*10
+            ColorPickerCustom:
+                id: tint
+                color: root.tint
+                on_color: root.tint = self.color
+
+<EditDenoiseImage>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.save_image()
+    WideButton:
+        id: loadLast
+        disabled: not root.owner.edit_denoise
+        text: "Load Last Settings"
+        on_press: root.load_last()
+    MediumBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Denoise Image:'
+        Label:
+        NormalButton:
+            text: 'Reset All'
+            on_press: root.reset_all()
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        #NormalButton:
+        #    size_hint_x: 1
+        #    text: 'Generate Full Preview'
+        #    on_press: root.denoise()
+        FloatLayout:
+            canvas.before:
+                Color:
+                    rgba:0,0,0,1
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+            size_hint_y: None
+            height: self.width
+            ScrollViewCentered:
+                canvas.after:
+                    Color:
+                        rgba: self.bar_color[:3] + [self.bar_color[3] * 1 if self.do_scroll_y else 0]
+                    Rectangle:
+                        pos: self.right - self.bar_width - self.bar_margin, self.y + self.height * self.vbar[0]
+                        size: self.bar_width, self.height * self.vbar[1]
+                    Color:
+                        rgba: self.bar_color[:3] + [self.bar_color[3] * 1 if self.do_scroll_x else 0]
+                    Rectangle:
+                        pos: self.x + self.width * self.hbar[0], self.y + self.bar_margin
+                        size: self.width * self.hbar[1], self.bar_width
+                on_scroll_stop: root.update_preview()
+                pos: self.parent.pos
+                size: self.parent.size
+                scroll_type: ['bars', 'content']
+                id: wrapper
+                size_hint: 1, 1
+                bar_width: int(app.button_scale * .75)
+                RelativeLayout:
+                    owner: root
+                    size_hint: None, None
+                    size: root.image_x, root.image_y
+                    Image:
+                        size: root.image_x, root.image_y
+                        size_hint: None, None
+                        id: noisePreview
+                        mipmap: True
+                        source: root.imagefile
+                    Image:
+                        id: denoiseOverlay
+                        size: self.parent.parent.size
+                        size_hint: None, None
+                        opacity: 0
+
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            NormalLabel:
+                text: 'Luminance Denoise: '
+            IntegerInput:
+                text: root.luminance_denoise
+                on_text: root.luminance_denoise = self.text
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            NormalLabel:
+                text: 'Color Denoise: '
+            IntegerInput:
+                text: root.color_denoise
+                on_text: root.color_denoise = self.text
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            NormalLabel:
+                text: 'Noise Search Size: '
+            IntegerInput:
+                text: root.search_window
+                on_text: root.search_window = self.text
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            NormalLabel:
+                text: 'Noise Size: '
+            IntegerInput:
+                text: root.block_size
+                on_text: root.block_size = self.text
+
+<EditFilterImage>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.owner.save_edit()
+    WideButton:
+        id: loadLast
+        disabled: not root.owner.edit_filter
+        text: "Load Last Settings"
+        on_press: root.load_last()
+    MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Filter Image:'
+        Label:
+        NormalButton:
+            text: 'Reset All'
+            on_press: root.reset_all()
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Soften/Sharpen:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_sharpen()
+        NormalSlider:
+            id: sharpenSlider
+            value: root.sharpen
+            on_value: root.sharpen = self.value
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale if root.owner.opencv else 0
+            opacity: 1 if root.owner.opencv else 0
+            ShortLabel:
+                text: 'Median Blur (Despeckle):'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_median()
+                disabled: not root.owner.opencv
+        HalfSlider:
+            height: app.button_scale if root.owner.opencv else 0
+            opacity: 1 if root.owner.opencv else 0
+            id: medianSlider
+            value: root.median
+            on_value: root.median = self.value
+            disabled: not root.owner.opencv
+    MediumBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height if root.owner.opencv else 0
+        disabled: not root.owner.opencv
+        opacity: 1 if root.owner.opencv else 0
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Bilateral Filter (Edge-Preserve Blur):'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_bilateral_amount()
+        HalfSlider:
+            id: bilateralAmountSlider
+            value: root.bilateral_amount
+            on_value: root.bilateral_amount = self.value
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Bilateral Filter Size:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_bilateral()
+        HalfSlider:
+            id: bilateralSlider
+            value: root.bilateral
+            on_value: root.bilateral = self.value
+    MediumBufferY:
+        height: int(app.button_scale / 2) if root.owner.opencv else 0
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Vignette (Darken Edges):'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_vignette_amount()
+        HalfSlider:
+            id: vignetteAmountSlider
+            value: root.vignette_amount
+            on_value: root.vignette_amount = self.value
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Vignette Size:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_vignette_size()
+        HalfSlider:
+            value: .5
+            id: vignetteSizeSlider
+            value: root.vignette_size
+            on_value: root.vignette_size = self.value
+    MediumBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Edge Blur (Soften Edges):'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_edge_blur_amount()
+        HalfSlider:
+            id: edgeBlurAmountSlider
+            value: root.edge_blur_amount
+            on_value: root.edge_blur_amount = self.value
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Edge Blur Size:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_edge_blur_size()
+        HalfSlider:
+            value: .5
+            id: edgeBlurSizeSlider
+            value: root.edge_blur_size
+            on_value: root.edge_blur_size = self.value
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Edge Blur Intensity:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_edge_blur_intensity()
+        HalfSlider:
+            value: .5
+            id: edgeBlurIntensitySlider
+            value: root.edge_blur_intensity
+            on_value: root.edge_blur_intensity = self.value
+
+<EditCropImage>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.owner.save_image()
+    WideButton:
+        id: loadLast
+        disabled: not root.owner.edit_crop
+        text: "Load Last Settings"
+        on_press: root.load_last()
+    MediumBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Image Cropping:'
+        Label:
+        NormalButton:
+            text: 'Reset All'
+            on_press: root.reset_crop()
+    ShortLabel:
+        size_hint_y: None
+        height: app.button_scale
+        text: root.crop_size
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Crop Top:'
+            Label:
+            ShortLabel:
+                text: str(round(cropTopSlider.value * 100, 1))+'%'
+        HalfSlider:
+            id: cropTopSlider
+            value: root.crop_top
+            on_value: root.crop_top = self.value
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Crop Right:'
+            Label:
+            ShortLabel:
+                text: str(round(cropRightSlider.value * 100, 1))+'%'
+        HalfSlider:
+            id: cropRightSlider
+            value: root.crop_right
+            on_value: root.crop_right = self.value
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Crop Bottom:'
+            Label:
+            ShortLabel:
+                text: str(round(cropBottomSlider.value * 100, 1))+'%'
+        HalfSlider:
+            id: cropBottomSlider
+            value: root.crop_bottom
+            on_value: root.crop_bottom = self.value
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Crop Left:'
+            Label:
+            ShortLabel:
+                text: str(round(cropLeftSlider.value * 100, 1))+'%'
+        HalfSlider:
+            id: cropLeftSlider
+            value: root.crop_left
+            on_value: root.crop_left = self.value
+    SmallBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        MenuStarterButton:
+            size_hint_x: 1
+            text: 'Set Aspect Ratio...'
+            id: aspectRatios
+            on_release: root.aspect_dropdown.open(self)
+        GridLayout:
+            cols: 2
+            size_hint: 1, None
+            height: app.button_scale
+            NormalToggle:
+                id: horizontalToggle
+                size_hint_x: 1
+                text: 'Horizontal'
+                state: 'down' if root.orientation == 'horizontal' else 'normal'
+                group: 'orientation'
+                on_press: root.set_orientation('horizontal')
+            NormalToggle:
+                id: verticalToggle
+                size_hint_x: 1
+                text: 'Vertical'
+                state: 'down' if root.orientation == 'vertical' else 'normal'
+                group: 'orientation'
+                on_press: root.set_orientation('vertical')
+
+<EditRotateImage>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    size_hint_y: None
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.owner.save_image()
+    MediumBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Image Rotation:'
+        Label:
+        NormalButton:
+            text: 'Reset All'
+            on_press: root.reset_all()
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        GridLayout:
+            cols: 4
+            size_hint_y: None
+            size_hint_x: 1
+            height: app.button_scale
+            NormalToggle:
+                id: angles_0
+                size_hint_x: 1
+                state: 'down'
+                text: '0'
+                group: 'angles'
+                on_press: root.update_angle(0)
+            NormalToggle:
+                id: angles_90
+                size_hint_x: 1
+                text: '90'
+                group: 'angles'
+                on_press: root.update_angle(90)
+            NormalToggle:
+                id: angles_180
+                size_hint_x: 1
+                text: '180'
+                group: 'angles'
+                on_press: root.update_angle(180)
+            NormalToggle:
+                id: angles_270
+                size_hint_x: 1
+                text: '270'
+                group: 'angles'
+                on_press: root.update_angle(270)
+        GridLayout:
+            cols: 2
+            size_hint: 1, None
+            height: app.button_scale
+            orientation: 'horizontal'
+            NormalToggle:
+                id: flip_horizontal
+                size_hint_x: 1
+                text: 'Flip Horizontally'
+                on_press: root.update_flip_horizontal(self.state)
+            NormalToggle:
+                id: flip_vertical
+                size_hint_x: 1
+                text: 'Flip Vertically'
+                on_press: root.update_flip_vertical(self.state)
+
+    MediumBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        NormalLabel:
+            text: 'Fine Tune Rotation:'
+        NormalSlider:
+            id: fine_angle
+            value: root.fine_angle
+            on_value: root.fine_angle = self.value
+
+<EditConvertImage>:
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+    WideButton:
+        text: 'Cancel Edit'
+        on_press: root.owner.set_edit_panel('main')
+    MediumBufferY:
+    NormalLabel:
+        text: 'Convert Is Not Available For Images'
+
+<EditBorderImage>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    id: editBorder
+    size_hint: 1, None
+    cols: 1
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Confirm Edit'
+            on_press: root.owner.save_edit()
+    WideButton:
+        id: loadLast
+        disabled: not root.owner.edit_border
+        text: "Load Last Settings"
+        on_press: root.load_last()
+    MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
+            text: 'Border Overlays:'
+        Label:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Border Opacity:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_opacity()
+        HalfSlider:
+            id: opacitySlider
+            value: root.opacity
+            on_value: root.opacity = self.value
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'X Size:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_border_x_scale()
+        NormalSlider:
+            id: borderXScale
+            value: root.border_x_scale
+            on_value: root.border_x_scale = self.value
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Y Size:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_border_y_scale()
+        NormalSlider:
+            id: borderYScale
+            value: root.border_y_scale
+            on_value: root.border_y_scale = self.value
+        SmallBufferY:
+        ShortLabel:
+            text: 'Select A Border:'
+            height: app.button_scale
+            size_hint_y: None
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: 1, 1, 1, .25
+                BorderImage:
+                    pos: self.pos
+                    size: self.size
+                    source: 'buttonmenu.png'
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: int(app.button_scale * 10)
+            Scroller:
+                id: wrapper
+                NormalTreeView:
+                    id: borders
+    SmallBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Border Tinting:'
+            Label:
+            NormalButton:
+                text: 'Reset'
+                on_press: root.reset_tint()
+        BoxLayout:
+            size_hint_y: None
+            height: sp(33)*10
+            ColorPickerCustom:
+                id: tint
+                color: root.tint
+                on_color: root.tint = self.color
+
+<EditConvertVideo>:
+    padding: 0, 0, int(app.button_scale / 2), 0
+    cols: 1
+    size_hint: 1, None
+    height: self.minimum_height
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        WideButton:
+            text: 'Cancel Edit'
+            on_press: root.owner.set_edit_panel('main')
+        WideButton:
+            text: 'Begin Conversion'
+            on_press: root.encode()
+    MediumBufferY:
+    NormalLabel:
+        text: 'Convert Video:'
+    MenuStarterButton:
+        text: 'Presets'
+        size_hint_x: 1
+        on_release: root.preset_drop.open(self)
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Container:'
+            MenuStarterButton:
+                size_hint_x: 1
+                text: root.file_format
+                on_release: root.container_drop.open(self)
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Resize:'
+            NormalToggle:
+                id: resize
+                size_hint_x: 1
+                state: 'down' if root.resize else 'normal'
+                text: 'Enabled' if self.state == 'down' else 'Disabled'
+                on_release: root.update_resize(self.state)
+        BoxLayout:
+            disabled: not root.resize
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Size:'
+            NormalInput:
+                id: widthInput
+                hint_text: '1920'
+                multiline: False
+                text: root.resize_width
+                on_text: root.set_resize_width(self)
+            ShortLabel:
+                text: 'x'
+            NormalInput:
+                id: heightInput
+                hint_text: '1080'
+                multiline: False
+                text: root.resize_height
+                on_text: root.set_resize_height(self)
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Deinterlacing:'
+            NormalToggle:
+                id: deinterlace
+                size_hint_x: 1
+                state: 'down' if root.deinterlace else 'normal'
+                text: 'Enabled' if self.state == 'down' else 'Disabled'
+                on_release: root.update_deinterlace(self.state)
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Video Codec:'
+            MenuStarterButton:
+                size_hint_x: 1
+                text: root.video_codec
+                on_release: root.video_codec_drop.open(self)
+                id: videoCodecDrop
+        #BoxLayout:
+        #    orientation: 'horizontal'
+        #    size_hint_y: None
+        #    height: app.button_scale
+        #    ShortLabel:
+        #        text: 'Video Quality:'
+        #    MenuStarterButton:
+        #        size_hint_x: 1
+        #        text: root.video_quality
+        #        on_release: root.video_quality_drop.open(self)
+        #        id: videoQualityDrop
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Encoding Speed:'
+            MenuStarterButton:
+                size_hint_x: 1
+                text: root.encoding_speed
+                on_release: root.encoding_speed_drop.open(self)
+                id: encodingSpeedDrop
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Video Bitrate:'
+            FloatInput:
+                id: videoBitrateInput
+                text: root.video_bitrate
+
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Audio Codec:'
+            MenuStarterButton:
+                size_hint_x: 1
+                text: root.audio_codec
+                on_release: root.audio_codec_drop.open(self)
+                id: audioCodecDrop
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'Audio Bitrate:'
+            FloatInput:
+                id: audioBitrateInput
+                text: root.audio_bitrate
+    SmallBufferY:
+    GridLayout:
+        canvas.before:
+            Color:
+                rgba: 1, 1, 1, .25
+            BorderImage:
+                pos: self.pos
+                size: self.size
+                source: 'buttonmenu.png'
+        padding: app.padding
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: "Manual command line:"
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: "This will override all other settings."
+        SmallBufferY:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: 'ffmpeg.exe '
+            NormalInput:
+                id: commandInput
+                hint_text: '-sn %c %v %a %f %p %b %d'
+                multiline: False
+                text: root.command_line
+                on_text: root.set_command_line(self)
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            ShortLabel:
+                text: "String Replacements:"
+        GridLayout:
+            cols: 3
+            size_hint: 1, None
+            height: int(app.button_scale * 8)
+
+            ShortLabel:
+                text: '%i'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Input File (Required)'
+
+            ShortLabel:
+                text: '%c'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Container Setting'
+
+            ShortLabel:
+                text: '%v'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Video Codec Setting'
+
+            ShortLabel:
+                text: '%a'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Audio Codec Setting'
+
+            ShortLabel:
+                text: '%f'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Framerate (From Original File)'
+
+            ShortLabel:
+                text: '%p'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Pixel Format (From Original File)'
+
+            ShortLabel:
+                text: '%b'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Video Bitrate Setting'
+
+            ShortLabel:
+                text: '%d'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Audio Bitrate Setting'
+
+            ShortLabel:
+                text: '%%'
+            ShortLabel:
+                text: ' - '
+            ShortLabel:
+                text: 'Single Percent Sign (%)'

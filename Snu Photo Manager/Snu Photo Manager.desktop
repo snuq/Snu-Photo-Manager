@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Icon=folder/Snu Photo Manager/icon.png
+Name=Snu Photo Manager
+Terminal=false
+Path=folder
+Exec="folder/Snu Photo Manager/Snu Photo Manager"
+Hidden=false

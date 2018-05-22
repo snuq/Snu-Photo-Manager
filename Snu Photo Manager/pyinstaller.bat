@@ -1,0 +1,1 @@
+python -m PyInstaller --name "Snu Photo Manager" --icon "D:\personal\Projects\Snu Photo Manager\icon.ico" "D:\personal\Projects\Snu Photo Manager\main.py" --paths "C:\Python34\share\ffpyplayer\ffmpeg\bin" --paths "C:\Python34\share\gstreamer\bin" --paths "C:\Python34\share\sdl2\bin"

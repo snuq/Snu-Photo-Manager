@@ -1,0 +1,9 @@
+#!/bin/bash
+rm -rf build
+rm -rf dist
+python3 -m PyInstaller "Snu Photo Manager Linux.spec"
+cd dist
+tar -zcvf snuphotomanager.tar.gz "Snu Photo Manager"
+rm /mnt/hgfs/Share/snuphotomanager.tar.gz
+cp snuphotomanager.tar.gz /mnt/hgfs/Share
+cd ..

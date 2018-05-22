@@ -1,0 +1,17 @@
+Snu Photo Manager
+Version 0.9.003, Released November 2017
+
+Programmed in Python
+Artwork created in Blender, Gimp and Inkscape
+
+Libraries Used:
+    Kivy framework
+    Pillow, PIL fork
+    FFpyplayer, FFmpeg bindings
+    send2trash by Hardcoded Software
+    FFmpeg
+    NumPy
+    OpenCV
+
+
+Created by Hudson Barkley (Snu/Aritodo)
