@@ -9,8 +9,9 @@ del "dist\Snu Photo Manager\libmodplug-1.dll"
 mkdir "dist\Snu Photo Manager\resizablebehavior"
 xcopy "D:\personal\Projects\Snu Photo Manager\resizablebehavior\*.png" "dist\Snu Photo Manager\resizablebehavior\"
 xcopy "D:\personal\Projects\Snu Photo Manager\borders" "dist\Snu Photo Manager\borders\" /s/e
-xcopy "C:\Python34\Lib\site-packages\ffpyplayer-4.0.1.dev0-py3.4-win-amd64.egg\ffpyplayer" "dist\Snu Photo Manager\ffpyplayer\" /s/e
+xcopy /Y "C:\Python34\Lib\site-packages\ffpyplayer-4.0.1.dev0-py3.4-win-amd64.egg\ffpyplayer" "dist\Snu Photo Manager\ffpyplayer\" /s/e
 xcopy "installer.nsi" "dist\Snu Photo Manager\"
+xcopy "D:\personal\Projects\Snu Photo Manager\icon.ico" "dist\Snu Photo Manager\"
 "C:\Program Files (x86)\NSIS\makensis.exe" "dist\Snu Photo Manager\installer.nsi"
 move "dist\Snu Photo Manager\Snu Photo Manager Installer v0.9.exe" .
 rmdir /s /q "build"
