@@ -7,23 +7,42 @@
     BoxLayout:
         orientation: 'vertical'
         size_hint: .75, 1
-        ShortLabel:
-            text: root.path
+        BoxLayout:
+            orientation: 'horizontal'
             size_hint_y: None
             height: app.button_scale
+            NormalButton:
+                text: 'Go Up'
+                on_release: root.go_up()
+            ShortLabel:
+                text: root.path
+                size_hint_y: None
+                height: app.button_scale
         NormalRecycleView:
             size_hint_x: 1
             id: fileList
             viewclass: 'FileBrowserItem'
             SelectableRecycleBoxLayout:
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            NormalButton:
+                height: app.button_scale if root.allow_delete else 0
+                opacity: 1 if root.allow_delete else 0
+                disabled: not root.allow_delete
+                text: 'Delete This Folder'
+                on_release: root.delete_folder()
+            NormalButton:
+                height: app.button_scale if root.allow_new else 0
+                opacity: 1 if root.allow_new else 0
+                disabled: not root.allow_new
+                text: 'Create Folder...'
+                on_release: root.add_folder()
     BoxLayout:
         orientation: 'vertical'
         size_hint_y: 1
         size_hint_x: .25
-        NormalButton:
-            text: 'Up A Directory...'
-            size_hint_x: 1
-            on_release: root.go_up()
         NormalRecycleView:
             size_hint_x: 1
             id: locationsList
@@ -818,6 +837,11 @@
             size: self.size
     canvas.after:
         Color:
+            rgba: (1, 1, 1, 0) if self.found else(1, 0, 0, .33)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
             rgba: 1, 1, 1, .5 if self.favorite else 0
         Rectangle:
             source: 'star.png'
@@ -1174,7 +1198,7 @@
 <MediumBufferY@Widget>:
     size_hint_y: None
     height: int(app.button_scale / 2)
-    
+
 <LargeBufferY@Widget>:
     size_hint_y: None
     height: app.button_scale
@@ -1638,9 +1662,6 @@
                         id: printButton
                         text: 'Print'
                         on_press: app.print_photo()
-                    #NormalButton:
-                    #    text: 'Refresh Photo Info'
-                    #    on_press: app.refresh_photo(root.fullpath, force=True)
                     NormalButton:
                         id: deleteButton
                         text: 'Delete Photo...'
@@ -1649,6 +1670,7 @@
                 id: rightpanel
                 FloatLayout:
                     BoxLayout:
+                        orientation: 'vertical'
                         opacity: 1 if root.view_panel == 'info' else 0
                         disabled: False if root.view_panel == 'info' else True
                         size_hint_x: 1 if root.view_panel == 'info' else 0
@@ -1658,6 +1680,9 @@
                         Scroller:
                             NormalTreeView:
                                 id: panelInfo
+                        WideButton:
+                            text: 'Refresh Photo Info'
+                            on_press: root.full_photo_refresh()
                     BoxLayout:
                         id: editPanelContainer
                         opacity: 1 if root.view_panel == 'edit' else 0

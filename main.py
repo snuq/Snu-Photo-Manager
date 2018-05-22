@@ -1,20 +1,12 @@
 """
 Bugs:
-    export preset editing is broken...
-    files with different cases in extension can show up twice if renamed from system
-    import to directory not being remembered sometimes on presets, also app doesnt check if import directory exists, so crashes
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
-    curves interpolation isnt correct
+    curves interpolation isn't correct
     some interface elements will not display properly with large buttons or large text
-    export option to put album title in folder name
-    going back from export doesnt remember folder
-    after renaming folder, need to refresh view area
-    double clicking on photos seems to be broken now (maybe only after exporting?)
 
 Todo:
-    expand presets when adding a new one
-    readd refresh photo info button, put in photo info tab
+    database/settings import and export
     redo treeview in database move screen to use recycleview, remove populate_tree_view function
     simplified interface mode - redo sorting and new/delete/rename to be smaller somehow
     android: need to include ffmpeg executable
@@ -699,6 +691,12 @@ def get_drives():
         drives.append((os.path.sep + u'mnt' + os.path.sep + 'sdcard' + os.path.sep, 'Internal Memory'))
     return drives
 
+def isfile2(path):
+    if not os.path.isfile(path):
+        return False
+    directory, filename = os.path.split(path)
+    return filename in os.listdir(directory)
+
 class FileBrowser(BoxLayout):
 
     __events__ = ('on_cancel', 'on_ok')
@@ -707,7 +705,10 @@ class FileBrowser(BoxLayout):
     filename = StringProperty()
     root = StringProperty()
 
-    allow_new_folder = BooleanProperty(False)
+    popup = ObjectProperty(None, allownone=True)
+
+    allow_new = BooleanProperty(True)
+    allow_delete = BooleanProperty(True)
     new_folder = StringProperty('')
     start_in = StringProperty()
     directory_select = BooleanProperty(False)
@@ -725,8 +726,83 @@ class FileBrowser(BoxLayout):
         Clock.schedule_once(self.refresh_locations)
         super(FileBrowser, self).__init__(**kwargs)
 
-    def make_new_folder(self):
-        pass
+    def dismiss_popup(self):
+        """If this dialog has a popup, closes it and removes it."""
+
+        if self.popup:
+            self.popup.dismiss()
+            self.popup = None
+
+    def add_folder(self):
+        """Starts the add folder process, creates an input text popup."""
+
+        content = InputPopup(hint='Folder Name', text='Enter A Folder Name:')
+        app = App.get_running_app()
+        content.bind(on_answer=self.add_folder_answer)
+        self.popup = NormalPopup(title='Create Folder', content=content, size_hint=(None, None),
+                                 size=(app.popup_x, app.button_scale * 5),
+                                 auto_dismiss=False)
+        self.popup.open()
+
+    def add_folder_answer(self, instance, answer):
+        """Tells the app to rename the folder if the dialog is confirmed.
+        Arguments:
+            instance: The dialog that called this function.
+            answer: String, if 'yes', the folder will be created, all other answers will just close the dialog.
+        """
+
+        if answer == 'yes':
+            text = instance.ids['input'].text.strip(' ')
+            if text:
+                app = App.get_running_app()
+                folder = os.path.join(self.path, text)
+                created = False
+                try:
+                    if not os.path.isdir(folder):
+                        os.makedirs(folder)
+                        created = True
+                except:
+                    pass
+                if created:
+                    app.message("Created the folder '"+folder+"'")
+                    self.path = folder
+                    self.refresh_folder()
+                else:
+                    app.message("Could Not Create Folder.")
+        self.dismiss_popup()
+
+    def delete_folder(self):
+        """Starts the delete folder process, creates the confirmation popup."""
+
+        app = App.get_running_app()
+        if not os.listdir(self.path):
+            text = "Delete The Selected Folder?"
+            content = ConfirmPopup(text=text)
+            content.bind(on_answer=self.delete_folder_answer)
+            self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
+                                     size=(app.popup_x, app.button_scale * 4),
+                                     auto_dismiss=False)
+            self.popup.open()
+        else:
+            app.message("Folder Is Not Empty.")
+
+    def delete_folder_answer(self, instance, answer):
+        """Tells the app to delete the folder if the dialog is confirmed.
+        Arguments:
+            instance: The dialog that called this function.
+            answer: String, if 'yes', the folder will be deleted, all other answers will just close the dialog.
+        """
+
+        del instance
+        if answer == 'yes':
+            app = App.get_running_app()
+            try:
+                os.rmdir(self.path)
+                app.message("Deleted Folder: \""+self.path+"\"")
+                self.go_up()
+            except:
+                app.message("Could Not Delete Folder...")
+        self.dismiss_popup()
 
     def refresh_locations(self, *_):
         locations_list = self.ids['locationsList']
@@ -1832,7 +1908,7 @@ class AsyncThumbnail(KivyImage):
             full_filename = filename
             photo = self.photoinfo
 
-            file_found = os.path.isfile(full_filename)
+            file_found = isfile2(full_filename)
             if file_found:
                 modified_date = int(os.path.getmtime(full_filename))
                 if modified_date > photo[7]:
@@ -2252,7 +2328,14 @@ class PhotoRecycleViewButton(RecycleDataViewBehavior, BoxLayout):
     selected = BooleanProperty(False)
     selectable = BooleanProperty(True)
     index = None
+    found = BooleanProperty(True)
     data = {}
+
+    def on_source(self, *_):
+        """Sets up the display image when first loaded."""
+
+        found = isfile2(self.source)
+        self.found = found
 
     def on_selected(self, *_):
         self.set_color()
@@ -2870,7 +2953,7 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
     def on_source(self, *_):
         """Sets up the display image when first loaded."""
 
-        found = os.path.isfile(self.source)
+        found = isfile2(self.source)
         self.found = found
         if self.photo_orientation in [2, 4, 5, 7]:
             self.mirror = True
@@ -3097,6 +3180,7 @@ class ImportPresetArea(GridLayout):
 
     def remove_folder(self, index):
         del self.import_from[index]
+        self.update_preset()
         self.update_import_from()
 
     def change_import_to(self, instance):
@@ -3116,6 +3200,7 @@ class ImportPresetArea(GridLayout):
         folder = self.owner.owner.popup.content.filename
         self.import_from.append(folder)
         self.owner.owner.dismiss_popup()
+        self.update_preset()
         self.update_import_from()
 
     def update_import_from(self, *_):
@@ -3125,7 +3210,7 @@ class ImportPresetArea(GridLayout):
             preset_folders.remove_node(node)
         for index, folder in enumerate(self.import_from):
             preset_folders.add_node(ImportPresetFolder(folder=folder, owner=self, index=index))
-        self.update_preset()
+        #self.update_preset()
 
 class ScaleSettings(GridLayout):
     """Widget layout for the scale settings on the export dialog."""
@@ -3718,7 +3803,7 @@ class SpecialVideoPlayer(VideoPlayer):
         Also, checks if auto-play videos are enabled in the settings.
         """
 
-        if os.path.isfile(self.source):
+        if isfile2(self.source):
             self._video = PauseableVideo(source=self.source, state=self.state, volume=self.volume,
                                          pos_hint={'x': 0, 'y': 0}, **self.options)
             self._video.bind(texture=self._play_started, duration=self.setter('duration'), position=self.setter('position'),
@@ -4010,6 +4095,8 @@ class DatabaseScreen(Screen):
             database.scroll_to_selected()
 
     def show_selected(self):
+        """Scrolls the treeview to the currently selected folder"""
+
         database = self.ids['database']
         database_interior = self.ids['databaseInterior']
         selected = self.selected
@@ -4641,6 +4728,7 @@ class DatabaseScreen(Screen):
             app = App.get_running_app()
             app.rename_folder(self.selected, text)
             self.update_folders = True
+            self.selected = text
         self.dismiss_popup()
         self.update_treeview()
 
@@ -6006,6 +6094,11 @@ class AlbumScreen(Screen):
             photodatas.append(photodata)
         photolist.data = photodatas
 
+    def full_photo_refresh(self):
+        app = App.get_running_app()
+        app.refresh_photo(self.fullpath, force=True)
+        self.refresh_photo()
+
     def refresh_photo(self):
         """Displays all the info for the current photo in the photo info right tab."""
 
@@ -6262,7 +6355,7 @@ class AlbumScreen(Screen):
 
     def update_edit_panel(self):
         """Set up the edit panel with the current preset."""
-        if self.viewer and os.path.isfile(self.photo):
+        if self.viewer and isfile2(self.photo):
             if self.edit_panel_object:
                 self.edit_panel_object.save_last()
             self.viewer.edit_mode = self.edit_panel
@@ -8532,6 +8625,13 @@ class ImportScreen(Screen):
         if not preset['import_from']:
             app.message("Please Set An Import Directory.")
             return
+        for path in preset['import_from']:
+            if not os.path.exists(path):
+                app.message("Import From Directory Does Not Exist: "+path)
+                return
+        if not os.path.exists(preset['import_to']):
+            app.message("Import To Directory Does Not Exist.")
+            return
         database_folders = app.config.get('Database Directories', 'paths')
         database_folders = local_path(database_folders)
         if database_folders.strip(' '):
@@ -8553,6 +8653,7 @@ class ImportScreen(Screen):
 
         app = App.get_running_app()
         app.import_preset_new()
+        self.selected_import = len(app.imports) - 1
         self.update_treeview()
 
     def on_leave(self):
@@ -8590,8 +8691,8 @@ class ImportScreen(Screen):
             new_preset_button.disabled = False
             for index, import_preset in enumerate(app.imports):
                 import_to = import_preset['import_to']
-                if import_to not in databases:
-                    import_to = databases[0]
+                #if import_to not in databases:
+                #    import_to = databases[0]
                 preset = ImportPreset(index=index, text=import_preset['title'], owner=self, import_to=import_to, data=import_preset)
                 if index == self.selected_import:
                     preset.expanded = True
@@ -9833,6 +9934,7 @@ class ExportScreen(Screen):
 
         app = App.get_running_app()
         app.export_preset_new()
+        self.selected_preset = len(app.exports) - 1
         self.update_treeview()
 
     def has_popup(self):
@@ -11643,7 +11745,7 @@ class PhotoManager(App):
                 photos = list(self.photos.select('SELECT * FROM photos WHERE DatabaseFolder = ?', (database_renamed, )))
                 for photo in photos:
                     photo_file = os.path.join(local_path(photo[2]), local_path(photo[0]))
-                    if not os.path.isfile(photo_file):
+                    if not isfile2(photo_file):
                         self.database_item_delete(photo[0])
 
         #remove folder references if the folder is not in any database folder
