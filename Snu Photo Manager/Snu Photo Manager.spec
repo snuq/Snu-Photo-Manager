@@ -4,10 +4,11 @@ from kivy.deps import sdl2, glew, ffpyplayer
 block_cipher = None
 
 
+
 a = Analysis(['D:\\personal\\Projects\\Snu Photo Manager\\main.py'],
              pathex=['C:\\Python34\\share\\ffpyplayer\\ffmpeg\\bin', 'C:\\Python34\\share\\gstreamer\\bin', 'C:\\Python34\\share\\sdl2\\bin', 'D:\\personal\\Projects\\Snu Photo Manager\\Snu Photo Manager'],
              binaries=[],
-             datas=[('D:\\personal\\Projects\\Snu Photo Manager\\encoding_presets.ini', '.'),('D:\\personal\\Projects\\Snu Photo Manager\\about.txt', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\icon.ico', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\*.kv', '.'), ('D:\\personal\\\Projects\Snu Photo Manager\\*.png', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\*.jpg', '.')],
+             datas=[('D:\\personal\\Projects\Snu Photo Manager\\data\\*.*', '.\\data\\'), ('D:\\personal\\Projects\\Snu Photo Manager\\icon.ico', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\*.kv', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\about.txt', '.')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
