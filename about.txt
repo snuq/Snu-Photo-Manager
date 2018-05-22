@@ -1,5 +1,5 @@
 Snu Photo Manager
-Version 0.9.003, Released November 2017
+Version 0.9.004, Released May 2018
 
 Programmed in Python
 Artwork created in Blender, Gimp and Inkscape
@@ -14,4 +14,4 @@ Libraries Used:
     OpenCV
 
 
-Created by Hudson Barkley (Snu/Aritodo)
+Created by Hudson Barkley (Snu/snuq/Aritodo)

@@ -240,7 +240,7 @@
             pos_hint: {"y": .999}
 
 <NormalPopup>:
-    background: 'panelbg.png'
+    background: 'data/panelbg.png'
 
 <CustomImage>:
     allow_stretch: True
@@ -409,8 +409,8 @@
             size_hint: None, None
             height: app.button_scale
             width: app.button_scale
-            background_checkbox_normal: 'tree_closed.png'
-            background_checkbox_down: 'tree_opened.png'
+            background_checkbox_normal: 'data/tree_closed.png'
+            background_checkbox_down: 'data/tree_opened.png'
             on_press: root.set_expanded(self.active)
         WideButton:
             on_press: root.dispatch('on_press')
@@ -424,7 +424,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         cols: 2
         size_hint: 1, None
         height: self.minimum_height
@@ -605,18 +605,18 @@
         Rectangle:
             size: self.size
             pos: self.pos
-            source: 'mainbg.png'
+            source: 'data/mainbg.png'
 
 <SplitterStrip>:
-    background_normal: 'splitterbgup.png'
-    background_down: 'splitterbgdown.png'
+    background_normal: 'data/splitterbgup.png'
+    background_down: 'data/splitterbgdown.png'
 
 <SplitterPanel>:
     canvas.before:
         Rectangle:
             size: self.size
             pos: self.pos
-            source: 'panelbg.png'
+            source: 'data/panelbg.png'
     #keep_within_parent: True
     min_size: int(app.button_scale / 2)
     size_hint: None, 1
@@ -711,7 +711,7 @@
             on_release: root.close()
 
 <AboutPopup>:
-    background: 'panelbg.png'
+    background: 'data/panelbg.png'
     size_hint: .5, None
     height: self.width/2
     BoxLayout:
@@ -719,7 +719,7 @@
         BoxLayout:
             orientation: 'horizontal'
             Image:
-                source: 'icon.png'
+                source: 'data/icon.png'
                 size_hint_x: None
                 size_hint_y: 1
                 width: self.height
@@ -778,7 +778,7 @@
         Image:
             width: self.texture_size[0]
             size_hint_x: None
-            source: 'tree_opened.png' if root.expanded else 'tree_closed.png'
+            source: 'data/tree_opened.png' if root.expanded else 'data/tree_closed.png'
             opacity: 1 if root.expandable else 0
         BoxLayout:
             orientation: 'vertical'
@@ -844,13 +844,13 @@
         Color:
             rgba: 1, 1, 1, .5 if self.favorite else 0
         Rectangle:
-            source: 'star.png'
+            source: 'data/star.png'
             pos: (self.pos[0]+(self.width-(self.height*.5)), self.pos[1]+(self.height*.5)-(self.height*.167))
             size: (self.height*.33, self.height*.33)
         Color:
             rgba: 1, 1, 1, .5 if self.video else 0
         Rectangle:
-            source: 'play_overlay.png'
+            source: 'data/play_overlay.png'
             pos: (self.pos[0]+(self.height*.25)), (self.pos[1]+(self.height*.25))
             size: (self.height*.5), (self.height*.5)
     size_hint_x: 1
@@ -945,13 +945,13 @@
         Color:
             rgba: 1, 1, 1, .5 if root.favorite else 0
         Rectangle:
-            source: 'star.png'
+            source: 'data/star.png'
             pos: (self.pos[0]+(self.size[0]/2)-(self.size[0]*.05), self.pos[1]+(self.size[0]*.1))
             size: (self.size[0]*.1, self.size[0]*.1)
         Color:
             rgba: 1, 1, 1, .5 if root.video else 0
         Rectangle:
-            source: 'play_overlay.png'
+            source: 'data/play_overlay.png'
             pos: (self.pos[0]+self.width/8, self.pos[1]+self.width/8) if self.title else (self.pos[0]+self.width/4, self.pos[1]+self.width/4)
             size: (self.width/4, self.width/4) if self.title else (self.width/2, self.width/2)
 
@@ -1017,10 +1017,10 @@
     size_hint_y: None
     height: app.button_scale
     font_size: app.text_scale
-    background_normal: 'buttonlightup.png'
-    background_down: 'buttonlightdown.png'
-    background_disabled_down: 'buttondisabled.png'
-    background_disabled_normal: 'buttondisabled.png'
+    background_normal: 'data/buttonlightup.png'
+    background_down: 'data/buttonlightdown.png'
+    background_disabled_down: 'data/buttondisabled.png'
+    background_disabled_normal: 'data/buttondisabled.png'
 
 <NormalButton>:
     size_hint_y: None
@@ -1028,10 +1028,10 @@
     size_hint_x: None
     font_size: app.text_scale
     width: self.texture_size[0] + 20
-    background_normal: 'buttonlightup.png'
-    background_down: 'buttonlightdown.png'
-    background_disabled_down: 'buttondisabled.png'
-    background_disabled_normal: 'buttondisabled.png'
+    background_normal: 'data/buttonlightup.png'
+    background_down: 'data/buttonlightdown.png'
+    background_disabled_down: 'data/buttondisabled.png'
+    background_disabled_normal: 'data/buttondisabled.png'
 
 <VerticalButton@ToggleButton>:
     color: 1, 1, 1, 0
@@ -1040,8 +1040,8 @@
     size_hint_x: None
     font_size: app.text_scale
     height: self.texture_size[0] + 100
-    background_normal: 'buttonlightup.png'
-    background_down: 'buttonsidetabdown.png'
+    background_normal: 'data/buttonlightup.png'
+    background_down: 'data/buttonsidetabdown.png'
     Label:
         center: self.parent.center
         canvas.before:
@@ -1063,17 +1063,17 @@
             border: (0, sizing, 0, sizing)
             pos: self.pos
             size: self.size
-            source: 'sliderbg.png'
+            source: 'data/sliderbg.png'
         Rectangle:
             pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
             size: app.button_scale/2, app.button_scale
-            source: 'buttontoggleon.png'
+            source: 'data/buttontoggleon.png'
     size_hint_y: None
     height: app.button_scale
     min: -1
     max: 1
     value: 0
-    cursor_image: 'buttontoggleon.png'
+    cursor_image: 'data/buttontoggleon.png'
 
 <-HalfSlider@Slider>:
     #:set sizing 18
@@ -1084,11 +1084,11 @@
             border: (0, sizing, 0, sizing)
             pos: self.pos
             size: self.size
-            source: 'sliderbg.png'
+            source: 'data/sliderbg.png'
         Rectangle:
             pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
             size: app.button_scale/2, app.button_scale
-            source: 'buttontoggleon.png'
+            source: 'data/buttontoggleon.png'
     size_hint_y: None
     height: app.button_scale
     min: 0
@@ -1102,13 +1102,13 @@
         BorderImage:
             size: self.size
             pos: self.pos
-            source: 'mainbg.png'
+            source: 'data/mainbg.png'
     tab_height: app.button_scale
     tab_width: app.button_scale * 2
     font_size: app.text_scale
-    background_image: 'tabbg.png'
+    background_image: 'data/tabbg.png'
     strip_border: 0, 0, 0, 0
-    strip_image: 'headerbg.png'
+    strip_image: 'data/headerbg.png'
     spacing: 0, 0
     padding: 0
 
@@ -1118,8 +1118,8 @@
 
 <NormalTabbedPanelItem@TabbedPanelItem>:
     font_size: app.text_scale
-    background_normal: 'buttontabup.png'
-    background_down: 'buttontabdown.png'
+    background_normal: 'data/buttontabup.png'
+    background_down: 'data/buttontabdown.png'
     spacing: 0, 0
 
 <NormalDropDown>:
@@ -1129,14 +1129,14 @@
         Rectangle:
             size: self.size
             pos: self.pos
-            source: 'buttonmenu.png'
+            source: 'data/buttonmenu.png'
 
 <MenuButton>:
     font_size: app.text_scale
     size_hint_y: None
     height: app.button_scale
-    background_normal: 'buttonup.png'
-    background_down: 'buttondown.png'
+    background_normal: 'data/buttonup.png'
+    background_down: 'data/buttondown.png'
 
 <MenuStarterButton@Button>:
     canvas.after:
@@ -1145,16 +1145,16 @@
         Rectangle:
             pos: (root.pos[0]+root.width-(root.height/1.5)), root.pos[1]
             size: root.height/2, root.height
-            source: 'menuarrows.png'
+            source: 'data/menuarrows.png'
     size_hint_y: None
     height: app.button_scale
     size_hint_x: None
     font_size: app.text_scale
     width: self.texture_size[0] + app.button_scale
-    background_normal: 'buttonup.png'
-    background_down: 'buttondown.png'
-    background_disabled_down: 'buttondisabled.png'
-    background_disabled_normal: 'buttondisabled.png'
+    background_normal: 'data/buttonup.png'
+    background_down: 'data/buttondown.png'
+    background_disabled_down: 'data/buttondisabled.png'
+    background_disabled_normal: 'data/buttondisabled.png'
 
 <NormalToggle@ToggleButton>:
     font_size: app.text_scale
@@ -1162,8 +1162,8 @@
     height: app.button_scale
     size_hint_x: None
     width: self.texture_size[0] + 20
-    background_normal: 'buttontoggleoff.png'
-    background_down: 'buttontoggleon.png'
+    background_normal: 'data/buttontoggleoff.png'
+    background_down: 'data/buttontoggleon.png'
 
 <NormalLabel>:
     font_size: app.text_scale
@@ -1226,7 +1226,7 @@
         Rectangle:
             size: self.size
             pos: self.pos
-            source: 'headerbg.png'
+            source: 'data/headerbg.png'
     height: app.button_scale
 
 <MainHeader@HeaderBase>:
@@ -1234,7 +1234,7 @@
         Rectangle:
             size: self.size
             pos: self.pos
-            source: 'headerbglight.png'
+            source: 'data/headerbglight.png'
     height: int(app.button_scale * 1.25)
     padding: int(app.button_scale / 8)
 
@@ -1470,7 +1470,7 @@
             Color:
                 rgba: 1, 1, 1, .5 if root.favorite else 0
             Rectangle:
-                source: 'star.png'
+                source: 'data/star.png'
                 pos: (self.width/2)-(self.width*.025), 44
                 size: (self.width*.05, self.width*.05)
         disabled: True if self.opacity == 0 else False
@@ -1523,7 +1523,7 @@
             Color:
                 rgba: 1, 1, 1, .5 if root.favorite else 0
             Rectangle:
-                source: 'star.png'
+                source: 'data/star.png'
                 pos: (self.width/2)-(self.width*.025), int(app.button_scale)
                 size: (self.width*.05, self.width*.05)
         id: photoStencil
@@ -1721,7 +1721,7 @@
                                         BorderImage:
                                             pos: self.pos
                                             size: self.size
-                                            source: 'buttonmenu.png'
+                                            source: 'data/buttonmenu.png'
                                     padding: app.padding
                                     id: displayTags
                                     cols: 1
@@ -1743,7 +1743,7 @@
                                         BorderImage:
                                             pos: self.pos
                                             size: self.size
-                                            source: 'buttonmenu.png'
+                                            source: 'data/buttonmenu.png'
                                     padding: app.padding
                                     id: addToTags
                                     cols: 1
@@ -1765,7 +1765,7 @@
                                         BorderImage:
                                             pos: self.pos
                                             size: self.size
-                                            source: 'buttonmenu.png'
+                                            source: 'data/buttonmenu.png'
                                     padding: app.padding
                                     cols: 1
                                     size_hint: 1, None
@@ -1887,7 +1887,7 @@
         BorderImage:
             size: self.size
             pos: self.pos
-            source: 'tabbg.png'
+            source: 'data/tabbg.png'
     padding: app.padding
     cols: 3
     size_hint_y: None
@@ -1935,7 +1935,7 @@
         BorderImage:
             size: self.size
             pos: self.pos
-            source: 'tabbg.png'
+            source: 'data/tabbg.png'
     padding: app.padding
     cols: 3
     size_hint_y: None
@@ -2018,7 +2018,7 @@
             Rectangle:
                 size: self.size
                 pos: self.pos
-                source: 'test.png'
+                source: 'data/test.png'
         id: testImage
         size_hint_x: None
         size_hint_y: None
@@ -2170,16 +2170,16 @@
                 text: 'Folder'
                 group: 'exports'
                 on_press: root.toggle_exports(self)
-                background_normal: 'buttontabup.png'
-                background_down: 'buttontabdown.png'
+                background_normal: 'data/buttontabup.png'
+                background_down: 'data/buttontabdown.png'
             NormalToggle:
                 size_hint_x: 1
                 id: toggleFTP
                 text: 'FTP'
                 group: 'exports'
                 on_press: root.toggle_exports(self)
-                background_normal: 'buttontabup.png'
-                background_down: 'buttontabdown.png'
+                background_normal: 'data/buttontabup.png'
+                background_down: 'data/buttontabdown.png'
         BoxLayout:
             size_hint_x: .33
 
@@ -2190,7 +2190,7 @@
             BorderImage:
                 size: self.size
                 pos: self.pos
-                source: 'tabbg.png'
+                source: 'data/tabbg.png'
         padding: app.padding
         id: toggleSettings
         cols: 1
@@ -2207,8 +2207,8 @@
             state: 'down' if root.scale_image else 'normal'
             text: 'Scale Photo' if root.scale_image else "Don't Scale Photo"
             on_press: root.set_scale_image(self.state)
-            background_normal: 'buttonlightup.png'
-            background_down: 'buttontabdown.png'
+            background_normal: 'data/buttonlightup.png'
+            background_down: 'data/buttontabdown.png'
         BoxLayout:
             size_hint_x: .67
     GridLayout:
@@ -2227,8 +2227,8 @@
             state: 'down' if root.watermark else 'normal'
             text: 'Use Watermark' if root.watermark else "Don't Use Watermark"
             on_press: root.set_watermark(self.state)
-            background_normal: 'buttonlightup.png'
-            background_down: 'buttontabdown.png'
+            background_normal: 'data/buttonlightup.png'
+            background_down: 'data/buttontabdown.png'
         BoxLayout:
             size_hint_x: .67
     GridLayout:
@@ -2910,7 +2910,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -2951,7 +2951,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3012,7 +3012,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3145,7 +3145,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3191,7 +3191,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3235,7 +3235,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3278,7 +3278,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3371,7 +3371,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3439,7 +3439,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3501,7 +3501,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3560,7 +3560,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3624,7 +3624,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3683,7 +3683,7 @@
                 BorderImage:
                     pos: self.pos
                     size: self.size
-                    source: 'buttonmenu.png'
+                    source: 'data/buttonmenu.png'
             orientation: 'horizontal'
             size_hint_y: None
             height: int(app.button_scale * 10)
@@ -3699,7 +3699,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3751,7 +3751,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -3886,7 +3886,7 @@
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'buttonmenu.png'
+                source: 'data/buttonmenu.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None

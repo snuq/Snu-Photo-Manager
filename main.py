@@ -67,7 +67,7 @@ from ffpyplayer import tools as fftools
 import threading
 import kivy
 from kivy.config import Config
-Config.window_icon = "icon.png"
+Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.cache import Cache
@@ -1935,10 +1935,10 @@ class AsyncThumbnail(KivyImage):
                     else:
                         image = ImageLoader.load(full_filename)
                 else:
-                    image = ImageLoader.load('null.jpg')
+                    image = ImageLoader.load('data/null.jpg')
             return image
         else:
-            return ImageLoader.load('null.jpg')
+            return ImageLoader.load('data/null.jpg')
 
     def set_angle(self):
         orientation = self.photoinfo[13]
@@ -1973,7 +1973,7 @@ class AsyncThumbnail(KivyImage):
         else:
             ThumbLoader.max_upload_per_frame = 50
             ThumbLoader.num_workers = 4
-            ThumbLoader.loading_image = 'loadingthumbnail.png'
+            ThumbLoader.loading_image = 'data/loadingthumbnail.png'
             self._coreimage = image = ThumbLoader.image(source, load_callback=self.load_thumbnail, nocache=self.nocache,
                                                         mipmap=self.mipmap, anim_delay=self.anim_delay)
             image.bind(on_load=self._on_source_load)
@@ -5960,7 +5960,7 @@ class AlbumScreen(Screen):
                 print_button = self.ids['printButton']
                 print_button.disabled = False
             if not self.photo:
-                self.photo = 'null.jpg'
+                self.photo = 'data/null.jpg'
             self.viewer = PhotoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo,
                                       photoinfo=self.photoinfo)
             container.add_widget(self.viewer)
@@ -5971,7 +5971,7 @@ class AlbumScreen(Screen):
                 print_button = self.ids['printButton']
                 print_button.disabled = True
             if not self.photo:
-                self.photo = 'null.jpg'
+                self.photo = 'data/null.jpg'
             self.viewer = VideoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo,
                                       photoinfo=self.photoinfo)
             container.add_widget(self.viewer)
@@ -7222,9 +7222,9 @@ class Curves(FloatLayout):
         size = 20
         real_point = self.relative_to_local(point)
         if point == self.current_point:
-            source = 'curve_point_selected.png'
+            source = 'data/curve_point_selected.png'
         else:
-            source = 'curve_point.png'
+            source = 'data/curve_point.png'
         canvas.add(Rectangle(source=source, pos=(real_point[0]-(size/2), real_point[1]-(size/2)), size=(size, size)))
 
     def add_point(self, point):
@@ -10006,7 +10006,7 @@ class PhotoManager(App):
     simple_interface = BooleanProperty(False)
 
     #Theming variables
-    icon = 'icon.png'
+    icon = 'data/icon.png'
     selected_color = (0.5098, 0.8745, 0.6588, .5)
     color_odd = (0, 0, 0, 0)
     color_even = (1, 1, 1, .1)
@@ -11109,7 +11109,7 @@ class PhotoManager(App):
 
         try:
             configfile = ConfigParser(interpolation=None)
-            configfile.read(os.path.join(self.app_location, 'encoding_presets.ini'))
+            configfile.read(os.path.join(self.app_location, 'data/encoding_presets.ini'))
             preset_names = configfile.sections()
             for preset_name in preset_names:
                 try:
@@ -11723,7 +11723,7 @@ class PhotoManager(App):
         Returns: List, a photoinfo object.
         """
 
-        return ['null.jpg', '', '', 0, 0, 'null.jpg', 0, 0, '', 0, 'null.jpg', '', 0, 1]
+        return ['data/null.jpg', '', '', 0, 0, 'data/null.jpg', 0, 0, '', 0, 'data/null.jpg', '', 0, 1]
 
     def database_clean(self, deep=False):
         """Clean the databases of redundant or missing data.
