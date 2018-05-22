@@ -2608,10 +2608,10 @@ class ExpandableButton(GridLayout):
     index = NumericProperty()  #The button's index in the list - useful for the remove function
 
     def __init__(self, **kwargs):
+        super(ExpandableButton, self).__init__(**kwargs)
         self.register_event_type('on_press')
         self.register_event_type('on_expanded')
         self.register_event_type('on_remove')
-        super(ExpandableButton, self).__init__(**kwargs)
 
     def set_expanded(self, expanded):
         self.expanded = expanded
@@ -3236,7 +3236,7 @@ class ImportPreset(ExpandableButton):
     def on_data(self, *_):
         import_preset = self.data
         naming_method = import_preset['naming_method']
-        self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=self.import_to, naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], owner=self)
+        self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=import_preset['import_to'], naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], owner=self)
 
     def on_remove(self):
         app = App.get_running_app()
@@ -7947,7 +7947,10 @@ class EditBorderImage(GridLayout):
         self.tint = self.owner.border_tint
 
     def on_selected(self, *_):
-        border_index = int(self.selected)
+        if self.selected:
+            border_index = int(self.selected)
+        else:
+            border_index = 0
         self.reset_border_x_scale()
         self.reset_border_y_scale()
         if border_index == 0:
@@ -8690,10 +8693,8 @@ class ImportScreen(Screen):
         if databases:
             new_preset_button.disabled = False
             for index, import_preset in enumerate(app.imports):
-                import_to = import_preset['import_to']
-                #if import_to not in databases:
-                #    import_to = databases[0]
-                preset = ImportPreset(index=index, text=import_preset['title'], owner=self, import_to=import_to, data=import_preset)
+                preset = ImportPreset(index=index, text=import_preset['title'], owner=self, import_to=import_preset['import_to'])
+                preset.data = import_preset
                 if index == self.selected_import:
                     preset.expanded = True
                 presets.add_widget(preset)
