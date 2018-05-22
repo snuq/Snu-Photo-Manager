@@ -1,4 +1,3 @@
-from kivy.deps import sdl2, glew, ffpyplayer
 # -*- mode: python -*-
 
 block_cipher = None
@@ -7,11 +6,11 @@ block_cipher = None
 a = Analysis(['D:\\personal\\Projects\\Snu Photo Manager\\main.py'],
              pathex=['C:\\Python34\\share\\ffpyplayer\\ffmpeg\\bin', 'C:\\Python34\\share\\gstreamer\\bin', 'C:\\Python34\\share\\sdl2\\bin', 'D:\\personal\\Projects\\Snu Photo Manager\\Snu Photo Manager'],
              binaries=[],
-             datas=[('D:\\personal\\Projects\\Snu Photo Manager\\encoding_presets.ini', '.'),('D:\\personal\\Projects\\Snu Photo Manager\\about.txt', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\icon.ico', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\*.kv', '.'), ('D:\\personal\\\Projects\Snu Photo Manager\\*.png', '.'), ('D:\\personal\\Projects\\Snu Photo Manager\\*.jpg', '.')],
+             datas=[],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
-             excludes=['ffpyplayer'],
+             excludes=[],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
@@ -24,12 +23,11 @@ exe = EXE(pyz,
           debug=False,
           strip=False,
           upx=True,
-          console=False , icon='D:\\personal\\Projects\\Snu Photo Manager\\icon.ico')
+          console=True , icon='D:\\personal\\Projects\\Snu Photo Manager\\icon.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
-               *[Tree(p) for p in (ffpyplayer.dep_bins + sdl2.dep_bins + glew.dep_bins)],
                strip=False,
                upx=True,
                name='Snu Photo Manager')
