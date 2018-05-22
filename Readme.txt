@@ -1,4 +1,6 @@
 Snu Photo Manager
+-----------------
+
 A feature-rich photo manager and editor written in python and using the Kivy library.
 It should run on any platform that the required libraries can be run on.  So far, I have made Windows, Linux (Ubuntu 16+) and Android binaries.
 Download latest binaries at:
@@ -11,7 +13,8 @@ Some features that are implemented:
     Drag-n-drop organization.
     Touch-friendly interface.
     Simple and advanced color editing: brightness, contrast, saturation, gamma, color curves, tinting.
-    Simple and advanced filters: sharpen, blur (soften, despeckle, edge-preserve blur), vignette, edge blur, noise reduction.
+    Simple and advanced filters: sharpen, soften, vignette, edge blur.
+    Noise reduction: Despeckle, edge-preserve blur, non-local means denoise.
     Image edits: rotate (and straighten), crop, image border overlays (frames).
     Most editing features apply to videos as well.
     Video conversions (reencoding using presets).
