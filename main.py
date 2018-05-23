@@ -1,13 +1,14 @@
 """
 Bugs:
+    favorite icons not always displaying in database
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
     curves interpolation isn't correct
     some interface elements will not display properly with large buttons or large text
+    database rescan needs to display a message right away
 
 Todo:
     database/settings import and export
-    redo treeview in database move screen to use recycleview, remove populate_tree_view function
     simplified interface mode - redo sorting and new/delete/rename to be smaller somehow
     android: need to include ffmpeg executable
     multi-thread video processing?
@@ -384,46 +385,6 @@ def format_size(size):
             return str(round(size, 2))+' KB'
     else:
         return str(round(size, 2))+' Bytes'
-
-def populate_tree_view(tree_view, parent, node, owner, dragable=False, droptype='folder', dragable_override=False, selected=None):
-    """Adds treeview items to a given treeview widget.
-    Arguments:
-        tree_view: Widget to add treeview items to.
-        parent: Used when this is populating a treeview sub-node (for indenting).  May be set to None.
-        node: Dictionary of node information.  Must have elements: node_id, node_subtext, fullpath, type, target,
-                                                                   total_photos, children
-        owner: The widget that contains the treeview.  May be set to None.
-        dragable: Sets the dragable mode for treeview items (enabling drag-n-drop).
-    """
-
-    app = App.get_running_app()
-    text = node['node_id']
-    subtext = node['node_subtext']
-    if parent is None:
-        tree_node = tree_view.add_node(TreeViewButton(dragable=dragable_override, fullpath=node['fullpath'],
-                                                      is_open=True, type=node['type'], target=node['target'],
-                                                      owner=owner, droptype=droptype, displayable=node['displayable']))
-    else:
-        if not selected:
-            is_open = False
-        else:
-            if not selected.startswith(node['fullpath']):
-                is_open = False
-            else:
-                is_open = True
-        tree_node = tree_view.add_node(TreeViewButton(dragable=dragable, fullpath=node['fullpath'], is_open=is_open,
-                                                      type=node['type'], target=node['target'], owner=owner,
-                                                      droptype=droptype, displayable=node['displayable']), parent)
-    tree_node.folder_name = text
-    tree_node.total_photos_numeric = node['total_photos']
-    if node['total_photos'] > 0:
-        tree_node.total_photos = '('+str(node['total_photos'])+')'
-    if subtext and (subtext != text):
-        tree_node.height = int(app.button_scale * 1.5)
-        tree_node.subtext = subtext
-        tree_node.ids['subtext'].height = int(app.button_scale * 0.5)
-    for child_node in node['children']:
-        populate_tree_view(tree_view, tree_node, child_node, owner, dragable=dragable, droptype=droptype, selected=selected)
 
 def list_folders(folder):
     """Function that returns a list of all nested subfolders within a given folder.
@@ -948,19 +909,46 @@ class FileBrowserItem(RecycleDataViewBehavior, BoxLayout):
 class SelectableRecycleBoxLayout(RecycleBoxLayout):
     """Adds selection and focus behavior to the view."""
     selected = DictProperty()
+    selects = ListProperty([])
+    multiselect = BooleanProperty(False)
+
+    def toggle_select(self, *_):
+        if self.multiselect:
+            if self.selects:
+                self.selects = []
+            else:
+                all_selects = self.parent.data
+                for select in all_selects:
+                    self.selects.append(select)
+        else:
+            if self.selected:
+                self.selected = {}
+        self.update_selected()
 
     def on_selected(self, *_):
-        self.update_selected()
+        if self.selected:
+            if self.multiselect:
+                if self.selected in self.selects:
+                    self.selects.remove(self.selected)
+                else:
+                    self.selects.append(self.selected)
+            self.update_selected()
 
     def on_children(self, *_):
         self.update_selected()
 
     def update_selected(self):
         for child in self.children:
-            if child.data == self.selected:
-                child.selected = True
+            if self.multiselect:
+                if child.data in self.selects:
+                    child.selected = True
+                else:
+                    child.selected = False
             else:
-                child.selected = False
+                if child.data == self.selected:
+                    child.selected = True
+                else:
+                    child.selected = False
 
 class PhotoListRecycleView(RecycleView):
     selected_index = NumericProperty(0)
@@ -1019,7 +1007,10 @@ class MultiThreadOK(threading.Thread):
                 cnx.commit()
             if req == '--close--':
                 break
-            cursor.execute(req, arg)
+            try:
+                cursor.execute(req, arg)
+            except:
+                pass
             if res:
                 for rec in cursor:
                     res.put(rec)
@@ -2413,6 +2404,14 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
     def refresh_view_attrs(self, rv, index, data):
         """Called when widget is loaded into recycleview layout"""
 
+        app = App.get_running_app()
+        photos = app.database_get_folder(data['fullpath'])
+        self.total_photos_numeric = len(photos)
+        if self.total_photos_numeric > 0:
+            self.total_photos = '(' + str(self.total_photos_numeric) + ')'
+        else:
+            self.total_photos = ''
+        self.ids['mainText'].text = data['folder_name'] + '   [b]' + self.total_photos + '[/b]'
         self.index = index
         self.data = data
         self.set_bgcolor()
@@ -2440,6 +2439,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
                         if not app.shift_pressed:
                             app.show_album(self)
             else:
+                self.parent.selected = {}
                 self.parent.selected = self.data
                 self.on_press()
             if self.dragable:
@@ -2453,6 +2453,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
     def on_press(self):
         self.owner.type = self.type
         self.owner.displayable = self.displayable
+        #self.owner.set_selected(self.target)
         self.owner.selected = ''
         self.owner.selected = self.target
 
@@ -4629,12 +4630,15 @@ class DatabaseScreen(Screen):
                 subtext = folder_info[1]
             else:
                 subtext = ''
-            photos = app.database_get_folder(full_folder)
-            total_photos_numeric = len(photos)
-            if total_photos_numeric > 0:
-                total_photos = '(' + str(total_photos_numeric) + ')'
-            else:
-                total_photos = ''
+            #well, this used to be in here, but it really slows things down...
+            #photos = app.database_get_folder(full_folder)
+            #total_photos_numeric = len(photos)
+            #if total_photos_numeric > 0:
+            #    total_photos = '(' + str(total_photos_numeric) + ')'
+            #else:
+            #    total_photos = ''
+            total_photos_numeric = 0
+            total_photos = ''
             folder_element = {
                 'fullpath': full_folder,
                 'folder_name': folder['folder'],
@@ -4699,7 +4703,7 @@ class DatabaseScreen(Screen):
     def get_folders(self, *_):
         if self.update_folders:
             app = App.get_running_app()
-            all_folders = app.database_get_folders()
+            all_folders = app.database_get_folders(quick=True)
             self.folders = all_folders
             self.update_folders = False
         return self.folders
@@ -6778,6 +6782,9 @@ class TransferScreen(Screen):
     percent_completed = NumericProperty(0)
     copyingthread = ObjectProperty()
 
+    selected = ''
+    expanded_folders = []
+
     def has_popup(self):
         """Detects if the current screen has a popup active.
         Returns: True or False
@@ -6874,11 +6881,11 @@ class TransferScreen(Screen):
         self.refresh_right_database()
 
     def refresh_left_database(self):
-        database_area = self.ids['leftDatabaseArea']
+        database_area = self.ids['leftDatabaseHolder']
         self.refresh_database_area(database_area, self.left_database, self.left_sort_method, self.left_sort_reverse)
 
     def refresh_right_database(self):
-        database_area = self.ids['rightDatabaseArea']
+        database_area = self.ids['rightDatabaseHolder']
         self.refresh_database_area(database_area, self.right_database, self.right_sort_method, self.right_sort_reverse)
 
     def drop_widget(self, fullpath, position, dropped_type):
@@ -6900,24 +6907,19 @@ class TransferScreen(Screen):
         folders = []
         if left_database_holder.collide_point(position[0], position[1]):
             if transfer_from != self.left_database:
-                nodes = list(right_database_area.iterate_all_nodes())
-                for node in nodes:
-                    if node.is_selected:
-                        if hasattr(node, 'fullpath'):
-                            folders.append(local_path(node.fullpath))
+                selects = right_database_area.selects
+                for select in selects:
+                    folders.append(local_path(select['fullpath']))
                 transfer_to = self.left_database
         elif right_database_holder.collide_point(position[0], position[1]):
             if transfer_from != self.right_database:
-                nodes = list(left_database_area.iterate_all_nodes())
-                for node in nodes:
-                    if node.is_selected:
-                        if hasattr(node, 'fullpath'):
-                            folders.append(local_path(node.fullpath))
+                selects = left_database_area.selects
+                for select in selects:
+                    folders.append(local_path(select['fullpath']))
                 transfer_to = self.right_database
         if transfer_to:
             if fullpath not in folders:
                 folders.append(fullpath)
-
             #remove subfolders
             removes = []
             for folder in folders:
@@ -7028,13 +7030,18 @@ class TransferScreen(Screen):
         app.message("Finished Moving "+str(current_files)+" Files.")
         Clock.schedule_once(self.refresh_databases)
 
+    def toggle_expanded_folder(self, folder):
+        if folder in self.expanded_folders:
+            self.expanded_folders.remove(folder)
+        else:
+            self.expanded_folders.append(folder)
+        self.refresh_databases()
+
     def refresh_database_area(self, database, database_folder, sort_method, sort_reverse):
         app = App.get_running_app()
 
-        #Clear old tree
-        nodes = list(database.iterate_all_nodes())
-        for node in nodes:
-            database.remove_node(node)
+        database.data = []
+        data = []
 
         #Get and sort folder list
         unsorted_folders = app.database_get_folders(database_folder=database_folder)
@@ -7069,13 +7076,12 @@ class TransferScreen(Screen):
         else:
             all_folders = sorted(unsorted_folders, reverse=sort_reverse)
 
-        #Add folders to tree
-        folder_tree = {'fullpath': 'Folders', 'node_id': 'Folders', 'total_photos': 0, 'node_subtext': '',
-                       'target': 'Folders', 'type': 'Folder', 'displayable': False, 'children': []}
+        #Parse and sort folders and subfolders
+        root_folders = []
         for full_folder in all_folders:
             if full_folder and not any(avoidfolder in full_folder for avoidfolder in avoidfolders):
                 newname = full_folder
-                children = folder_tree['children']
+                children = root_folders
                 parent_folder = ''
                 while os.path.sep in newname:
                     #split the base path and the leaf paths
@@ -7085,38 +7091,99 @@ class TransferScreen(Screen):
                     #check if the root path is already in the tree
                     root_element = False
                     for child in children:
-                        if child['node_id'] == root:
+                        if child['folder'] == root:
                             root_element = child
                     if not root_element:
-                        #create the root path
-                        folder_info = app.database_folder_exists(parent_folder)
-                        if folder_info:
-                            subtext = folder_info[1]
-                        else:
-                            subtext = ''
-                        photos = app.database_get_folder(parent_folder, database=database_folder)
-                        children.append({'fullpath': parent_folder, 'node_id': root, 'total_photos':len(photos),
-                                         'node_subtext': subtext, 'target': parent_folder, 'type': 'Folder',
-                                         'displayable': True, 'children': []})
+                        children.append({'folder': root, 'full_folder': parent_folder, 'children': []})
                         root_element = children[-1]
                     children = root_element['children']
                     newname = leaf
-                folder_info = app.database_folder_exists(full_folder)
-                if folder_info:
-                    subtext = folder_info[1]
-                else:
-                    subtext = ''
                 root_element = False
                 for child in children:
-                    if child['node_id'] == newname:
+                    if child['folder'] == newname:
                         root_element = child
                 if not root_element:
-                    photos = app.database_get_folder(full_folder, database=database_folder)
-                    children.append({'fullpath': full_folder, 'node_id': newname, 'total_photos':len(photos),
-                                     'node_subtext': subtext, 'target': full_folder, 'type': 'Folder',
-                                     'displayable': True, 'children': []})
-        for child in folder_tree['children']:
-            populate_tree_view(database, None, child, self, dragable=True, droptype=database_folder, dragable_override=True)
+                    children.append({'folder': newname, 'full_folder': full_folder, 'children': []})
+
+        folder_data = self.populate_folders(root_folders, self.expanded_folders, sort_method, sort_reverse, database_folder)
+        data = data + folder_data
+
+        database.data = data
+
+    def populate_folders(self, folder_root, expanded, sort_method, sort_reverse, database_folder):
+        app = App.get_running_app()
+        folders = []
+        folder_root = self.sort_folders(folder_root, sort_method, sort_reverse)
+        for folder in folder_root:
+            full_folder = folder['full_folder']
+            expandable = True if len(folder['children']) > 0 else False
+            is_expanded = True if full_folder in expanded else False
+            folder_info = app.database_folder_exists(full_folder)
+            if folder_info:
+                subtext = folder_info[1]
+            else:
+                subtext = ''
+            folder_element = {
+                'fullpath': full_folder,
+                'folder_name': folder['folder'],
+                'target': full_folder,
+                'type': 'Folder',
+                'total_photos': '',
+                'total_photos_numeric': 0,
+                'displayable': True,
+                'expandable': expandable,
+                'expanded': is_expanded,
+                'owner': self,
+                'indent': 1 + full_folder.count(os.path.sep),
+                'subtext': subtext,
+                'height': app.button_scale * (1.5 if subtext else 1),
+                'end': False,
+                'droptype': database_folder,
+                'dragable': True
+            }
+            folders.append(folder_element)
+            if is_expanded:
+                if len(folder['children']) > 0:
+                    more_folders = self.populate_folders(folder['children'], expanded)
+                    folders = folders + more_folders
+                    folders[-1]['end'] = True
+                    folders[-1]['height'] = folders[-1]['height'] + int(app.button_scale * 0.1)
+        return folders
+
+    def sort_folders(self, sort_folders, sort_method, sort_reverse):
+        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
+            app = App.get_running_app()
+            folders = []
+            for folder in sort_folders:
+                folderpath = folder['full_folder']
+                if sort_method == 'Total Photos':
+                    sortby = len(app.database_get_folder(folderpath))
+                elif sort_method == 'Title':
+                    folderinfo = app.database_folder_exists(folderpath)
+                    if folderinfo:
+                        sortby = folderinfo[1]
+                    else:
+                        sortby = folderpath
+                elif sort_method == 'Import Date':
+                    folder_photos = app.database_get_folder(folderpath)
+                    sortby = 0
+                    for folder_photo in folder_photos:
+                        if folder_photo[6] > sortby:
+                            sortby = folder_photo[6]
+                elif sort_method == 'Modified Date':
+                    folder_photos = app.database_get_folder(folderpath)
+                    sortby = 0
+                    for folder_photo in folder_photos:
+                        if folder_photo[7] > sortby:
+                            sortby = folder_photo[7]
+
+                folders.append([sortby, folder])
+            sorted_folders = sorted(folders, key=lambda x: x[0], reverse=sort_reverse)
+            sorts, all_folders = zip(*sorted_folders)
+        else:
+            all_folders = sorted(sort_folders, key=lambda x: x['folder'], reverse=sort_reverse)
+
+        return all_folders
 
     def refresh_databases(self, *_):
         self.refresh_left_database()
@@ -8628,10 +8695,13 @@ class ImportScreen(Screen):
         if not preset['import_from']:
             app.message("Please Set An Import Directory.")
             return
+        good_paths = []
         for path in preset['import_from']:
-            if not os.path.exists(path):
-                app.message("Import From Directory Does Not Exist: "+path)
-                return
+            if os.path.exists(path):
+                good_paths.append(path)
+        if not good_paths:
+            app.message("No Import From Directories Exist.")
+            return
         if not os.path.exists(preset['import_to']):
             app.message("Import To Directory Does Not Exist.")
             return
@@ -11625,31 +11695,38 @@ class PhotoManager(App):
             photos = list(self.photos.select('SELECT * FROM photos WHERE Folder = ?', (folder, )))
         return local_paths(photos)
 
-    def database_get_folders(self, database_folder=False):
+    def database_get_folders(self, database_folder=False, quick=False):
         """Get all folders from the photo database.
         Returns: List of folder database-relative paths.
         """
 
+        folders = []
         if database_folder:
             database_folder = agnostic_path(database_folder)
-            folder_items = list(self.photos.select('SELECT * FROM photos WHERE DatabaseFolder = ? GROUP BY Folder',
+            folder_items = list(self.photos.select('SELECT Folder FROM photos WHERE DatabaseFolder = ? GROUP BY Folder',
                                                    (database_folder, )))
+            for item in folder_items:
+                folders.append(local_path(item[0]))
         else:
-            folder_items = list(self.photos.select('SELECT * FROM photos GROUP BY Folder'))
-        folders = []
-        for item in folder_items:
-            folders.append(local_path(item[1]))
+            if quick:
+                folder_items = list(self.folders.select('SELECT Path FROM folders'))
+                for item in folder_items:
+                    folders.append(local_path(item[0]))
+            else:
+                folder_items = list(self.photos.select('SELECT Folder FROM photos GROUP BY Folder'))
+                for item in folder_items:
+                    folders.append(local_path(item[0]))
 
-        if not database_folder:
-            directories = self.config.get('Database Directories', 'paths')
-            directories = local_path(directories)
-            databases = directories.split(';')
-            real_folders = []
-            for database in databases:
-                real_folders = real_folders + list_folders(database)
-            for folder in real_folders:
-                if folder not in folders:
-                    folders.append(folder)
+                directories = self.config.get('Database Directories', 'paths')
+                directories = local_path(directories)
+                databases = directories.split(';')
+                real_folders = []
+                for database in databases:
+                    real_folders = real_folders + list_folders(database)
+                for folder in real_folders:
+                    if folder not in folders:
+                        folders.append(folder)
+
         return folders
 
     def database_add(self, fileinfo):
@@ -11912,7 +11989,11 @@ class PhotoManager(App):
             databases = directories.split(';')
         else:
             databases = []
-        return databases
+        databases_cleaned = []
+        for database in databases:
+            if database:
+                databases_cleaned.append(database)
+        return databases_cleaned
 
     def database_import_files(self):
         """Database scanning thread, checks for new files in the database directories and adds them to the database."""

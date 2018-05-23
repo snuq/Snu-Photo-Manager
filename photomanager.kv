@@ -783,10 +783,11 @@
         BoxLayout:
             orientation: 'vertical'
             NormalLabel:
+                id: mainText
                 markup: True
                 text_size: (self.width - 20, None)
                 halign: 'left'
-                text: root.folder_name + '   [b]' + root.total_photos + '[/b]'
+                text: ''
             NormalLabel:
                 id: subtext
                 text_size: (self.width - 20, None)
@@ -1283,10 +1284,15 @@
                         text: 'Toggle Select'
                         on_press: leftDatabaseArea.toggle_select()
                 MainArea:
-                    id: leftDatabaseHolder
-                    Scroller:
-                        do_scroll_x: False
-                        MultiTreeView:
+                    PhotoListRecycleView:
+                        id: leftDatabaseHolder
+                        viewclass: 'RecycleTreeViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            multiselect: True
                             id: leftDatabaseArea
             MediumBufferX:
             BoxLayout:
@@ -1315,10 +1321,15 @@
                         text: 'Toggle Select'
                         on_press: rightDatabaseArea.toggle_select()
                 MainArea:
-                    id: rightDatabaseHolder
-                    Scroller:
-                        do_scroll_x: False
-                        MultiTreeView:
+                    PhotoListRecycleView:
+                        id: rightDatabaseHolder
+                        viewclass: 'RecycleTreeViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            multiselect: True
                             id: rightDatabaseArea
 
 <DatabaseScreen>:
