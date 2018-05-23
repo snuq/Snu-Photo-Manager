@@ -5,7 +5,6 @@ Bugs:
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
     curves interpolation isn't correct
     some interface elements will not display properly with large buttons or large text
-    database rescan needs to display a message right away
 
 Todo:
     database/settings import and export
@@ -11999,6 +11998,7 @@ class PhotoManager(App):
         """Database scanning thread, checks for new files in the database directories and adds them to the database."""
 
         self.database_scanning = True
+        self.database_update_text = 'Rescanning Database, Building Folder List'
         databases = self.get_database_directories()
         update_folders = []
 
