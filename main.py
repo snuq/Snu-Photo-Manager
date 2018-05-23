@@ -2404,12 +2404,14 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
         """Called when widget is loaded into recycleview layout"""
 
         app = App.get_running_app()
-        photos = app.database_get_folder(data['fullpath'])
-        self.total_photos_numeric = len(photos)
-        if self.total_photos_numeric > 0:
-            self.total_photos = '(' + str(self.total_photos_numeric) + ')'
-        else:
-            self.total_photos = ''
+        fullpath = data['fullpath']
+        if fullpath:
+            photos = app.database_get_folder(data['fullpath'])
+            self.total_photos_numeric = len(photos)
+            if self.total_photos_numeric > 0:
+                self.total_photos = '(' + str(self.total_photos_numeric) + ')'
+            else:
+                self.total_photos = ''
         self.ids['mainText'].text = data['folder_name'] + '   [b]' + self.total_photos + '[/b]'
         self.index = index
         self.data = data
@@ -4432,6 +4434,7 @@ class DatabaseScreen(Screen):
         else:
             total_photos = ''
         database_favorites = {
+            'fullpath': 'Favorites',
             'target': 'favorite',
             'owner': self,
             'type': 'Tag',
