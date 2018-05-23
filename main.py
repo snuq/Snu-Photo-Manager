@@ -3363,6 +3363,7 @@ class ExportPresetArea(GridLayout):
         export_preset['export_videos'] = self.export_videos
         app.exports[self.index] = export_preset
         self.owner.owner.selected_preset = self.index
+        app.export_preset_write()
 
     def toggle_exports(self, button):
         """Switch between folder and ftp export."""
@@ -9713,7 +9714,7 @@ class ExportScreen(Screen):
         """Called when the screen is left, write changes to export presets."""
 
         app = App.get_running_app()
-        app.export_preset_write()
+        #app.export_preset_write()
         presets = self.ids['presets']
         presets.clear_widgets()
         photo_container = self.ids['photosContainer']
@@ -9832,6 +9833,18 @@ class ExportScreen(Screen):
         if not photos:
             return
 
+        #determine export filenames (prevent any duplicate filenames)
+        export_photos = []
+        for photo in photos:
+            photo_filename = os.path.basename(photo[0])
+            basename, extension = os.path.splitext(photo_filename)
+            test_name = photo_filename
+            add_number = 0
+            while test_name in export_photos:
+                add_number = add_number+1
+                test_name = basename+"("+str(add_number)+")"+extension
+            export_photos.append(test_name)
+
         if self.type == 'tag':
             subfolder = 'Photos Tagged As '+self.target.title()
         else:
@@ -9876,7 +9889,7 @@ class ExportScreen(Screen):
                     infofile = os.path.join(".photoinfo.ini")
                     if os.path.exists(infofile):
                         os.remove(infofile)
-                    app.save_photoinfo(self.target, '.', '', photos=photos)
+                    app.save_photoinfo(self.target, '.', '', photos=photos, newnames=export_photos)
                     if '.photoinfo.ini' in ftp_filelist:
                         ftp.delete('.photoinfo.ini')
                     if os.path.exists(infofile):
@@ -9902,7 +9915,8 @@ class ExportScreen(Screen):
                     if os.path.exists(photofile):
                         photo_size = os.path.getsize(photofile)
                         extension = os.path.splitext(photofile)[1]
-                        photofilename = os.path.basename(photofile)
+                        photofilename = export_photos[index]
+                        #photofilename = os.path.basename(photofile)
                         if photofilename in ftp_filelist:
                             ftp.delete(photofilename)
 
@@ -9950,8 +9964,7 @@ class ExportScreen(Screen):
             if not os.path.exists(save_location):
                 os.makedirs(save_location)
             if preset['export_info']:
-                app.save_photoinfo(self.target, self.type.lower(), save_location, photos=photos)
-
+                app.save_photoinfo(self.target, save_location, self.type.lower(), photos=photos, newnames=export_photos)
             self.total_export = 0
             for photo in photos:
                 photofile = os.path.join(photo[2], photo[0])
@@ -9972,7 +9985,8 @@ class ExportScreen(Screen):
                 if os.path.exists(photofile):
                     photo_size = os.path.getsize(photofile)
                     extension = os.path.splitext(photofile)[1]
-                    photofilename = os.path.basename(photofile)
+                    #photofilename = os.path.basename(photofile)
+                    photofilename = export_photos[index]
                     savefile = os.path.join(save_location, photofilename)
                     if os.path.exists(savefile):
                         os.remove(savefile)
@@ -10317,7 +10331,7 @@ class PhotoManager(App):
                 argument = program_preset['argument']
                 self.programs.append([name, command, argument])
 
-    def save_photoinfo(self, target, save_location, container_type='folder', photos=list()):
+    def save_photoinfo(self, target, save_location, container_type='folder', photos=list(), newnames=False):
         """Save relavent photoinfo files for a folder, album, tag, or specified photos.
         Arguments:
             target: String, database identifier for the path where the photos are.
@@ -10351,6 +10365,9 @@ class PhotoManager(App):
                 return
 
         if photos:
+            if newnames:
+                if len(newnames) != len(photos):
+                    newnames = False
             #Set up config file
             configfile = ConfigParser(interpolation=None)
             config_filename = os.path.join(save_location, '.photoinfo.ini')
@@ -10361,8 +10378,11 @@ class PhotoManager(App):
             configfile.set('Album', 'description', description)
 
             #Save photo info
-            for photo in photos:
-                photo_filename = os.path.basename(photo[0])
+            for index, photo in enumerate(photos):
+                if newnames:
+                    photo_filename = newnames[index]
+                else:
+                    photo_filename = os.path.basename(photo[0])
                 configfile.add_section(photo_filename)
                 configfile.set(photo_filename, 'tags', photo[8])
                 configfile.set(photo_filename, 'owner', photo[11])
