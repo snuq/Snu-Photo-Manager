@@ -11994,6 +11994,31 @@ class PhotoManager(App):
                 databases_cleaned.append(database)
         return databases_cleaned
 
+    def list_files(self, folder):
+        """Function that returns a list of every nested file within a folder.
+        Argument:
+            folder: The folder name to look in
+        Returns: A list of file lists, each list containing:
+            Full path to the file, relative to the root directory.
+            Root directory for all files.
+        """
+
+        file_list = []
+        firstroot = False
+        for root, dirs, files in os.walk(folder, topdown=True):
+            if self.cancel_scanning:
+                return []
+            if not firstroot:
+                firstroot = root
+            filefolder = os.path.relpath(root, firstroot)
+            if filefolder == '.':
+                filefolder = ''
+            for file in files:
+                if self.cancel_scanning:
+                    return []
+                file_list.append([os.path.join(filefolder, file), firstroot])
+        return file_list
+
     def database_import_files(self):
         """Database scanning thread, checks for new files in the database directories and adds them to the database."""
 
@@ -12007,7 +12032,7 @@ class PhotoManager(App):
         for directory in databases:
             if self.cancel_scanning:
                 break
-            files = files + list_files(directory)
+            files = files + self.list_files(directory)
 
         total = len(files)
         self.database_update_text = 'Rescanning Database (5%)'
