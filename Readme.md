@@ -5,8 +5,11 @@ It should run on any platform that the required libraries can be run on.  So far
 Download latest binaries at:
 www.snuq.com/snuphotomanager/
 
+
 Watch the demo video:
+
 [![Demo Video](https://img.youtube.com/vi/1Bgc5UyPOS4/0.jpg)](https://www.youtube.com/watch?v=1Bgc5UyPOS4)
+
 
 ## Some features that are implemented:
 * Photo and video database with folders, albums, tags and favorites.
