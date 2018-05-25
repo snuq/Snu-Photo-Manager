@@ -11110,11 +11110,11 @@ class PhotoManager(App):
                 return "Backup does not exist"
         try:
             os.remove(photos_db)
-            copy2(photos_db_backup, photos_db)
+            copyfile(photos_db_backup, photos_db)
             os.remove(folders_db)
-            copy2(folders_db_backup, folders_db)
+            copyfile(folders_db_backup, folders_db)
             os.remove(imported_db)
-            copy2(imported_db_backup, imported_db)
+            copyfile(imported_db_backup, imported_db)
         except:
             return "Could not copy backups"
         return True
