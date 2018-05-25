@@ -11815,6 +11815,7 @@ class PhotoManager(App):
                 if not os.path.isdir(os.path.join(database, folder)):
                     os.makedirs(os.path.join(database, folder))
                     created = True
+                self.database_folder_add([folder, '', ''])
             except:
                 pass
         if created:
