@@ -881,7 +881,7 @@
 
 <SettingDatabaseImport>:
     WideButton:
-        text: 'Scan'
+        text: 'Import/Rescan Database'
         size: root.size
         pos: root.pos
         font_size: '15sp'
@@ -894,6 +894,22 @@
         pos: root.pos
         font_size: '15sp'
         on_press: root.database_clean()
+
+<SettingDatabaseRestore>:
+    WideButton:
+        text: 'Restore Database Backup'
+        size: root.size
+        pos: root.pos
+        font_size: '15sp'
+        on_press: root.database_restore()
+
+<SettingDatabaseBackup>:
+    WideButton:
+        text: 'Backup Photo Database'
+        size: root.size
+        pos: root.pos
+        font_size: '15sp'
+        on_press: root.database_backup()
 
 <ProgramSelectButton>:
     size_hint_x: 1
@@ -2383,6 +2399,17 @@
                     ShortLabel:
                         text: 'Percent Sign (%)'
 
+<DatabaseRestoreScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+        MainArea:
+            orientation: 'vertical'
+            Widget:
+            NormalLabel:
+                text: 'Restoring database backup, please wait...'
+            Widget:
+
 <ImportingScreen>:
     BoxLayout:
         orientation: 'vertical'
@@ -2673,9 +2700,9 @@
 <VideoEncodePreset>:
     orientation: 'vertical'
     size_hint_y: None
-    height: int(app.button_scale * 1.5)
+    height: int(app.button_scale * 2.5)
     BoxLayout:
-        orientation: 'horizontal'
+        orientation: 'vertical'
         ShortLabel:
             text: 'Video Encode:'
         MenuStarterButton:
@@ -3649,11 +3676,11 @@
             Label:
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_opacity()
+                on_press: root.reset_border_opacity()
         HalfSlider:
             id: opacitySlider
-            value: root.opacity
-            on_value: root.opacity = self.value
+            value: root.border_opacity
+            on_value: root.border_opacity = self.value
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None

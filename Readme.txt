@@ -20,6 +20,12 @@ Some features that are implemented:
     Video conversions (reencoding using presets).
     Exporting with watermarks and resizing, export to a folder or FTP.
 
+
+Currently known bugs:
+    Some interface elements will not display properly with long text
+    Android has issues with some keyboard inputs, this is due to Kivy, I cant fix it
+
+
 Manual Installation:
     Python is required, tested with 3.4.4 and 3.5.2.
     The following packages are required:

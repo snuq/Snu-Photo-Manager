@@ -1,19 +1,20 @@
 """
 Bugs:
-    favorite icons not always displaying in database
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
-    curves interpolation isn't correct
     some interface elements will not display properly with large buttons or large text
 
 Todo:
-    database/settings import and export
+    search function
+    set video in and out points before reencoding
     simplified interface mode - redo sorting and new/delete/rename to be smaller somehow
     android: need to include ffmpeg executable
-    multi-thread video processing?
-    create collage
-    upload to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
+    create collage feature
     rework importing to allow multiple folders with the same name (in subfolders)
+
+Possible Todo (Later On):
+    multi-thread video processing
+    export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 """
 
@@ -176,7 +177,7 @@ def verify_copy(copy_from, copy_to):
     compare = filecmp.cmp(copy_from, copy_to, shallow=False)
     return compare
 
-def interpolate(start, stop, length, minimum, maximum, previous=None, next=None, mode='linear'):
+def interpolate(start, stop, length, minimum, maximum, previous=None, previous_distance=1, next=None, next_distance=1, mode='linear'):
     """Returns a list of a given length, of float values interpolated between two given values.
     Arguments:
         start: Starting Y value.
@@ -192,6 +193,7 @@ def interpolate(start, stop, length, minimum, maximum, previous=None, next=None,
     Returns: A list of float values.
     """
 
+    minimum_distance = 40
     if length == 0:
         return []
     values = []
@@ -201,8 +203,18 @@ def interpolate(start, stop, length, minimum, maximum, previous=None, next=None,
     if mode == 'cubic' or mode == 'catmull':
         if previous is None:
             previous = start - stop
+            previous_distance = length
         if next is None:
-            next = (stop-start)*2
+            next = stop + (stop - start)
+            next_distance = length
+        if next_distance < minimum_distance:
+            next_distance = minimum_distance
+        if previous_distance < minimum_distance:
+            previous_distance = minimum_distance
+        next_distance = next_distance / length
+        previous_distance = previous_distance / length
+        previous = previous / previous_distance
+        next = next / next_distance
     if mode == 'catmull':
         a = -0.5*previous + 1.5*start - 1.5*stop + 0.5*next
         b = previous - 2.5*start + 2*stop - 0.5*next
@@ -832,6 +844,9 @@ class FileBrowser(BoxLayout):
         if not self.directory_select:
             self.file = ''
             self.target_selected = False
+        else:
+            self.filename = self.path
+            self.target_selected = True
 
     def go_up(self, *_):
         up_path = os.path.realpath(os.path.join(self.path, '..'))
@@ -2405,14 +2420,26 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
         """Called when widget is loaded into recycleview layout"""
 
         app = App.get_running_app()
-        fullpath = data['fullpath']
-        if fullpath:
-            photos = app.database_get_folder(data['fullpath'])
-            self.total_photos_numeric = len(photos)
-            if self.total_photos_numeric > 0:
-                self.total_photos = '(' + str(self.total_photos_numeric) + ')'
-            else:
-                self.total_photos = ''
+        self.total_photos_numeric = 0
+        if data['displayable']:
+            photo_type = data['type']
+            if photo_type == 'Folder':
+                fullpath = data['fullpath']
+                if fullpath:
+                    photos = app.database_get_folder(data['fullpath'])
+                    self.total_photos_numeric = len(photos)
+            elif photo_type == 'Album':
+                for album in app.albums:
+                    if album['name'] == data['target']:
+                        self.total_photos_numeric = len(album['photos'])
+                        break
+            elif photo_type == 'Tag':
+                photos = app.database_get_tag(data['target'])
+                self.total_photos_numeric = len(photos)
+        if self.total_photos_numeric > 0:
+            self.total_photos = '(' + str(self.total_photos_numeric) + ')'
+        else:
+            self.total_photos = ''
         self.ids['mainText'].text = data['folder_name'] + '   [b]' + self.total_photos + '[/b]'
         self.index = index
         self.data = data
@@ -2889,6 +2916,18 @@ class SettingDatabaseClean(SettingItem):
         app = App.get_running_app()
         app.database_clean(deep=True)
 
+class SettingDatabaseRestore(SettingItem):
+    """Database backup restore widget for the settings screen."""
+    def database_restore(self):
+        app = App.get_running_app()
+        app.database_restore()
+
+class SettingDatabaseBackup(SettingItem):
+    """Database backup restore widget for the settings screen."""
+    def database_backup(self):
+        app = App.get_running_app()
+        app.database_backup()
+
 class MoveConfirmPopup(NormalPopup):
     """Popup that asks to confirm a file or folder move."""
     target = StringProperty()
@@ -2909,6 +2948,8 @@ class PhotoManagerSettings(Settings):
         self.register_type('databaseimport', SettingDatabaseImport)
         self.register_type('databaseclean', SettingDatabaseClean)
         self.register_type('aboutbutton', SettingAboutButton)
+        self.register_type('databaserestore', SettingDatabaseRestore)
+        self.register_type('databasebackup', SettingDatabaseBackup)
 
 class PhotoDrag(KivyImage):
     """Special image widget for displaying the drag-n-drop location."""
@@ -4534,6 +4575,7 @@ class DatabaseScreen(Screen):
             'dragable': False
         }
         data.append(album_root)
+        self.album_menu.clear_widgets()
         for album in albums:
             total_photos = len(album['photos'])
             menu_button = MenuButton(text=album['name'])
@@ -5143,7 +5185,7 @@ class AlbumScreen(Screen):
     border_selected = StringProperty()
     border_x_scale = NumericProperty(0)
     border_y_scale = NumericProperty(0)
-    opacity = NumericProperty(1)
+    border_opacity = NumericProperty(1)
     border_tint = ListProperty([1.0, 1.0, 1.0, 1.0])
     edit_denoise = BooleanProperty(False)
     luminance_denoise = StringProperty('10')
@@ -7361,17 +7403,23 @@ class Curves(FloatLayout):
             stop_y = stop_point[1] * total_bytes
             if previous_point != False:
                 previous_y = previous_point[1] * total_bytes
+                previous_distance = (start_point[0] - previous_point[0]) * total_bytes
             else:
                 previous_y = None
+                previous_distance = distance
             if next_point != False:
                 next_y = next_point[1] * total_bytes
+                next_distance = (next_point[0] - stop_point[0]) * total_bytes
             else:
+                next_distance = distance
                 next_y = None
             if interpolation == 'Catmull-Rom':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, previous=previous_y, next=next_y,
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, previous=previous_y,
+                                 previous_distance=previous_distance, next=next_y, next_distance=next_distance,
                                  mode='catmull')
             elif interpolation == 'Cubic':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, previous=previous_y, next=next_y,
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, previous=previous_y,
+                                 previous_distance=previous_distance, next=next_y, next_distance=next_distance,
                                  mode='cubic')
             elif interpolation == 'Cosine':
                 ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine')
@@ -7991,7 +8039,7 @@ class EditBorderImage(GridLayout):
     selected = StringProperty()
     border_x_scale = NumericProperty(0)
     border_y_scale = NumericProperty(0)
-    opacity = NumericProperty(1)
+    border_opacity = NumericProperty(1)
     tint = ListProperty([1.0, 1.0, 1.0, 1.0])
 
     owner = ObjectProperty()
@@ -8014,14 +8062,14 @@ class EditBorderImage(GridLayout):
         self.owner.border_selected = self.selected
         self.owner.border_x_scale = self.border_x_scale
         self.owner.border_y_scale = self.border_y_scale
-        self.owner.opacity = self.opacity
+        self.owner.border_opacity = self.border_opacity
         self.owner.border_tint = self.tint
 
     def load_last(self):
         self.selected = self.owner.border_selected
         self.border_x_scale = self.owner.border_x_scale
         self.border_y_scale = self.owner.border_y_scale
-        self.opacity = self.owner.opacity
+        self.border_opacity = self.owner.border_opacity
         self.tint = self.owner.border_tint
 
     def on_selected(self, *_):
@@ -8078,11 +8126,11 @@ class EditBorderImage(GridLayout):
     def reset_border_y_scale(self):
         self.border_y_scale = 0
 
-    def on_opacity(self, *_):
-        self.owner.viewer.edit_image.border_opacity = self.opacity
+    def on_border_opacity(self, *_):
+        self.owner.viewer.edit_image.border_opacity = self.border_opacity
 
-    def reset_opacity(self, *_):
-        self.opacity = 1
+    def reset_border_opacity(self, *_):
+        self.border_opacity = 1
 
     def on_tint(self, *_):
         self.owner.viewer.edit_image.border_tint = self.tint
@@ -10078,6 +10126,21 @@ class ExportScreen(Screen):
                 if key == 'a':
                     self.toggle_select()
 
+class DatabaseRestoreScreen(Screen):
+    popup = None
+
+    def dismiss_extra(self):
+        """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
+        return True
+
+    def on_enter(self):
+        app = App.get_running_app()
+        completed = app.database_restore_process()
+        if completed != True:
+            app.message("Error: "+completed)
+        app.setup_database(restore=True)
+        Clock.schedule_once(app.show_database, 1)
+
 class PhotoManager(App):
     """Main class of the app."""
 
@@ -10141,6 +10204,7 @@ class PhotoManager(App):
     database_screen = ObjectProperty()
     album_screen = ObjectProperty()
     importing_screen = ObjectProperty()
+    database_restore_screen = ObjectProperty()
     scanningthread = None
     scanningpopup = None
     popup = None
@@ -10477,7 +10541,8 @@ class PhotoManager(App):
                 'autoscan': 0,
                 'quicktransfer': 0,
                 'lowmem': 0,
-                'simpleinterface': simple_interface
+                'simpleinterface': simple_interface,
+                'backupdatabase': 1
             })
         config.setdefaults(
             'Database Directories', {
@@ -10519,14 +10584,28 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "databaseimport",
-            "title": "Import/Rescan Database Folders",
+            "title": "",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "databaseclean",
-            "title": "Deep Clean All Missing Files",
-            "desc": "Warning: Make sure all remote directories are accessible",
+            "title": "",
+            "desc": "Remove all missing files in database.  Warning: Make sure all remote directories are accessible",
+            "section": "Database Directories",
+            "key": "paths"
+        })
+        settingspanel.append({
+            "type": "databasebackup",
+            "title": "",
+            "desc": "Creates a backup of the current photo databases",
+            "section": "Database Directories",
+            "key": "paths"
+        })
+        settingspanel.append({
+            "type": "databaserestore",
+            "title": "",
+            "desc": "Restore and reload database backups from previous run if they exist",
             "section": "Database Directories",
             "key": "paths"
         })
@@ -10599,6 +10678,13 @@ class PhotoManager(App):
             "desc": "For Older Computers That Show Larger Images As Black, Displays All Images At A Smaller Size.",
             "section": "Settings",
             "key": "lowmem"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Backup Photo Database On Startup",
+            "desc": "Automatically make a copy of the photo database on each restart.  Will increase startup time when large databases are loaded.",
+            "section": "Settings",
+            "key": "backupdatabase"
         })
         settings.add_json_panel('Settings', self.config, data=json.dumps(settingspanel))
 
@@ -10954,13 +11040,93 @@ class PhotoManager(App):
         with open(self.data_directory+os.path.sep+'imports.ini', 'w') as config:
             configfile.write(config)
 
-    def setup_database(self):
+    def database_backup(self):
+        """Makes a copy of the photos, folders and imported databases to a backup directory"""
+        database_directory = self.data_directory + os.path.sep + 'Databases'
+        database_backup_dir = os.path.join(database_directory, 'backup')
+        if not os.path.exists(database_backup_dir):
+            os.makedirs(database_backup_dir)
+
+        photos_db = os.path.join(database_directory, 'photos.db')
+        photos_db_backup = os.path.join(database_backup_dir, 'photos.db')
+        if os.path.exists(photos_db_backup):
+            os.remove(photos_db_backup)
+        if os.path.exists(photos_db):
+            copy2(photos_db, photos_db_backup)
+
+        folders_db = os.path.join(database_directory, 'folders.db')
+        folders_db_backup = os.path.join(database_backup_dir, 'folders.db')
+        if os.path.exists(folders_db_backup):
+            os.remove(folders_db_backup)
+        if os.path.exists(folders_db):
+            copy2(folders_db, folders_db_backup)
+
+        imported_db = os.path.join(database_directory, 'imported.db')
+        imported_db_backup = os.path.join(database_backup_dir, 'imported.db')
+        if os.path.exists(imported_db_backup):
+            os.remove(imported_db_backup)
+        if os.path.exists(imported_db):
+            copy2(imported_db, imported_db_backup)
+
+    def show_database_restore(self):
+        """Switch to the database restoring screen layout."""
+
+        self.clear_drags()
+        if 'database_restore' not in self.screen_manager.screen_names:
+            self.screen_manager.add_widget(self.database_restore_screen)
+        self.screen_manager.current = 'database_restore'
+
+    def database_restore(self):
+        """Attempts to restore the backup databases"""
+
+        self.close_settings()
+        if self.database_scanning:
+            self.cancel_database_import()
+            self.scanningthread.join()
+        self.photos.close()
+        self.photos.join()
+        self.folders.close()
+        self.folders.join()
+        self.imported.close()
+        self.imported.join()
+        self.show_database_restore()
+
+    def database_restore_process(self):
+        database_directory = self.data_directory + os.path.sep + 'Databases'
+        database_backup_dir = os.path.join(database_directory, 'backup')
+
+        photos_db = os.path.join(database_directory, 'photos.db')
+        photos_db_backup = os.path.join(database_backup_dir, 'photos.db')
+        folders_db = os.path.join(database_directory, 'folders.db')
+        folders_db_backup = os.path.join(database_backup_dir, 'folders.db')
+        imported_db = os.path.join(database_directory, 'imported.db')
+        imported_db_backup = os.path.join(database_backup_dir, 'imported.db')
+        if not os.path.exists(database_backup_dir):
+            return "Backup does not exist"
+        files = [photos_db_backup, photos_db, folders_db_backup, folders_db, imported_db_backup, imported_db]
+        for file in files:
+            if not os.path.exists(file):
+                return "Backup does not exist"
+        try:
+            os.remove(photos_db)
+            copy2(photos_db_backup, photos_db)
+            os.remove(folders_db)
+            copy2(folders_db_backup, folders_db)
+            os.remove(imported_db)
+            copy2(imported_db_backup, imported_db)
+        except:
+            return "Could not copy backups"
+        return True
+
+    def setup_database(self, restore=False):
         """Set up various databases, create if needed."""
 
         database_directory = self.data_directory+os.path.sep+'Databases'
         if not os.path.exists(database_directory):
             os.makedirs(database_directory)
-        self.photos = MultiThreadOK(os.path.join(database_directory, 'photos.db'))
+
+        photos_db = os.path.join(database_directory, 'photos.db')
+        self.photos = MultiThreadOK(photos_db)
         self.photos.execute('''CREATE TABLE IF NOT EXISTS photos(
                             FullPath text PRIMARY KEY,
                             Folder text,
@@ -10976,28 +11142,36 @@ class PhotoManager(App):
                             Owner text,
                             Export integer,
                             Orientation integer);''')
-        self.folders = MultiThreadOK(os.path.join(database_directory, 'folders.db'))
+
+        folders_db = os.path.join(database_directory, 'folders.db')
+        self.folders = MultiThreadOK(folders_db)
         self.folders.execute('''CREATE TABLE IF NOT EXISTS folders(
                              Path text PRIMARY KEY,
                              Title text,
                              Description text)''')
-        self.thumbnails = MultiThreadOK(os.path.join(database_directory, 'thumbnails.db'))
-        self.thumbnails.execute('''CREATE TABLE IF NOT EXISTS thumbnails(
-                                FullPath text PRIMARY KEY,
-                                ModifiedDate integer,
-                                Thumbnail blob,
-                                Orientation integer);''')
-        self.tempthumbnails = MultiThreadOK(':memory:')
-        self.tempthumbnails.execute('''CREATE TABLE IF NOT EXISTS thumbnails(
+
+        if not restore:
+            self.thumbnails = MultiThreadOK(os.path.join(database_directory, 'thumbnails.db'))
+            self.thumbnails.execute('''CREATE TABLE IF NOT EXISTS thumbnails(
                                     FullPath text PRIMARY KEY,
                                     ModifiedDate integer,
                                     Thumbnail blob,
                                     Orientation integer);''')
-        self.imported = MultiThreadOK(os.path.join(database_directory, 'imported.db'))
+            self.tempthumbnails = MultiThreadOK(':memory:')
+            self.tempthumbnails.execute('''CREATE TABLE IF NOT EXISTS thumbnails(
+                                        FullPath text PRIMARY KEY,
+                                        ModifiedDate integer,
+                                        Thumbnail blob,
+                                        Orientation integer);''')
+
+        imported_db = os.path.join(database_directory, 'imported.db')
+        self.imported = MultiThreadOK(imported_db)
         self.imported.execute('''CREATE TABLE IF NOT EXISTS imported(
                               FullPath text PRIMARY KEY,
                               File text,
                               ModifiedDate integer);''')
+        if not restore and self.config.getboolean("Settings", "backupdatabase"):
+            self.database_backup()
 
     def album_load_all(self):
         """Scans the album directory, and tries to load all album .ini files into the app.albums variable."""
@@ -11310,6 +11484,7 @@ class PhotoManager(App):
         #self.screen_manager.add_widget(self.database_screen)
         self.importing_screen = ImportingScreen(name='importing')
         #self.screen_manager.add_widget(self.importing_screen)
+        self.database_restore_screen = DatabaseRestoreScreen(name='database_restore')
 
         #Set up keyboard catchers
         Window.bind(on_key_down=self.key_down)
