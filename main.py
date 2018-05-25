@@ -42,6 +42,7 @@ from configparser import ConfigParser
 from io import BytesIO
 import datetime
 from shutil import copy2
+from shutil import copyfile
 from shutil import rmtree
 from shutil import move
 try:
@@ -11052,21 +11053,21 @@ class PhotoManager(App):
         if os.path.exists(photos_db_backup):
             os.remove(photos_db_backup)
         if os.path.exists(photos_db):
-            copy2(photos_db, photos_db_backup)
+            copyfile(photos_db, photos_db_backup)
 
         folders_db = os.path.join(database_directory, 'folders.db')
         folders_db_backup = os.path.join(database_backup_dir, 'folders.db')
         if os.path.exists(folders_db_backup):
             os.remove(folders_db_backup)
         if os.path.exists(folders_db):
-            copy2(folders_db, folders_db_backup)
+            copyfile(folders_db, folders_db_backup)
 
         imported_db = os.path.join(database_directory, 'imported.db')
         imported_db_backup = os.path.join(database_backup_dir, 'imported.db')
         if os.path.exists(imported_db_backup):
             os.remove(imported_db_backup)
         if os.path.exists(imported_db):
-            copy2(imported_db, imported_db_backup)
+            copyfile(imported_db, imported_db_backup)
 
     def show_database_restore(self):
         """Switch to the database restoring screen layout."""
