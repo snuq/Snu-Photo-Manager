@@ -2835,6 +2835,21 @@
         size_hint_y: None
         height: app.button_scale
         ShortLabel:
+            text: 'Shadows:'
+        Label:
+        NormalButton:
+            text: 'Reset'
+            on_press: root.reset_shadow()
+    HalfSlider:
+        id: shadowSlider
+        value: root.shadow
+        on_value: root.shadow = self.value
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        ShortLabel:
             text: 'Gamma:'
         Label:
         NormalButton: 

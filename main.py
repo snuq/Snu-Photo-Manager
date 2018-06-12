@@ -5,6 +5,8 @@ Bugs:
     some interface elements will not display properly with large buttons or large text
 
 Todo:
+    Change 'ok' buttons to confirm verb (ie, 'delete', 'move'), make some buttons red if the user should think twice about clicking them
+    preview videos and photos on import screen (click once to pop up preview)
     search function
     set video in and out points before reencoding
     simplified interface mode - redo sorting and new/delete/rename to be smaller somehow
@@ -1141,6 +1143,7 @@ class CustomImage(KivyImage):
     rotate_angle = NumericProperty(0)
     fine_angle = NumericProperty(0)
     brightness = NumericProperty(0)
+    shadow = NumericProperty(0)
     contrast = NumericProperty(0)
     gamma = NumericProperty(0)
     saturation = NumericProperty(0)
@@ -1504,6 +1507,9 @@ class CustomImage(KivyImage):
     def on_brightness(self, *_):
         self.update_preview()
 
+    def on_shadow(self, *_):
+        self.update_preview()
+
     def on_gamma(self, *_):
         self.update_preview()
 
@@ -1752,9 +1758,30 @@ class CustomImage(KivyImage):
         if self.equalize != 0:
             equalize_image = ImageOps.equalize(image)
             image = Image.blend(image, equalize_image, self.equalize)
+        temperature = int(round(abs(self.temperature)*100))
+        if temperature != 0:
+            temperature = temperature-1
+            if self.temperature > 0:
+                kelvin = negative_kelvin[99-temperature]
+            else:
+                kelvin = positive_kelvin[temperature]
+            matrix = ((kelvin[0]/255.0), 0.0, 0.0, 0.0,
+                      0.0, (kelvin[1]/255.0), 0.0, 0.0,
+                      0.0, 0.0, (kelvin[2]/255.0), 0.0)
+            image = image.convert('RGB', matrix)
         if self.brightness != 0:
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(1+self.brightness)
+        if self.shadow != 0:
+            floor = int(self.shadow * 128)
+            table = [0] * floor
+            remaining_length = 256 - floor
+            for index in range(0, remaining_length):
+                value = int(round((index / remaining_length) * 256))
+                table.append(value)
+            lut = table * 3
+            image = image.point(lut)
+
         if self.gamma != 0:
             if self.gamma == -1:
                 gamma = 99999999999999999
@@ -1773,17 +1800,6 @@ class CustomImage(KivyImage):
         if self.saturation != 0:
             enhancer = ImageEnhance.Color(image)
             image = enhancer.enhance(1+self.saturation)
-        temperature = int(round(abs(self.temperature)*100))
-        if temperature != 0:
-            temperature = temperature-1
-            if self.temperature > 0:
-                kelvin = negative_kelvin[99-temperature]
-            else:
-                kelvin = positive_kelvin[temperature]
-            matrix = ((kelvin[0]/255.0), 0.0, 0.0, 0.0,
-                      0.0, (kelvin[1]/255.0), 0.0, 0.0,
-                      0.0, 0.0, (kelvin[2]/255.0), 0.0)
-            image = image.convert('RGB', matrix)
         if self.tint != [1.0, 1.0, 1.0, 1.0]:
             matrix = (self.tint[0], 0.0, 0.0, 0.0,
                       0.0, self.tint[1], 0.0, 0.0,
@@ -5166,6 +5182,7 @@ class AlbumScreen(Screen):
     adaptive = NumericProperty(0)
     brightness = NumericProperty(0)
     gamma = NumericProperty(0)
+    shadow = NumericProperty(0)
     contrast = NumericProperty(0)
     saturation = NumericProperty(0)
     temperature = NumericProperty(0)
@@ -7647,6 +7664,7 @@ class EditColorImage(GridLayout):
     autocontrast = BooleanProperty(False)
     adaptive = NumericProperty(0)
     brightness = NumericProperty(0)
+    shadow = NumericProperty(0)
     gamma = NumericProperty(0)
     contrast = NumericProperty(0)
     saturation = NumericProperty(0)
@@ -7675,6 +7693,7 @@ class EditColorImage(GridLayout):
         self.owner.contrast = self.contrast
         self.owner.saturation = self.saturation
         self.owner.temperature = self.temperature
+        self.owner.shadow = self.shadow
 
     def load_last(self):
         self.equalize = self.owner.equalize
@@ -7685,6 +7704,7 @@ class EditColorImage(GridLayout):
         self.contrast = self.owner.contrast
         self.saturation = self.owner.saturation
         self.temperature = self.owner.temperature
+        self.shadow = self.owner.shadow
 
     def draw_histogram(self, *_):
         """Draws the histogram image and displays it."""
@@ -7766,6 +7786,12 @@ class EditColorImage(GridLayout):
     def reset_brightness(self):
         self.brightness = 0
 
+    def on_shadow(self, *_):
+        self.owner.viewer.edit_image.shadow = self.shadow
+
+    def reset_shadow(self):
+        self.shadow = 0
+
     def on_gamma(self, *_):
         self.owner.viewer.edit_image.gamma = self.gamma
 
@@ -7794,6 +7820,7 @@ class EditColorImage(GridLayout):
         """Reset all edit settings on this panel."""
 
         self.reset_brightness()
+        self.reset_shadow()
         self.reset_gamma()
         self.reset_contrast()
         self.reset_saturation()
