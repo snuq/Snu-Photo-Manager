@@ -8,7 +8,7 @@ Bugs:
     Applying effects to 4k files causes ffmpeg to error out
 
 Todo:
-    Add a 'find source files' function, searches database directories for the source files that may have been moved.
+    Add a "find source files" function, searches database directories for the source files that may have been moved.
     Improve FTP uploading - add 'folder' option, upload currently breaks if server ends with a '/'
     preview videos and photos on import screen (click once to pop up preview)
     search function
