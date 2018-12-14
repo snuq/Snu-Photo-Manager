@@ -3,8 +3,12 @@ Bugs:
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
     some interface elements will not display properly with large buttons or large text
+    Sometimes double-click go to an album stops working, might be related to after exporting
+    Video conversions can cause interface to get messed up, missed a Clock.schedule_once somewhere
+    Applying effects to 4k files causes ffmpeg to error out
 
 Todo:
+    Improve FTP uploading - add 'folder' option, upload currently breaks if server ends with a '/'
     Change 'ok' buttons to confirm verb (ie, 'delete', 'move'), make some buttons red if the user should think twice about clicking them
     preview videos and photos on import screen (click once to pop up preview)
     search function
@@ -139,6 +143,7 @@ lock = threading.Lock()
 if platform in ['win', 'linux', 'macosx', 'unknown']:
     desktop = True
     Config.set('input', 'mouse', 'mouse,disable_multitouch')
+    #Config.set('kivy', 'keyboard_mode', 'system')
     Window.maximize()
 else:
     desktop = False
@@ -5517,6 +5522,7 @@ class AlbumScreen(Screen):
         output = self.encoding_process_thread.communicate()[0]
         exit_code = self.encoding_process_thread.returncode
 
+        error_code = ''
         if exit_code == 0:
             #encoding completed
             self.dismiss_popup()
@@ -5531,21 +5537,25 @@ class AlbumScreen(Screen):
                 output_video.close_player()
                 output_video = None
                 if output_metadata:
-                    if output_metadata['src_vid_size'] != input_metadata['src_vid_size']:
+                    new_size = (int(self.encoding_settings['width']), int(self.encoding_settings['height']))
+                    if output_metadata['src_vid_size'] != new_size:
+                        error_code = ', Output size is incorrect'
                         good_file = False
                 else:
+                    error_code = ', Unable to find output file metadata'
                     good_file = False
             else:
+                error_code = ', Output file not found'
                 good_file = False
 
             if not good_file:
-                app.message('Warning: Encoded file may be bad.')
+                app.message('Warning: Encoded file may be bad'+error_code)
 
             new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
             if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
                 os.makedirs(input_file_folder+os.path.sep+'.originals')
             new_encoded_file = input_file_folder+os.path.sep+output_filename
-            if not os.path.isfile(new_original_file) and not (os.path.isfile(new_encoded_file) and (new_encoded_file != input_file)):
+            if not os.path.isfile(new_original_file) and os.path.isfile(output_file):
                 try:
                     os.rename(input_file, new_original_file)
                     os.rename(output_file, new_encoded_file)
