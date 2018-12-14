@@ -690,11 +690,13 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Yes'
+            text: root.yes_text
             on_release: root.dispatch('on_answer','yes')
+            warn: root.warn_yes
         WideButton:
-            text: 'No'
+            text: root.no_text
             on_release: root.dispatch('on_answer', 'no')
+            warn: root.warn_no
 
 <MessagePopup>:
     cols:1
@@ -1034,8 +1036,8 @@
     size_hint_y: None
     height: app.button_scale
     font_size: app.text_scale
-    background_normal: 'data/buttonlightup.png'
-    background_down: 'data/buttonlightdown.png'
+    background_normal: 'data/buttonwarnup.png' if self.warn else 'data/buttonlightup.png'
+    background_down: 'data/buttonwarndown.png' if self.warn else 'data/buttonlightdown.png'
     background_disabled_down: 'data/buttondisabled.png'
     background_disabled_normal: 'data/buttondisabled.png'
 

@@ -9,7 +9,6 @@ Bugs:
 
 Todo:
     Improve FTP uploading - add 'folder' option, upload currently breaks if server ends with a '/'
-    Change 'ok' buttons to confirm verb (ie, 'delete', 'move'), make some buttons red if the user should think twice about clicking them
     preview videos and photos on import screen (click once to pop up preview)
     search function
     set video in and out points before reencoding
@@ -758,7 +757,7 @@ class FileBrowser(BoxLayout):
         app = App.get_running_app()
         if not os.listdir(self.path):
             text = "Delete The Selected Folder?"
-            content = ConfirmPopup(text=text)
+            content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
             content.bind(on_answer=self.delete_folder_answer)
             self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
                                      size=(app.popup_x, app.button_scale * 4),
@@ -1089,7 +1088,8 @@ class NormalButton(Button):
 
 class WideButton(Button):
     """Full width button widget"""
-    pass
+
+    warn = BooleanProperty(False)
 
 class ShortLabel(Label):
     """Label that only takes up as much space as needed."""
@@ -2262,6 +2262,10 @@ class ConfirmPopup(GridLayout):
     """Basic Yes/No popup message.  Calls 'on_answer' when either button is clicked."""
 
     text = StringProperty()
+    yes_text = StringProperty('Yes')
+    no_text = StringProperty('No')
+    warn_yes = BooleanProperty(False)
+    warn_no = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         self.register_event_type('on_answer')
@@ -2299,7 +2303,7 @@ class RemoveTagButton(RemoveButton):
 
     def on_press(self):
         app = App.get_running_app()
-        content = ConfirmPopup(text='Delete The Tag "'+self.to_remove+'"?')
+        content = ConfirmPopup(text='Delete The Tag "'+self.to_remove+'"?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         content.bind(on_answer=self.on_answer)
         self.owner.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
                                        size=(app.popup_x, app.button_scale * 4),
@@ -2327,7 +2331,7 @@ class RemoveAlbumButton(RemoveButton):
 
     def on_press(self):
         app = App.get_running_app()
-        content = ConfirmPopup(text='Delete The Album "'+self.to_remove+'"?')
+        content = ConfirmPopup(text='Delete The Album "'+self.to_remove+'"?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         content.bind(on_answer=self.on_answer)
         self.owner.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
                                        size=(app.popup_x, app.button_scale * 4),
@@ -4197,11 +4201,11 @@ class DatabaseScreen(Screen):
         """
 
         if self.type == 'Album':
-            content = ConfirmPopup(text='Remove Selected Files From The Album "'+self.selected+'"?')
+            content = ConfirmPopup(text='Remove Selected Files From The Album "'+self.selected+'"?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         elif self.type == 'Tag':
-            content = ConfirmPopup(text='Remove The Tag "'+self.selected+'" From Selected Files?')
+            content = ConfirmPopup(text='Remove The Tag "'+self.selected+'" From Selected Files?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         else:
-            content = ConfirmPopup(text='Delete The Selected Files?')
+            content = ConfirmPopup(text='Delete The Selected Files?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_selected_answer)
         self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
@@ -4274,7 +4278,7 @@ class DatabaseScreen(Screen):
                         if move_to != fullpath:
                             if not move_to.startswith(fullpath):
                                 question = 'Move "'+fullpath+'" into "'+widget.fullpath+'"?'
-                                content = ConfirmPopup(text=question)
+                                content = ConfirmPopup(text=question, yes_text='Move', no_text="Don't Move", warn_yes=True)
                                 app = App.get_running_app()
                                 content.bind(on_answer=partial(self.move_folder_answer, fullpath, move_to))
                                 self.popup = NormalPopup(title='Confirm Move', content=content, size_hint=(None, None),
@@ -4293,7 +4297,7 @@ class DatabaseScreen(Screen):
                             elif widget.type == 'Tag':
                                 self.add_to_tag(widget.target, selected_photos=selected_photos)
                             elif widget.type == 'Folder':
-                                content = ConfirmPopup(text='Move These Files To "'+widget.target+'"?')
+                                content = ConfirmPopup(text='Move These Files To "'+widget.target+'"?', yes_text="Move", no_text="Don't Move", warn_yes=True)
                                 content.bind(on_answer=self.move_files)
                                 self.popup = MoveConfirmPopup(photos=selected_photos, target=widget.target,
                                                               title='Confirm Move', content=content,
@@ -4868,7 +4872,7 @@ class DatabaseScreen(Screen):
             text = text+"\nAll Included Photos And Videos Will Be Deleted."
         else:
             text = text+"\nThe Contained Files Will Not Be Deleted."
-        content = ConfirmPopup(text=text)
+        content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_folder_answer)
         self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
@@ -5880,11 +5884,11 @@ class AlbumScreen(Screen):
         """Creates a delete confirmation popup and opens it."""
 
         if self.type == 'Album':
-            content = ConfirmPopup(text='Remove This Photo From The Album "'+self.target+'"?')
+            content = ConfirmPopup(text='Remove This Photo From The Album "'+self.target+'"?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         elif self.type == 'Tag':
-            content = ConfirmPopup(text='Remove The Tag "'+self.target+'" From Selected Photo?')
+            content = ConfirmPopup(text='Remove The Tag "'+self.target+'" From Selected Photo?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         else:
-            content = ConfirmPopup(text='Delete The Selected File?')
+            content = ConfirmPopup(text='Delete The Selected File?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_selected_answer)
         self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
@@ -7013,7 +7017,7 @@ class TransferScreen(Screen):
                 if folder not in removes:
                     reduced_folders.append(folder)
 
-            content = ConfirmPopup(text='Move These Folders From "'+transfer_from+'" to "'+transfer_to+'"?')
+            content = ConfirmPopup(text='Move These Folders From "'+transfer_from+'" to "'+transfer_to+'"?', yes_text='Move', no_text="Don't Move", warn_yes=True)
             content.bind(on_answer=self.move_folders)
             self.transfer_to = transfer_to
             self.transfer_from = transfer_from
