@@ -8,6 +8,7 @@ Bugs:
     Applying effects to 4k files causes ffmpeg to error out
 
 Todo:
+    Add a 'find source files' function, searches database directories for the source files that may have been moved.
     Improve FTP uploading - add 'folder' option, upload currently breaks if server ends with a '/'
     preview videos and photos on import screen (click once to pop up preview)
     search function
@@ -178,11 +179,13 @@ def time_index(seconds):
     time_remaining = str(int(all_days)).zfill(2) + ':' + str(int(final_hours)).zfill(2) + ':' + str(int(final_minutes)).zfill(2) + ':' + str(int(final_seconds)).zfill(2)
     return time_remaining
 
+
 def verify_copy(copy_from, copy_to):
     if not os.path.exists(copy_to):
         copy2(copy_from, copy_to)
     compare = filecmp.cmp(copy_from, copy_to, shallow=False)
     return compare
+
 
 def interpolate(start, stop, length, minimum, maximum, previous=None, previous_distance=1, next=None, next_distance=1, mode='linear'):
     """Returns a list of a given length, of float values interpolated between two given values.
@@ -255,6 +258,7 @@ def interpolate(start, stop, length, minimum, maximum, previous=None, previous_d
             y = minimum
     return values
 
+
 def rotated_rect_with_max_area(width, height, angle):
     """Given a rectangle of size (width, height) that has been rotated by angle, computes the width and height of 
     the largest possible axis-aligned rectangle (maximal area) within the rotated rectangle.
@@ -285,9 +289,11 @@ def rotated_rect_with_max_area(width, height, angle):
 
     return wr, hr
 
+
 def agnostic_path(string):
     """Returns a path with the '/' separator instead of anything else."""
     return str(string.replace('\\', '/'))
+
 
 def local_paths(photo_list):
     """Takes a list of photo info objects and formats all paths to whatever is appropriate for the current os."""
@@ -298,9 +304,11 @@ def local_paths(photo_list):
             return_list.append(local_photoinfo(list(photo)))
     return return_list
 
+
 def local_path(string):
     """Formats a path string using separatorns appropriate for the os."""
     return str(string.replace('/', os.path.sep))
+
 
 def local_photoinfo(photoinfo):
     photoinfo[0] = local_path(photoinfo[0])
@@ -309,6 +317,7 @@ def local_photoinfo(photoinfo):
     photoinfo[10] = local_path(photoinfo[10])
     return photoinfo
 
+
 def agnostic_photoinfo(photoinfo):
     photoinfo[0] = agnostic_path(photoinfo[0])
     photoinfo[1] = agnostic_path(photoinfo[1])
@@ -316,13 +325,16 @@ def agnostic_photoinfo(photoinfo):
     photoinfo[10] = agnostic_path(photoinfo[10])
     return photoinfo
 
+
 def local_thumbnail(thumbnail):
     thumbnail[0] = local_path(thumbnail[0])
     return thumbnail
 
+
 def agnostic_thumbnail(thumbnail):
     thumbnail[0] = agnostic_path(thumbnail[0])
     return thumbnail
+
 
 def naming(naming_method, title='My Photos', year=None, month=None, day=None):
     """Generates a folder name appropriate for a photo directory using various settings.
@@ -376,6 +388,7 @@ def naming(naming_method, title='My Photos', year=None, month=None, day=None):
 
     return renaming
 
+
 def to_bool(value):
     """Function to convert various Non-Boolean true/false values to Boolean.
     Inputs that return True are:
@@ -384,6 +397,7 @@ def to_bool(value):
     """
 
     return str(value).lower() in ('yes', 'true', 't', '1', 'down')
+
 
 def format_size(size):
     """Formats a file size in bytes to human-readable format.
@@ -404,6 +418,7 @@ def format_size(size):
     else:
         return str(round(size, 2))+' Bytes'
 
+
 def list_folders(folder):
     """Function that returns a list of all nested subfolders within a given folder.
     Argument:
@@ -422,6 +437,7 @@ def list_folders(folder):
         for directory in directories:
             folder_list.append(os.path.join(filefolder, directory))
     return folder_list
+
 
 def list_files(folder):
     """Function that returns a list of every nested file within a folder.
@@ -443,6 +459,7 @@ def list_files(folder):
         for file in files:
             file_list.append([os.path.join(filefolder, file), firstroot])
     return file_list
+
 
 def get_folder_info(folder, databases):
     """Checks a folder for info files that may contain album information.
@@ -487,6 +504,7 @@ def get_folder_info(folder, databases):
                 except:
                     pass
     return [folder, title, description]
+
 
 def get_file_info(file_info, import_mode=False, modified_date=False):
     """Reads a photo file and determines all the basic information about it.
@@ -582,6 +600,7 @@ def get_file_info(file_info, import_mode=False, modified_date=False):
     return [os.path.join(filepath, filename), filepath, database_folder, original_date, original_size, rename,
             import_date, modified_date, tags, edited, original_file, owner, export, orientation]
 
+
 def generate_thumbnail(fullpath, database_folder):
     """Creates a thumbnail image for a photo.
 
@@ -633,6 +652,7 @@ def generate_thumbnail(fullpath, database_folder):
     except:
         return None
 
+
 def get_drives():
     drives = []
     if platform == 'win':
@@ -671,11 +691,13 @@ def get_drives():
         drives.append((os.path.sep + u'mnt' + os.path.sep + 'sdcard' + os.path.sep, 'Internal Memory'))
     return drives
 
+
 def isfile2(path):
     if not os.path.isfile(path):
         return False
     directory, filename = os.path.split(path)
     return filename in os.listdir(directory)
+
 
 class FileBrowser(BoxLayout):
 
@@ -885,6 +907,7 @@ class FileBrowser(BoxLayout):
     def on_ok(self):
         pass
 
+
 class FileBrowserItem(RecycleDataViewBehavior, BoxLayout):
     bgcolor = ListProperty([0, 0, 0, 0])
     owner = ObjectProperty()
@@ -927,6 +950,7 @@ class FileBrowserItem(RecycleDataViewBehavior, BoxLayout):
             self.parent.selected = self.data
             self.owner.select(self)
             return True
+
 
 class SelectableRecycleBoxLayout(RecycleBoxLayout):
     """Adds selection and focus behavior to the view."""
@@ -972,6 +996,7 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout):
                 else:
                     child.selected = False
 
+
 class PhotoListRecycleView(RecycleView):
     selected_index = NumericProperty(0)
 
@@ -1010,6 +1035,7 @@ class PhotoListRecycleView(RecycleView):
         else:
             sy = 1
         return sx, sy
+
 
 class MultiThreadOK(threading.Thread):
     """Slightly modified version of sqlite multithread support by Louis RIVIERE"""
@@ -1059,6 +1085,7 @@ class MultiThreadOK(threading.Thread):
     def close(self):
         self.execute('--close--')
 
+
 class FloatInput(TextInput):
     pat = re.compile('[^0-9]')
 
@@ -1070,6 +1097,7 @@ class FloatInput(TextInput):
             s = '.'.join([re.sub(pat, '', s) for s in substring.split('.', 1)])
         return super(FloatInput, self).insert_text(s, from_undo=from_undo)
 
+
 class IntegerInput(TextInput):
     pat = re.compile('[^0-9]')
 
@@ -1078,22 +1106,27 @@ class IntegerInput(TextInput):
         s = re.sub(pat, '', substring)
         return super(IntegerInput, self).insert_text(s, from_undo=from_undo)
 
+
 class NormalPopup(Popup):
     """Basic popup widget."""
     pass
 
+
 class NormalButton(Button):
     """Basic button widget."""
     pass
+
 
 class WideButton(Button):
     """Full width button widget"""
 
     warn = BooleanProperty(False)
 
+
 class ShortLabel(Label):
     """Label that only takes up as much space as needed."""
     pass
+
 
 class InfoLabel(ShortLabel):
     bgcolor = ListProperty([0, 0, 0, 0])
@@ -1124,6 +1157,7 @@ class InfoLabel(ShortLabel):
 
     def reset_bgcolor(self, *_):
         self.bgcolor = [0, 0, 0, 0]
+
 
 class CustomImage(KivyImage):
     """Custom image display widget.
@@ -1778,13 +1812,22 @@ class CustomImage(KivyImage):
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(1+self.brightness)
         if self.shadow != 0:
-            floor = int(self.shadow * 128)
-            table = [0] * floor
-            remaining_length = 256 - floor
-            for index in range(0, remaining_length):
-                value = int(round((index / remaining_length) * 256))
-                table.append(value)
-            lut = table * 3
+            if self.shadow < 0:
+                floor = int(abs(self.shadow) * 128)
+                table = [0] * floor
+                remaining_length = 256 - floor
+                for index in range(0, remaining_length):
+                    value = int(round((index / remaining_length) * 256))
+                    table.append(value)
+                lut = table * 3
+            else:
+                floor = int(abs(self.shadow) * 128)
+                table = []
+                for index in range(0, 256):
+                    percent = 1 - (index / 255)
+                    value = int(round(index + (floor * percent)))
+                    table.append(value)
+                lut = table * 3
             image = image.point(lut)
 
         if self.gamma != 0:
@@ -1900,6 +1943,7 @@ class CustomImage(KivyImage):
             image = image.convert('RGB')
         image = self.adjust_image(image, preview=False)
         return image
+
 
 class AsyncThumbnail(KivyImage):
     """AsyncThumbnail is a modified version of the kivy AsyncImage class,
@@ -2065,6 +2109,7 @@ class AsyncThumbnail(KivyImage):
     def texture_update(self, *largs):
         pass
 
+
 class DenoisePreview(RelativeLayout):
     finished = BooleanProperty(False)
 
@@ -2076,6 +2121,7 @@ class DenoisePreview(RelativeLayout):
         print('on finished')
         self.root.update_preview()
 
+
 class ScrollViewCentered(ScrollView):
     """Special ScrollView that begins centered"""
 
@@ -2086,6 +2132,7 @@ class ScrollViewCentered(ScrollView):
 
     def window_to_parent(self, x, y, relative=False):
         return self.to_parent(*self.to_widget(x, y))
+
 
 class VideoThumbnail(FloatLayout):
     source = ObjectProperty(None)
@@ -2100,9 +2147,11 @@ class VideoThumbnail(FloatLayout):
             self.video.state = 'play'
         return True
 
+
 class Scroller(ScrollView):
     """Generic scroller container widget."""
     pass
+
 
 class ScrollerContainer(Scroller):
     def on_touch_down(self, touch):
@@ -2119,39 +2168,48 @@ class ScrollerContainer(Scroller):
             pass
         super(ScrollerContainer, self).on_touch_down(touch)
 
+
 class AlbumDetails(BoxLayout):
     """Widget to display information about an album"""
 
     owner = ObjectProperty()
+
 
 class FolderDetails(BoxLayout):
     """Widget to display information about a folder of photos"""
 
     owner = ObjectProperty()
 
+
 class NormalDropDown(DropDown):
     """Base dropdown menu class."""
     pass
+
 
 class DatabaseSortDropDown(NormalDropDown):
     """Drop-down menu for database folder sorting"""
     pass
 
+
 class AlbumSortDropDown(NormalDropDown):
     """Drop-down menu for sorting album elements"""
     pass
+
 
 class AspectRatioDropDown(NormalDropDown):
     """Drop-down menu for sorting aspect ratio presets"""
     pass
 
+
 class InterpolationDropDown(NormalDropDown):
     """Drop-down menu for curves interpolation options"""
     pass
 
+
 class SplitterPanel(Splitter):
     """Base class for the left and right adjustable panels"""
     pass
+
 
 class SplitterPanelLeft(SplitterPanel):
     """Left-side adjustable width panel."""
@@ -2182,6 +2240,7 @@ class SplitterPanelLeft(SplitterPanel):
         if self.hidden:
             self.width = 0
 
+
 class SplitterPanelRight(SplitterPanel):
     """Right-side adjustable width panel."""
     hidden = BooleanProperty(True)
@@ -2211,6 +2270,7 @@ class SplitterPanelRight(SplitterPanel):
         if self.hidden:
             self.width = 0
 
+
 class MessagePopup(GridLayout):
     """Basic popup message with a message and 'ok' button."""
 
@@ -2221,6 +2281,7 @@ class MessagePopup(GridLayout):
         app = App.get_running_app()
         app.popup.dismiss()
 
+
 class AboutPopup(Popup):
     """Basic popup message with a message and 'ok' button."""
 
@@ -2229,6 +2290,7 @@ class AboutPopup(Popup):
     def close(self, *_):
         app = App.get_running_app()
         app.popup.dismiss()
+
 
 class InputPopup(GridLayout):
     """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
@@ -2244,6 +2306,7 @@ class InputPopup(GridLayout):
     def on_answer(self, *args):
         pass
 
+
 class InputPopupTag(GridLayout):
     """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
 
@@ -2257,6 +2320,7 @@ class InputPopupTag(GridLayout):
 
     def on_answer(self, *args):
         pass
+
 
 class ConfirmPopup(GridLayout):
     """Basic Yes/No popup message.  Calls 'on_answer' when either button is clicked."""
@@ -2274,6 +2338,7 @@ class ConfirmPopup(GridLayout):
     def on_answer(self, *args):
         pass
 
+
 class RemoveButton(NormalButton):
     """Base class for a button to remove an item from a list."""
 
@@ -2281,6 +2346,7 @@ class RemoveButton(NormalButton):
     to_remove = StringProperty()
     remove_from = StringProperty()
     owner = ObjectProperty()
+
 
 class RemoveProgramButton(RemoveButton):
     """Button to remove a program from the external programs list."""
@@ -2290,6 +2356,7 @@ class RemoveProgramButton(RemoveButton):
         app.program_remove(int(self.to_remove))
         self.owner.update_programs()
 
+
 class HiddenRemoveTagButton(ShortLabel):
     """Dummy remove tag button, used specifically for the 'favorite' tag that cannot be removed."""
 
@@ -2297,6 +2364,7 @@ class HiddenRemoveTagButton(ShortLabel):
     to_remove = StringProperty()
     remove_from = StringProperty()
     owner = ObjectProperty()
+
 
 class RemoveTagButton(RemoveButton):
     """Button to remove a tag from the tags list.  Will popup a confirm dialog before removing."""
@@ -2318,6 +2386,7 @@ class RemoveTagButton(RemoveButton):
             self.owner.update_treeview()
         self.owner.dismiss_popup()
 
+
 class RemoveFromTagButton(RemoveButton):
     """Button to remove a tag from the current photo."""
 
@@ -2325,6 +2394,7 @@ class RemoveFromTagButton(RemoveButton):
         app = App.get_running_app()
         app.database_remove_tag(self.remove_from, self.to_remove, message=True)
         self.owner.update_treeview()
+
 
 class RemoveAlbumButton(RemoveButton):
     """Button to remove an album.  Pops up a confirmation dialog."""
@@ -2347,6 +2417,7 @@ class RemoveAlbumButton(RemoveButton):
                 app.album_delete(index)
             self.owner.update_treeview()
         self.owner.dismiss_popup()
+
 
 class PhotoRecycleViewButton(RecycleDataViewBehavior, BoxLayout):
     bgcolor = ListProperty([0, 0, 0, 0])
@@ -2404,12 +2475,14 @@ class PhotoRecycleViewButton(RecycleDataViewBehavior, BoxLayout):
             self.parent.selected = self.data
             return True
 
+
 class TreenodeDrag(BoxLayout):
     """Widget that looks like a treenode thumbnail, used for showing the position of the drag-n-drop."""
 
     fullpath = StringProperty()
     text = StringProperty()
     subtext = StringProperty()
+
 
 class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
     """Widget that displays a specific folder, album, or tag in the database treeview.
@@ -2539,6 +2612,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
             app.drag_treeview(self, 'end', window_coords)
             self.drag = False
 
+
 class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
     """Widget that displays a specific folder, album, or tag in the database treeview.
     Responds to clicks and double-clicks.
@@ -2608,12 +2682,14 @@ class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
             app.drag_treeview(self, 'end', window_coords)
             self.drag = False
 
+
 class TreeViewInfo(BoxLayout, TreeViewNode):
     """Simple treeview node to display a line of text.
     Has two elements, they will be shown as: 'title: content'"""
 
     title = StringProperty()
     content = StringProperty()
+
 
 class ExternalProgramEditor(GridLayout):
     """Widget to display and edit an external program command."""
@@ -2654,6 +2730,7 @@ class ExternalProgramEditor(GridLayout):
         self.owner.owner.dismiss_popup()
         self.save_program()
 
+
 class ExpandableButton(GridLayout):
     """Base class for a button with a checkbox to enable/disable an extra area.
     It also features an 'x' remove button that calls 'on_remove' when clicked."""
@@ -2686,6 +2763,7 @@ class ExpandableButton(GridLayout):
     def on_remove(self):
         pass
 
+
 class TagSelectButton(WideButton):
     """Tag display button - used for adding a tag to a photo"""
 
@@ -2697,6 +2775,7 @@ class TagSelectButton(WideButton):
     def on_press(self):
         self.owner.add_to_tag(self.target)
 
+
 class AlbumSelectButton(WideButton):
     """Album display button - used for adding a photo to an album."""
 
@@ -2707,6 +2786,7 @@ class AlbumSelectButton(WideButton):
 
     def on_press(self):
         self.owner.add_to_album(self.target)
+
 
 class MultiTreeView(TreeView):
     def toggle_select(self):
@@ -2760,6 +2840,7 @@ class MultiTreeView(TreeView):
 
         self._selected_node = node
 
+
 class NormalRecycleView(RecycleView):
     def get_selected(self):
         selected = []
@@ -2767,6 +2848,7 @@ class NormalRecycleView(RecycleView):
             if item['selected']:
                 selected.append(item)
         return selected
+
 
 class SelectableRecycleGrid(LayoutSelectionBehavior, RecycleGridLayout):
     """Custom selectable grid layout widget."""
@@ -2804,25 +2886,31 @@ class SelectableRecycleGrid(LayoutSelectionBehavior, RecycleGridLayout):
         for index in range(min(select_index, closest_node), max(select_index, closest_node)+1):
             self.select_node(index)
 
+
 class NormalLabel(Label):
     """Basic label widget"""
     pass
+
 
 class ShortLabel(NormalLabel):
     """Label widget that will remain the minimum width"""
     pass
 
+
 class MenuButton(Button):
     """Basic class for a drop-down menu button item."""
     pass
+
 
 class FolderSettingsItem(ListItemButton):
     """A Folder item displayed in a folder list popup dialog."""
     pass
 
+
 class SettingAboutButton(SettingItem):
     """Widget that opens an about dialog."""
     pass
+
 
 class SettingMultiDirectory(SettingItem):
     """Widget for displaying and editing a multi-folder setting in the settings dialog.
@@ -2930,11 +3018,13 @@ class SettingMultiDirectory(SettingItem):
         self.filepopup_dismiss()
         self.refresh()
 
+
 class SettingDatabaseImport(SettingItem):
     """Database scan/import widget for the settings screen."""
     def database_import(self):
         app = App.get_running_app()
         app.database_import()
+
 
 class SettingDatabaseClean(SettingItem):
     """Database deep-clean widget for the settings screen."""
@@ -2942,11 +3032,13 @@ class SettingDatabaseClean(SettingItem):
         app = App.get_running_app()
         app.database_clean(deep=True)
 
+
 class SettingDatabaseRestore(SettingItem):
     """Database backup restore widget for the settings screen."""
     def database_restore(self):
         app = App.get_running_app()
         app.database_restore()
+
 
 class SettingDatabaseBackup(SettingItem):
     """Database backup restore widget for the settings screen."""
@@ -2954,16 +3046,19 @@ class SettingDatabaseBackup(SettingItem):
         app = App.get_running_app()
         app.database_backup()
 
+
 class MoveConfirmPopup(NormalPopup):
     """Popup that asks to confirm a file or folder move."""
     target = StringProperty()
     photos = ListProperty()
     origin = StringProperty()
 
+
 class ScanningPopup(NormalPopup):
     """Popup for displaying database scanning progress."""
     scanning_percentage = NumericProperty(0)
     scanning_text = StringProperty('Building File List...')
+
 
 class PhotoManagerSettings(Settings):
     """Expanded settings class to add new settings buttons and types."""
@@ -2977,6 +3072,7 @@ class PhotoManagerSettings(Settings):
         self.register_type('databaserestore', SettingDatabaseRestore)
         self.register_type('databasebackup', SettingDatabaseBackup)
 
+
 class PhotoDrag(KivyImage):
     """Special image widget for displaying the drag-n-drop location."""
 
@@ -2985,8 +3081,10 @@ class PhotoDrag(KivyImage):
     opacity = .5
     fullpath = StringProperty()
 
+
 class PhotoThumbLabel(NormalLabel):
     pass
+
 
 class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
     """Wrapper widget for image thumbnails.  Used for displaying images in grid views."""
@@ -3086,8 +3184,10 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
             app.drag(self, 'end', window_coords)
             self.drag = False
 
+
 class PhotoRecycleThumbWide(PhotoRecycleThumb):
     pass
+
 
 class StencilViewTouch(StencilView):
     """Custom StencilView that stencils touches as well as visual elements."""
@@ -3096,6 +3196,7 @@ class StencilViewTouch(StencilView):
         """Modified to only register touch down events when inside stencil area."""
         if self.collide_point(*touch.pos):
             super(StencilViewTouch, self).on_touch_down(touch)
+
 
 class LimitedScatterLayout(ScatterLayout):
     """Custom ScatterLayout that won't allow sub-widgets to be moved out of the visible area,
@@ -3145,6 +3246,7 @@ class LimitedScatterLayout(ScatterLayout):
             if self.collide_point(*touch.pos):
                 super(LimitedScatterLayout, self).on_touch_down(touch)
 
+
 class PhotoShow(ButtonBehavior, RelativeLayout):
     """Widget that holds the image widget.  Used for catching double and tripple clicks."""
 
@@ -3172,9 +3274,11 @@ class PhotoShow(ButtonBehavior, RelativeLayout):
         else:
             super(PhotoShow, self).on_touch_down(touch)
 
+
 class TreeViewNodeSpacer(BoxLayout, TreeViewNode):
     """Provides a spacer for treeview elements.  Defaults to app.button_scale height."""
     pass
+
 
 class ImportPresetArea(GridLayout):
     """Widget to display and edit all settings for a particular import preset."""
@@ -3289,21 +3393,26 @@ class ImportPresetArea(GridLayout):
             preset_folders.add_node(ImportPresetFolder(folder=folder, owner=self, index=index))
         #self.update_preset()
 
+
 class ScaleSettings(GridLayout):
     """Widget layout for the scale settings on the export dialog."""
     owner = ObjectProperty()
+
 
 class WatermarkSettings(GridLayout):
     """Widget layout for the watermark settings on the export dialog."""
     owner = ObjectProperty()
 
+
 class FolderToggleSettings(GridLayout):
     """Widget layout for the export to folder settings on the export dialog."""
     owner = ObjectProperty()
 
+
 class FTPToggleSettings(GridLayout):
     """Widget layout for the export to ftp settings on the export dialog."""
     owner = ObjectProperty()
+
 
 class ImportPreset(ExpandableButton):
     data = DictProperty()
@@ -3324,6 +3433,7 @@ class ImportPreset(ExpandableButton):
     def on_press(self):
         self.owner.selected_import = self.index
         self.owner.import_preset()
+
 
 class ExportPreset(ExpandableButton):
     data = DictProperty()
@@ -3351,6 +3461,7 @@ class ExportPreset(ExpandableButton):
     def on_press(self):
         self.owner.selected_preset = self.index
         self.owner.export()
+
 
 class ExportPresetArea(GridLayout):
     """Widget for displaying and editing settings for an export preset."""
@@ -3677,6 +3788,7 @@ class ExportPresetArea(GridLayout):
         self.owner.owner.dismiss_popup()
         self.update_preset()
 
+
 class ImportPresetFolder(ButtonBehavior, BoxLayout, TreeViewNode):
     """TreeView widget to display a folder scanned on the import process."""
 
@@ -3687,9 +3799,11 @@ class ImportPresetFolder(ButtonBehavior, BoxLayout, TreeViewNode):
     def remove_folder(self):
         self.owner.remove_folder(self.index)
 
+
 class RotationGrid(FloatLayout):
     """A grid display overlay used for alignment when an image is being rotated."""
     pass
+
 
 class CropOverlay(ResizableBehavior, RelativeLayout):
     """Overlay widget for showing cropping area."""
@@ -3738,6 +3852,7 @@ class CropOverlay(ResizableBehavior, RelativeLayout):
 
     def on_resizing(self, instance, resizing):
         pass
+
 
 class PhotoViewer(BoxLayout):
     """Holds the fullsized photo image in album view mode."""
@@ -3843,6 +3958,7 @@ class PhotoViewer(BoxLayout):
         app = App.get_running_app()
         app.show_photo()
 
+
 class PauseableVideo(Video):
     """modified Video class to allow clicking anywhere to pause/resume."""
 
@@ -3853,6 +3969,7 @@ class PauseableVideo(Video):
             else:
                 self.state = 'play'
             return True
+
 
 class SpecialVideoPlayer(VideoPlayer):
     """Custom VideoPlayer class that replaces the default video widget with the 'PauseableVideo' widget."""
@@ -3900,6 +4017,7 @@ class SpecialVideoPlayer(VideoPlayer):
                 self.fullscreen = not self.fullscreen
                 return True
             return super(SpecialVideoPlayer, self).on_touch_down(touch)
+
 
 class VideoViewer(FloatLayout):
     """Holds the fullsized video in album view mode."""
@@ -3960,6 +4078,7 @@ class VideoViewer(FloatLayout):
 
         player = self.ids['player']
         player.fullscreen = not player.fullscreen
+
 
 class DatabaseScreen(Screen):
     """Screen layout for the main photo database."""
@@ -5137,6 +5256,7 @@ class DatabaseScreen(Screen):
         self.update_folders = True
         self.update_treeview()
         self.on_selected()
+
 
 class AlbumScreen(Screen):
     """Screen layout of the album viewer."""
@@ -6841,6 +6961,7 @@ class AlbumScreen(Screen):
         self.set_edit_panel('main')
         app.message("Saved edits to image")
 
+
 class TransferScreen(Screen):
     """Database folder transfer screen layout."""
 
@@ -7274,6 +7395,7 @@ class TransferScreen(Screen):
         self.refresh_left_database()
         self.refresh_right_database()
 
+
 class Curves(FloatLayout):
     """Widget for viewing and generating color curves information."""
 
@@ -7557,6 +7679,7 @@ class Curves(FloatLayout):
         if self.collide_point(*touch.pos):
             return True
 
+
 class VideoEncodePreset(BoxLayout):
     preset_drop = ObjectProperty()
     preset_name = StringProperty()
@@ -7580,6 +7703,7 @@ class VideoEncodePreset(BoxLayout):
         self.preset_drop.dismiss()
         app.selected_encoder_preset = self.preset_name
 
+
 class EditNone(GridLayout):
     owner = ObjectProperty()
 
@@ -7588,6 +7712,7 @@ class EditNone(GridLayout):
 
     def load_last(self):
         pass
+
 
 class EditMain(GridLayout):
     """Main menu edit panel, contains buttons to activate the other edit panels."""
@@ -7670,6 +7795,7 @@ class EditMain(GridLayout):
             external_programs.add_widget(program_button)
             if index == expand_index and expand:
                 program_button.expanded = True
+
 
 class EditColorImage(GridLayout):
     """Panel to expose color editing options."""
@@ -7843,6 +7969,7 @@ class EditColorImage(GridLayout):
         self.reset_autocontrast()
         self.reset_adaptive()
 
+
 class EditColorImageAdvanced(GridLayout):
     """Panel to expose advanced color editing options."""
 
@@ -7960,6 +8087,7 @@ class EditColorImageAdvanced(GridLayout):
         self.reset_curves()
         self.reset_tint()
 
+
 class EditFilterImage(GridLayout):
     """Panel to expose filter editing options."""
 
@@ -8075,6 +8203,7 @@ class EditFilterImage(GridLayout):
         self.reset_bilateral()
         self.reset_bilateral_amount()
 
+
 class EditBorderImage(GridLayout):
     """Panel to expose image border overlays."""
 
@@ -8180,6 +8309,7 @@ class EditBorderImage(GridLayout):
     def reset_tint(self):
         self.tint = [1.0, 1.0, 1.0, 1.0]
 
+
 class EditDenoiseImage(GridLayout):
     """Panel to expose image denoise options."""
 
@@ -8276,6 +8406,7 @@ class EditDenoiseImage(GridLayout):
         """Generates a preview using the current denoise settings"""
 
         self.owner.viewer.edit_image.update_preview(denoise=True)
+
 
 class EditCropImage(GridLayout):
     """Panel to expose crop editing options."""
@@ -8434,6 +8565,7 @@ class EditCropImage(GridLayout):
                 self.aspect_y = width
         self.recrop()
 
+
 class EditRotateImage(GridLayout):
     """Panel to expose rotation editing options."""
 
@@ -8478,6 +8610,7 @@ class EditRotateImage(GridLayout):
         else:
             self.owner.viewer.edit_image.flip_vertical = False
 
+
 class EditConvertImage(GridLayout):
     """Currently not supported."""
     owner = ObjectProperty()
@@ -8487,6 +8620,7 @@ class EditConvertImage(GridLayout):
 
     def load_last(self):
         pass
+
 
 class EditConvertVideo(GridLayout):
     """Convert a video file to another format using ffmpeg."""
@@ -8713,6 +8847,7 @@ class EditConvertVideo(GridLayout):
         self.store_settings()
         self.owner.begin_encode()
 
+
 class PhotoScreen(Screen):
     """Fullscreen photo viewer screen layout."""
 
@@ -8775,6 +8910,7 @@ class PhotoScreen(Screen):
             self.mirror = False
         self.viewer = PhotoViewer(angle=self.angle, mirror=self.mirror, file=app.photo, photoinfo=photoinfo, set_fullscreen=True)
         container.add_widget(self.viewer)
+
 
 class ImportScreen(Screen):
     """Screen layout for beginning the import photos process.
@@ -8895,6 +9031,7 @@ class ImportScreen(Screen):
 
         if not self.popup or (not self.popup.open):
             pass
+
 
 class ImportingScreen(Screen):
     """Screen layout for photo importing process.
@@ -9625,6 +9762,7 @@ class ImportingScreen(Screen):
                 if key == 'enter':
                     self.popup.content.dispatch('on_answer', 'yes')
 
+
 class ExportScreen(Screen):
     popup = None
     sort_dropdown = ObjectProperty()
@@ -10168,6 +10306,7 @@ class ExportScreen(Screen):
                 if key == 'a':
                     self.toggle_select()
 
+
 class DatabaseRestoreScreen(Screen):
     popup = None
 
@@ -10182,6 +10321,7 @@ class DatabaseRestoreScreen(Screen):
             app.message("Error: "+completed)
         app.setup_database(restore=True)
         Clock.schedule_once(app.show_database, 1)
+
 
 class PhotoManager(App):
     """Main class of the app."""
@@ -12730,6 +12870,7 @@ class PhotoManager(App):
             else:
                 new_size = (int(round(scale_size*ratio)), scale_size)
         return imagedata.resize(new_size, 3)
+
 
 if __name__ == '__main__':
     PhotoManager().run()

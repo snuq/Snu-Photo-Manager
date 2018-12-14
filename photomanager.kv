@@ -2724,11 +2724,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.owner.save_edit()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_color
@@ -2774,12 +2775,6 @@
             state: 'down' if root.autocontrast else 'normal'
             on_state: root.update_autocontrast(self.state)
             size_hint_x: 1
-        #NormalToggle:
-        #    text: "Equalize Histogram"
-        #    id: equalizeToggle
-        #    state: 'down' if root.equalize else 'normal'
-        #    on_state: root.update_equalize(self.state)
-        #    size_hint_x: 1
     SmallBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -2822,7 +2817,7 @@
         size_hint_y: None
         height: app.button_scale
         ShortLabel:
-            text: 'Brightness:'
+            text: 'Highs:'
         Label:
         NormalButton:
             text: 'Reset'
@@ -2837,24 +2832,9 @@
         size_hint_y: None
         height: app.button_scale
         ShortLabel:
-            text: 'Shadows:'
+            text: 'Mids:'
         Label:
         NormalButton:
-            text: 'Reset'
-            on_press: root.reset_shadow()
-    HalfSlider:
-        id: shadowSlider
-        value: root.shadow
-        on_value: root.shadow = self.value
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        ShortLabel:
-            text: 'Gamma:'
-        Label:
-        NormalButton: 
             text: 'Reset'
             on_press: root.reset_gamma()
     NormalSlider:
@@ -2867,16 +2847,31 @@
         size_hint_y: None
         height: app.button_scale
         ShortLabel:
-            text: 'Contrast:'
+            text: 'Lows:'
         Label:
-        NormalButton: 
+        NormalButton:
             text: 'Reset'
-            on_press: root.reset_contrast()
+            on_press: root.reset_shadow()
     NormalSlider:
-        id: contrastSlider
-        value: root.contrast
-        on_value: root.contrast = self.value
+        id: shadowSlider
+        value: root.shadow
+        on_value: root.shadow = self.value
     SmallBufferY:
+    #BoxLayout:
+    #    orientation: 'horizontal'
+    #    size_hint_y: None
+    #    height: app.button_scale
+    #    ShortLabel:
+    #        text: 'Contrast:'
+    #    Label:
+    #    NormalButton:
+    #        text: 'Reset'
+    #        on_press: root.reset_contrast()
+    #NormalSlider:
+    #    id: contrastSlider
+    #    value: root.contrast
+    #    on_value: root.contrast = self.value
+    #SmallBufferY:
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
@@ -2918,11 +2913,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.owner.save_edit()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_advanced
@@ -3039,11 +3035,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.save_image()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_denoise
@@ -3167,11 +3164,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.owner.save_edit()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_filter
@@ -3394,11 +3392,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.owner.save_image()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_crop
@@ -3533,11 +3532,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.owner.save_image()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     MediumBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -3649,11 +3649,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Confirm Edit'
             on_press: root.owner.save_edit()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_border
@@ -3787,11 +3788,12 @@
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Cancel Edit'
-            on_press: root.owner.set_edit_panel('main')
-        WideButton:
             text: 'Begin Conversion'
             on_press: root.encode()
+        WideButton:
+            text: 'Cancel Edit'
+            warn: True
+            on_press: root.owner.set_edit_panel('main')
     MediumBufferY:
     NormalLabel:
         text: 'Convert Video:'
