@@ -3,8 +3,6 @@ Bugs:
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
     some interface elements will not display properly with large buttons or large text
-    Sometimes double-click go to an album stops working, might be related to after exporting
-    Applying effects to 4k files causes ffmpeg to error out
 
 Todo:
     Add a "find source files" function, searches database directories for the source files that may have been moved.
@@ -4826,14 +4824,6 @@ class DatabaseScreen(Screen):
                 subtext = folder_info[1]
             else:
                 subtext = ''
-            #well, this used to be in here, but it really slows things down...
-            #photos = app.database_get_folder(full_folder)
-            #total_photos_numeric = len(photos)
-            #if total_photos_numeric > 0:
-            #    total_photos = '(' + str(total_photos_numeric) + ')'
-            #else:
-            #    total_photos = ''
-            total_photos_numeric = 0
             total_photos = ''
             folder_element = {
                 'fullpath': full_folder,
@@ -4841,7 +4831,6 @@ class DatabaseScreen(Screen):
                 'target': full_folder,
                 'type': 'Folder',
                 'total_photos': total_photos,
-                'total_photos_numeric': total_photos_numeric,
                 'displayable': True,
                 'expandable': expandable,
                 'expanded': is_expanded,
@@ -10175,6 +10164,12 @@ class ExportScreen(Screen):
                                            callback=self.update_percentage)
                         exported_photos = exported_photos + 1
                         self.exported_size = self.exported_size+photo_size
+
+                        #check that the file was uploaded
+                        ftp_filelist = ftp.nlst()
+                        if photofilename not in ftp_filelist:
+                            self.cancel_exporting = True
+                            self.popup.scanning_text = 'Unable To Upload "'+photo[0]+'".'
                 ftp.quit()
                 ftp.close()
                 self.ftp = False
