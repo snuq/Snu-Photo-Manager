@@ -4,12 +4,10 @@ Bugs:
     make the ShortLabel truncate when too long, currently it will push widgets off screen...
     some interface elements will not display properly with large buttons or large text
     Sometimes double-click go to an album stops working, might be related to after exporting
-    Video conversions can cause interface to get messed up, missed a Clock.schedule_once somewhere
     Applying effects to 4k files causes ffmpeg to error out
 
 Todo:
     Add a "find source files" function, searches database directories for the source files that may have been moved.
-    Improve FTP uploading - add 'folder' option, upload currently breaks if server ends with a '/'
     preview videos and photos on import screen (click once to pop up preview)
     search function
     set video in and out points before reencoding
@@ -5673,7 +5671,7 @@ class AlbumScreen(Screen):
                 good_file = False
 
             if not good_file:
-                app.message('Warning: Encoded file may be bad'+error_code)
+                Clock.schedule_once(lambda x: app.message('Warning: Encoded file may be bad'+error_code))
 
             new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
             if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
@@ -10083,6 +10081,7 @@ class ExportScreen(Screen):
             subfolder = subfolder.replace("'", "").replace("/", " - ").replace("\\", " - ")
             if '/' in preset['ftp_address']:
                 ftp_host, ftp_folder = preset['ftp_address'].split('/', 1)
+                ftp_folder = ftp_folder.strip('/')
             else:
                 ftp_host = preset['ftp_address']
                 ftp_folder = ''
@@ -10151,6 +10150,9 @@ class ExportScreen(Screen):
                         if extension.lower() in imagetypes and (preset['scale_image'] or preset['watermark']):
                             #image needs to be edited in some way
                             imagedata = Image.open(photofile)
+                            if imagedata.mode != 'RGB':
+                                imagedata = imagedata.convert('RGB')
+
                             orientation = photo[13]
                             imagedata = app.edit_fix_orientation(imagedata, orientation)
 
@@ -10221,6 +10223,8 @@ class ExportScreen(Screen):
                     if extension.lower() in imagetypes and (preset['scale_image'] or preset['watermark']):
                         #image needs to be edited in some way
                         imagedata = Image.open(photofile)
+                        if imagedata.mode != 'RGB':
+                            imagedata = imagedata.convert('RGB')
                         orientation = photo[13]
                         imagedata = app.edit_fix_orientation(imagedata, orientation)
 
@@ -12774,7 +12778,7 @@ class PhotoManager(App):
 
     def edit_add_watermark(self, imagedata, watermark_image, watermark_opacity, watermark_horizontal, watermark_vertical, watermark_size):
         """Adds a watermark overlay to an image
-        
+
         imagedata - the image to apply the watermark to, a PIL image object
         watermark_image - a string with the watermark filepath
         watermark_opacity - a percentage (0-100) describing how opaque the watermark will be
@@ -12784,7 +12788,7 @@ class PhotoManager(App):
         watermark_vertical - a percentage (0-100) describing the vertical position of the watermark
         watermark_size - a percentage (0-100) describing the size of the watermark as its horizontal size relates 
             to the original image - 50% will result in a watermark that is half the width of the original image.
-            
+
         Returns a PIL image object
         """
 
