@@ -4,6 +4,8 @@ A feature-rich photo manager and editor written in python and using the Kivy lib
 It should run on any platform that the required libraries can be run on.  So far, I have made Windows, Linux (Ubuntu 16+) and Android binaries.
 Download latest binaries at:
 www.snuq.com/snuphotomanager/
+Note that the android version is very beta - some features are missing, it is pretty slow, and it is not yet a signed executable (debug only for now).
+Right now I do not know how to solve some of these issues, if anyone with more experience can offer help it would be greatly appreciated!
 
 
 Watch the demo video:
