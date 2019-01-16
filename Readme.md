@@ -1,9 +1,8 @@
 # Snu Photo Manager
 
 A feature-rich photo manager and editor written in python and using the Kivy library.  
-It should run on any platform that the required libraries can be run on.  So far, I have made Windows, Linux (Ubuntu 16+) and Android binaries.  
-Download latest binaries at:  
-www.snuq.com/snuphotomanager/  
+It should run on any platform that the required libraries can be run on.  So far, I have made Windows, Linux (Ubuntu 16+) and Android binaries.  It should be possible to create OSX and ios binaries as well, but I do not have the required hardware to do so.  
+Download latest binaries at: www.snuq.com/snuphotomanager/  
 Note that the android version is very beta - some features are missing, it is pretty slow, and it is not yet a signed executable (debug only for now).  
 Right now I do not know how to solve some of these issues, if anyone with more experience can offer help it would be greatly appreciated!  
 
@@ -28,18 +27,38 @@ Watch the demo video:
 * Exporting with watermarks and resizing, export to a folder or FTP.  
 
 
-## Currently known bugs:  
-* Some interface elements will not display properly with long text  
-* Android has issues with some keyboard inputs, this is due to Kivy, I cant fix it  
+## Installation:  
+Depending on your browser, left clicking the files may not download them, you may need to right click on the file and select save as, or save link as.  
 
 
-## Manual Installation:  
-Python is required, tested with 3.4.4 and 3.5.2.  
-The following packages are required:  
-* numpy (Tested with 1.12.1 and 1.13.3)  
-* Kivy (Tested with 1.10.0)  
-* opencv-python (Tested with 3.2.0.7 and 3.3.0.10)  
-* ffpyplayer (Tested with 4.0.1)  
-* Pillow (Tested with 3.1.2 and 4.1.1)  
+### Windows:  
+* Download the "Snu Photo Manager Installer v#.#.###.exe" file.  
+* Run the file.  
 
-For video conversions, the ffmpeg executable must be installed in a path that Python can find (the root directory of Snu Photo Manager will work).  Tested with 2.8.11  
+
+### Linux:  
+Due to many differences in linux desktop environments, the install script may not work.  If this is the case, you will need to extract the .tar.gz file and create a shortcut yourself.  
+* Download both files in the 'linux' subdirectory.  
+* Place the files in the location where you would like the 'Snu Photo Manager' folder to be (such as in your home directory).  
+* Run the 'snuphotomanagerinstall' file.  Double clicking may work, otherwise open a terminal, go to the directory, and type "./snuphotomanagerinstall" (without the quotes).
+* A new shortcut file should be created in the current folder: 'Snu Photo Manager.desktop', this may be moved to your desktop or any other location.  
+
+
+### Android:  
+For now, side-loading of apps is required to be enabled.  Depending on your device, this may be enabled already, or may be impossible to enable.  
+* Download "snuphotomanager-#.#.###-debug.apk" to your android device, or transfer from a computer using your preferred method.  
+* Run the file from your file manager of choice.  
+
+
+### Manual Installation:  
+* Install Python, tested with 3.4.4 and 3.5.2.  
+* Install the Python packages:  
+   * Kivy (Tested with 1.10.0)  
+   * ffpyplayer (Tested with 4.0.1)  
+   * Pillow (Tested with 3.1.2 and 4.1.1)  
+   * numpy (Tested with 1.12.1 and 1.13.3) (not strictly required, but some features will be missing without it).  
+   * opencv-python (Tested with 3.2.0.7 and 3.3.0.10) (same as numpy).  
+* Download the repository.  
+* Unzip the repository to the location of your choice.  
+* For video conversions, the ffmpeg executable must be installed in a path that Python can find (the root directory of Snu Photo Manager will work).  Tested with 2.8.11  
+* Run "main.py".
