@@ -64,7 +64,7 @@
             text: root.cancel_text
             on_release: root.dispatch('on_cancel')
 
-<FileBrowserItem>:
+<RecycleItem>:
     canvas.before:
         Color:
             rgba: self.bgcolor
@@ -73,6 +73,17 @@
             size: self.size
     size_hint_x: 1
     height: app.button_scale
+
+<SimpleRecycleItem@RecycleItem>:
+    NormalLabel:
+        size_hint_y: None
+        height: app.button_scale
+        text_size: (self.width - 20, None)
+        text: root.text
+        halign: 'left'
+        valign: 'center'
+
+<FileBrowserItem>:
     Image:
         size_hint_x: None
         width: app.button_scale
@@ -767,12 +778,6 @@
     size_hint_y: None
     #height: int((app.button_scale * 1.5 if self.subtext else app.button_scale) + (app.button_scale * .1 if self.end else 0))
     BoxLayout:
-        canvas.before:
-            Color:
-                rgba: root.bgcolor
-            Rectangle:
-                pos: self.pos
-                size: self.size
         orientation: 'horizontal'
         Widget:
             width: (app.button_scale * .25) + (app.button_scale * 0.5 * root.indent)
@@ -832,12 +837,6 @@
         text: root.subtext
 
 <PhotoRecycleViewButton>:
-    canvas.before:
-        Color:
-            rgba: self.bgcolor
-        Rectangle:
-            pos: self.pos
-            size: self.size
     canvas.after:
         Color:
             rgba: (1, 1, 1, 0) if self.found else(1, 0, 0, .33)
@@ -1198,6 +1197,10 @@
 <FolderSettingsItem>:
     deselected_color: 0, 0, 0, 1
     selected_color: 0, 0, 1, 1
+
+<FolderSettingsList>:
+    viewclass: 'SimpleRecycleItem'
+    SelectableRecycleBoxLayout:
 
 <SettingMultiDirectory>:
     id: multidirectory

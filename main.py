@@ -81,7 +81,6 @@ from kivy.uix.behaviors import ButtonBehavior, DragBehavior, CompoundSelectionBe
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.screenmanager import SlideTransition
 from kivy.uix.settings import Settings, SettingItem
-from kivy.uix.listview import ListView, ListItemButton
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
@@ -99,7 +98,6 @@ from kivy.metrics import dp
 from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
-from kivy.adapters.listadapter import ListAdapter
 from kivy.uix.treeview import TreeViewLabel, TreeViewNode, TreeView
 from kivy.uix.image import Image as KivyImage
 from kivy.core.image import Image as CoreImage
@@ -904,16 +902,12 @@ class FileBrowser(BoxLayout):
         pass
 
 
-class FileBrowserItem(RecycleDataViewBehavior, BoxLayout):
+class RecycleItem(RecycleDataViewBehavior, BoxLayout):
     bgcolor = ListProperty([0, 0, 0, 0])
     owner = ObjectProperty()
-    fullpath = StringProperty('')
-    path = StringProperty()
-    file = StringProperty()
     text = StringProperty()
     selected = BooleanProperty(False)
     index = None
-    type = StringProperty('folder')
     data = {}
 
     def on_selected(self, *_):
@@ -934,18 +928,28 @@ class FileBrowserItem(RecycleDataViewBehavior, BoxLayout):
         self.index = index
         self.data = data
         self.set_color()
-        return super(FileBrowserItem, self).refresh_view_attrs(rv, index, data)
+        return super(RecycleItem, self).refresh_view_attrs(rv, index, data)
 
     def apply_selection(self, rv, index, is_selected):
         self.selected = is_selected
 
     def on_touch_down(self, touch):
-        if super(FileBrowserItem, self).on_touch_down(touch):
+        if super(RecycleItem, self).on_touch_down(touch):
             return True
         if self.collide_point(*touch.pos):
             self.parent.selected = self.data
-            self.owner.select(self)
+            try:
+                self.owner.select(self)
+            except:
+                pass
             return True
+
+
+class FileBrowserItem(RecycleItem):
+    path = StringProperty()
+    fullpath = StringProperty()
+    file = StringProperty()
+    type = StringProperty('folder')
 
 
 class SelectableRecycleBoxLayout(RecycleBoxLayout):
@@ -2415,20 +2419,14 @@ class RemoveAlbumButton(RemoveButton):
         self.owner.dismiss_popup()
 
 
-class PhotoRecycleViewButton(RecycleDataViewBehavior, BoxLayout):
-    bgcolor = ListProperty([0, 0, 0, 0])
+class PhotoRecycleViewButton(RecycleItem):
     video = BooleanProperty(False)
     favorite = BooleanProperty(False)
-    owner = ObjectProperty()
     fullpath = StringProperty()
     photoinfo = ListProperty()
     source = StringProperty()
-    text = StringProperty()
-    selected = BooleanProperty(False)
     selectable = BooleanProperty(True)
-    index = None
     found = BooleanProperty(True)
-    data = {}
 
     def on_source(self, *_):
         """Sets up the display image when first loaded."""
@@ -2436,35 +2434,14 @@ class PhotoRecycleViewButton(RecycleDataViewBehavior, BoxLayout):
         found = isfile2(self.source)
         self.found = found
 
-    def on_selected(self, *_):
-        self.set_color()
-
-    def set_color(self):
-        app = App.get_running_app()
-
-        if self.selected:
-            self.bgcolor = app.selected_color
-        else:
-            if self.index % 2 == 0:
-                self.bgcolor = app.color_even
-            else:
-                self.bgcolor = app.color_odd
-
     def refresh_view_attrs(self, rv, index, data):
-        self.index = index
-        self.data = data
-        self.set_color()
+        super(PhotoRecycleViewButton, self).refresh_view_attrs(rv, index, data)
         thumbnail = self.ids['thumbnail']
         thumbnail.photoinfo = self.data['photoinfo']
         thumbnail.source = self.data['source']
-        return super(PhotoRecycleViewButton, self).refresh_view_attrs(rv, index, data)
-
-    def apply_selection(self, rv, index, is_selected):
-        self.selected = is_selected
 
     def on_touch_down(self, touch):
-        if super(PhotoRecycleViewButton, self).on_touch_down(touch):
-            return True
+        super(PhotoRecycleViewButton, self).on_touch_down(touch)
         if self.collide_point(*touch.pos) and self.selectable:
             self.owner.fullpath = self.fullpath
             self.owner.photo = self.source
@@ -2480,7 +2457,7 @@ class TreenodeDrag(BoxLayout):
     subtext = StringProperty()
 
 
-class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
+class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
     """Widget that displays a specific folder, album, or tag in the database treeview.
     Responds to clicks and double-clicks.
     """
@@ -2497,19 +2474,11 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
     total_photos_numeric = NumericProperty(0)
     drag = False
     dragable = BooleanProperty(False)
-    owner = ObjectProperty()
     droptype = StringProperty('folder')
     indent = NumericProperty(0)
     expanded = BooleanProperty(True)
     expandable = BooleanProperty(False)
-    bgcolor = ListProperty([0, 0, 0, 1])
-    selected = BooleanProperty(False)
-    index = NumericProperty(0)
-    data = {}
     end = BooleanProperty(False)
-
-    def on_selected(self, *_):
-        self.set_bgcolor()
 
     def refresh_view_attrs(self, rv, index, data):
         """Called when widget is loaded into recycleview layout"""
@@ -2536,23 +2505,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleDataViewBehavior, BoxLayout):
         else:
             self.total_photos = ''
         self.ids['mainText'].text = data['folder_name'] + '   [b]' + self.total_photos + '[/b]'
-        self.index = index
-        self.data = data
-        self.set_bgcolor()
         return super(RecycleTreeViewButton, self).refresh_view_attrs(rv, index, data)
-
-    def set_bgcolor(self, *_):
-        app = App.get_running_app()
-        if self.selected:
-            self.bgcolor = app.selected_color
-        else:
-            if self.index % 2 == 1:
-                self.bgcolor = app.color_odd
-            else:
-                self.bgcolor = app.color_even
-
-    def apply_selection(self, rv, index, is_selected):
-        self.selected = is_selected
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -2898,8 +2851,12 @@ class MenuButton(Button):
     pass
 
 
-class FolderSettingsItem(ListItemButton):
+class FolderSettingsItem(RecycleItem):
     """A Folder item displayed in a folder list popup dialog."""
+    pass
+
+
+class FolderSettingsList(RecycleView):
     pass
 
 
@@ -2956,10 +2913,12 @@ class SettingMultiDirectory(SettingItem):
             content.add_widget(ShortLabel(height=app.button_scale * 3, text="You must set at least one database directory.\n\nThis is a folder where your photos are stored.\nNew photos will be imported to a database folder."))
             content.add_widget(BoxLayout())
         else:
-            self.folderlist = folderlist = ListView(size_hint=(1, .8), id='folderlist')
-            folderdata = filter(None, self.value.split(';'))
-            folderlist.adapter = ListAdapter(data=folderdata, selection_mode='single', allow_empty_selection=True,
-                                             cls=FolderSettingsItem)
+            folders = filter(None, self.value.split(';'))
+            folderdata = []
+            for folder in folders:
+                folderdata.append({'text': folder})
+            self.folderlist = folderlist = FolderSettingsList(size_hint=(1, .8), id='folderlist')
+            folderlist.data = folderdata
             content.add_widget(folderlist)
         buttons = BoxLayout(orientation='horizontal', size_hint=(1, None),
                             height=app.button_scale)
@@ -2980,12 +2939,11 @@ class SettingMultiDirectory(SettingItem):
 
     def remove_path(self, *_):
         self.modified = True
-        listed_folders = self.folderlist.children[0].children[0].children
-        all_folders = self.value.split(';')
-        all_folders = self.remove_empty(all_folders)
+        listed_folders = self.folderlist.data
+        all_folders = []
         for folder in listed_folders:
-            if folder.is_selected:
-                all_folders.remove(agnostic_path(folder.text))
+            if folder != self.folderlist.children[0].selected:
+                all_folders.append(folder['text'])
         self.value = u';'.join(all_folders)
         self.refresh()
 
