@@ -77,7 +77,7 @@ from kivy.clock import Clock
 from kivy.cache import Cache
 from kivy.base import EventLoop
 from kivy.graphics.transformation import Matrix
-from kivy.uix.behaviors import ButtonBehavior, DragBehavior, CompoundSelectionBehavior
+from kivy.uix.behaviors import ButtonBehavior, DragBehavior
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.screenmanager import SlideTransition
 from kivy.uix.settings import Settings, SettingItem
@@ -87,18 +87,15 @@ from kivy.properties import ObjectProperty, StringProperty, ListProperty, Boolea
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
-from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.gridlayout import GridLayout
-from kivy.uix.stacklayout import StackLayout
 from kivy.uix.scatterlayout import ScatterLayout
-from kivy.uix.scrollview import ScrollView
 from kivy.uix.splitter import Splitter
 from kivy.core.window import Window
 from kivy.metrics import dp
 from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
-from kivy.uix.treeview import TreeViewLabel, TreeViewNode, TreeView
+from kivy.uix.treeview import TreeViewNode
 from kivy.uix.image import Image as KivyImage
 from kivy.core.image import Image as CoreImage
 from kivy.core.image import ImageLoader
@@ -166,6 +163,8 @@ audio_codecs_friendly = ['AAC', 'AC-3', 'MP3', 'FLAC', 'Ogg Vorbis']
 interface_multiplier = 22
 drag_delay = .5
 
+
+#General classes and functions
 def time_index(seconds):
     all_minutes, final_seconds = divmod(seconds, 60)
     all_hours, final_minutes = divmod(all_minutes, 60)
@@ -181,7 +180,7 @@ def verify_copy(copy_from, copy_to):
     return compare
 
 
-def interpolate(start, stop, length, minimum, maximum, previous=None, previous_distance=1, next=None, next_distance=1, mode='linear'):
+def interpolate(start, stop, length, minimum, maximum, before=None, before_distance=1, after=None, after_distance=1, mode='linear'):
     """Returns a list of a given length, of float values interpolated between two given values.
     Arguments:
         start: Starting Y value.
@@ -189,10 +188,12 @@ def interpolate(start, stop, length, minimum, maximum, previous=None, previous_d
         length: Integer, the number of steps that will be interpolated.
         minimum: Lowest allowed Y value, any lower values will be clipped to this.
         maximum: Highest allowed Y value, any higher values will be clipped to this.
-        previous: Used in 'cubic' and 'catmull' modes, the Y value of the previous point before the start point.
+        before: Used in 'cubic' and 'catmull' modes, the Y value of the previous point before the start point.
             If set to None, it will be extrapolated linearly from the start and stop points.
-        next: Used in 'cubic' and 'catmull' modes, the Y value of the next point after the stop point.
+        before_distance: Distance from the current points that the previous point is.
+        after: Used in 'cubic' and 'catmull' modes, the Y value of the next point after the stop point.
             If set to None, it will be extrapolated linearly from the start and stop points.
+        after_distance: Distance from the current points that the next point is.
         mode: String, the interpolation mode.  May be set to: 'linear', 'cosine', 'cubic', 'catmull'
     Returns: A list of float values.
     """
@@ -205,29 +206,29 @@ def interpolate(start, stop, length, minimum, maximum, previous=None, previous_d
     difference = stop - start
     step = difference/length
     if mode == 'cubic' or mode == 'catmull':
-        if previous is None:
-            previous = start - stop
-            previous_distance = length
-        if next is None:
-            next = stop + (stop - start)
-            next_distance = length
-        if next_distance < minimum_distance:
-            next_distance = minimum_distance
-        if previous_distance < minimum_distance:
-            previous_distance = minimum_distance
-        next_distance = next_distance / length
-        previous_distance = previous_distance / length
-        previous = previous / previous_distance
-        next = next / next_distance
+        if before is None:
+            before = start - stop
+            before_distance = length
+        if after is None:
+            after = stop + (stop - start)
+            after_distance = length
+        if after_distance < minimum_distance:
+            after_distance = minimum_distance
+        if before_distance < minimum_distance:
+            before_distance = minimum_distance
+        after_distance = after_distance / length
+        before_distance = before_distance / length
+        before = before / before_distance
+        after = after / after_distance
     if mode == 'catmull':
-        a = -0.5*previous + 1.5*start - 1.5*stop + 0.5*next
-        b = previous - 2.5*start + 2*stop - 0.5*next
-        c = -0.5*previous + 0.5*stop
+        a = -0.5*before + 1.5*start - 1.5*stop + 0.5*after
+        b = before - 2.5*start + 2*stop - 0.5*after
+        c = -0.5*before + 0.5*stop
         d = start
     elif mode == 'cubic':
-        a = next - stop - previous + start
-        b = previous - start - a
-        c = stop - previous
+        a = after - stop - before + start
+        b = before - start - a
+        c = stop - before
         d = start
     else:
         a = 1
@@ -284,9 +285,9 @@ def rotated_rect_with_max_area(width, height, angle):
     return wr, hr
 
 
-def agnostic_path(string):
+def agnostic_path(path):
     """Returns a path with the '/' separator instead of anything else."""
-    return str(string.replace('\\', '/'))
+    return str(path.replace('\\', '/'))
 
 
 def local_paths(photo_list):
@@ -299,9 +300,9 @@ def local_paths(photo_list):
     return return_list
 
 
-def local_path(string):
+def local_path(path):
     """Formats a path string using separatorns appropriate for the os."""
-    return str(string.replace('/', os.path.sep))
+    return str(path.replace('/', os.path.sep))
 
 
 def local_photoinfo(photoinfo):
@@ -510,6 +511,7 @@ def get_file_info(file_info, import_mode=False, modified_date=False):
             Relative path to the file from the database directory
             Database root directory
         import_mode: When reading the file from a camera or other import source, don't try to find any info files.
+        modified_date: if this is already found, can be passed in to save time
 
     Returns: A photoinfo list.
     """
@@ -647,516 +649,11 @@ def generate_thumbnail(fullpath, database_folder):
         return None
 
 
-def get_drives():
-    drives = []
-    if platform == 'win':
-        for path in ['Desktop', 'Documents', 'Pictures']:
-            drives.append((os.path.expanduser(u'~') + os.path.sep + path + os.path.sep, path))
-        bitmask = windll.kernel32.GetLogicalDrives()
-        for letter in string.ascii_uppercase:
-            if bitmask & 1:
-                name = create_unicode_buffer(64)
-                # get name of the drive
-                drive = letter + u':'
-                res = windll.kernel32.GetVolumeInformationW(drive + os.path.sep, name, 64, None, None, None, None, 0)
-                drive_name = drive
-                if name.value:
-                    drive_name = drive_name + '(' + name.value + ')'
-                drives.append((drive + os.path.sep, drive_name))
-            bitmask >>= 1
-    elif platform == 'linux':
-        drives.append((os.path.sep, os.path.sep))
-        drives.append((os.path.expanduser(u'~') + os.path.sep, 'Home'))
-        drives.append((os.path.sep + u'mnt' + os.path.sep, os.path.sep + u'mnt'))
-        places = (os.path.sep + u'mnt' + os.path.sep, os.path.sep + u'media')
-        for place in places:
-            if os.path.isdir(place):
-                for directory in next(os.walk(place))[1]:
-                    drives.append((place + os.path.sep + directory + os.path.sep, directory))
-    elif platform == 'macosx' or platform == 'ios':
-        drives.append((os.path.expanduser(u'~') + os.path.sep, 'Home'))
-        vol = os.path.sep + u'Volume'
-        if os.path.isdir(vol):
-            for drive in next(os.walk(vol))[1]:
-                drives.append((vol + os.path.sep + drive + os.path.sep, drive))
-    elif platform == 'android':
-        drives.append((os.path.sep, os.path.sep))
-        drives.append((os.path.sep + u'mnt' + os.path.sep, '/mnt'))
-        drives.append((os.path.sep + u'mnt' + os.path.sep + 'sdcard' + os.path.sep, 'Internal Memory'))
-    return drives
-
-
 def isfile2(path):
     if not os.path.isfile(path):
         return False
     directory, filename = os.path.split(path)
     return filename in os.listdir(directory)
-
-
-class FileBrowser(BoxLayout):
-
-    __events__ = ('on_cancel', 'on_ok')
-    path = StringProperty()
-    file = StringProperty()
-    filename = StringProperty()
-    root = StringProperty()
-
-    popup = ObjectProperty(None, allownone=True)
-
-    allow_new = BooleanProperty(True)
-    allow_delete = BooleanProperty(True)
-    new_folder = StringProperty('')
-    start_in = StringProperty()
-    directory_select = BooleanProperty(False)
-    file_editable = BooleanProperty(False)
-    filters = ListProperty([])
-    target_selected = BooleanProperty(False)
-
-    header_text = StringProperty('Select A File')
-    cancel_text = StringProperty('Cancel')
-    ok_text = StringProperty('OK')
-
-    def __init__(self, **kwargs):
-        if not self.start_in:
-            self.start_in = '/'
-        Clock.schedule_once(self.refresh_locations)
-        super(FileBrowser, self).__init__(**kwargs)
-
-    def dismiss_popup(self):
-        """If this dialog has a popup, closes it and removes it."""
-
-        if self.popup:
-            self.popup.dismiss()
-            self.popup = None
-
-    def add_folder(self):
-        """Starts the add folder process, creates an input text popup."""
-
-        content = InputPopup(hint='Folder Name', text='Enter A Folder Name:')
-        app = App.get_running_app()
-        content.bind(on_answer=self.add_folder_answer)
-        self.popup = NormalPopup(title='Create Folder', content=content, size_hint=(None, None),
-                                 size=(app.popup_x, app.button_scale * 5),
-                                 auto_dismiss=False)
-        self.popup.open()
-
-    def add_folder_answer(self, instance, answer):
-        """Tells the app to rename the folder if the dialog is confirmed.
-        Arguments:
-            instance: The dialog that called this function.
-            answer: String, if 'yes', the folder will be created, all other answers will just close the dialog.
-        """
-
-        if answer == 'yes':
-            text = instance.ids['input'].text.strip(' ')
-            if text:
-                app = App.get_running_app()
-                folder = os.path.join(self.path, text)
-                created = False
-                try:
-                    if not os.path.isdir(folder):
-                        os.makedirs(folder)
-                        created = True
-                except:
-                    pass
-                if created:
-                    app.message("Created the folder '"+folder+"'")
-                    self.path = folder
-                    self.refresh_folder()
-                else:
-                    app.message("Could Not Create Folder.")
-        self.dismiss_popup()
-
-    def delete_folder(self):
-        """Starts the delete folder process, creates the confirmation popup."""
-
-        app = App.get_running_app()
-        if not os.listdir(self.path):
-            text = "Delete The Selected Folder?"
-            content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
-            content.bind(on_answer=self.delete_folder_answer)
-            self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
-                                     size=(app.popup_x, app.button_scale * 4),
-                                     auto_dismiss=False)
-            self.popup.open()
-        else:
-            app.message("Folder Is Not Empty.")
-
-    def delete_folder_answer(self, instance, answer):
-        """Tells the app to delete the folder if the dialog is confirmed.
-        Arguments:
-            instance: The dialog that called this function.
-            answer: String, if 'yes', the folder will be deleted, all other answers will just close the dialog.
-        """
-
-        del instance
-        if answer == 'yes':
-            app = App.get_running_app()
-            try:
-                os.rmdir(self.path)
-                app.message("Deleted Folder: \""+self.path+"\"")
-                self.go_up()
-            except:
-                app.message("Could Not Delete Folder...")
-        self.dismiss_popup()
-
-    def refresh_locations(self, *_):
-        locations_list = self.ids['locationsList']
-        locations = get_drives()
-        self.root = locations[0][0]
-        data = []
-        for location in locations:
-            data.append({
-                'text': location[1],
-                'fullpath': location[0],
-                'path': location[0],
-                'type': 'folder',
-                'owner': self
-            })
-        locations_list.data = data
-        if not self.path:
-            self.path = locations[0][0]
-        self.refresh_folder()
-
-    def refresh_folder(self, *_):
-        file_list = self.ids['fileList']
-        data = []
-        files = []
-        dirs = []
-        if os.path.isdir(self.path):
-            try:
-                for file in os.listdir(self.path):
-                    fullpath = os.path.join(self.path, file)
-                    if os.path.isfile(fullpath):
-                        files.append(file)
-                    elif os.path.isdir(fullpath):
-                        dirs.append(file)
-            except:
-                self.go_up()
-                return
-            dirs = sorted(dirs, key=lambda s: s.lower())
-            for directory in dirs:
-                fullpath = os.path.join(self.path, directory)
-                data.append({
-                    'text': directory,
-                    'fullpath': fullpath,
-                    'path': fullpath + os.path.sep,
-                    'type': 'folder',
-                    'owner': self,
-                    'selected': False
-                })
-            if not self.directory_select:
-                if self.filters:
-                    filtered_files = []
-                    for filter in self.filters:
-                        filtered_files += fnmatch.filter(files, filter)
-                    files = filtered_files
-                files = sorted(files, key=lambda s: s.lower())
-                for file in files:
-                    data.append({
-                        'text': file,
-                        'fullpath': os.path.join(self.path, file),
-                        'path': self.path,
-                        'type': file,
-                        'file': file,
-                        'owner': self,
-                        'selected': False
-                    })
-
-        file_list.data = data
-        if not self.directory_select:
-            self.file = ''
-            self.target_selected = False
-        else:
-            self.filename = self.path
-            self.target_selected = True
-
-    def go_up(self, *_):
-        up_path = os.path.realpath(os.path.join(self.path, '..'))
-        if not up_path.endswith(os.path.sep):
-            up_path += os.path.sep
-        if up_path == self.path:
-            up_path = self.root
-        self.path = up_path
-        self.refresh_folder()
-
-    def select(self, button):
-        if button.type == 'folder':
-            self.path = button.path
-            self.refresh_folder()
-            if self.directory_select:
-                self.filename = button.fullpath
-                self.target_selected = True
-            else:
-                self.filename = ''
-                self.target_selected = False
-        else:
-            self.filename = button.fullpath
-            self.file = button.file
-            self.target_selected = True
-
-    def on_cancel(self):
-        pass
-
-    def on_ok(self):
-        pass
-
-
-class RecycleItem(RecycleDataViewBehavior, BoxLayout):
-    bgcolor = ListProperty([0, 0, 0, 0])
-    owner = ObjectProperty()
-    text = StringProperty()
-    selected = BooleanProperty(False)
-    index = None
-    data = {}
-
-    def on_selected(self, *_):
-        self.set_color()
-
-    def set_color(self):
-        app = App.get_running_app()
-
-        if self.selected:
-            self.bgcolor = app.selected_color
-        else:
-            if self.index % 2 == 0:
-                self.bgcolor = app.color_even
-            else:
-                self.bgcolor = app.color_odd
-
-    def refresh_view_attrs(self, rv, index, data):
-        self.index = index
-        self.data = data
-        self.set_color()
-        return super(RecycleItem, self).refresh_view_attrs(rv, index, data)
-
-    def apply_selection(self, rv, index, is_selected):
-        self.selected = is_selected
-
-    def on_touch_down(self, touch):
-        if super(RecycleItem, self).on_touch_down(touch):
-            return True
-        if self.collide_point(*touch.pos):
-            self.parent.selected = self.data
-            try:
-                self.owner.select(self)
-            except:
-                pass
-            return True
-
-
-class FileBrowserItem(RecycleItem):
-    path = StringProperty()
-    fullpath = StringProperty()
-    file = StringProperty()
-    type = StringProperty('folder')
-
-
-class SelectableRecycleBoxLayout(RecycleBoxLayout):
-    """Adds selection and focus behavior to the view."""
-    selected = DictProperty()
-    selects = ListProperty([])
-    multiselect = BooleanProperty(False)
-
-    def toggle_select(self, *_):
-        if self.multiselect:
-            if self.selects:
-                self.selects = []
-            else:
-                all_selects = self.parent.data
-                for select in all_selects:
-                    self.selects.append(select)
-        else:
-            if self.selected:
-                self.selected = {}
-        self.update_selected()
-
-    def on_selected(self, *_):
-        if self.selected:
-            if self.multiselect:
-                if self.selected in self.selects:
-                    self.selects.remove(self.selected)
-                else:
-                    self.selects.append(self.selected)
-            self.update_selected()
-
-    def on_children(self, *_):
-        self.update_selected()
-
-    def update_selected(self):
-        for child in self.children:
-            if self.multiselect:
-                if child.data in self.selects:
-                    child.selected = True
-                else:
-                    child.selected = False
-            else:
-                if child.data == self.selected:
-                    child.selected = True
-                else:
-                    child.selected = False
-
-
-class PhotoListRecycleView(RecycleView):
-    selected_index = NumericProperty(0)
-
-    def scroll_to_selected(self):
-        box = self.children[0]
-        selected = box.selected
-        for i, item in enumerate(self.data):
-            if item == selected:
-                self.selected_index = i
-                break
-        index = self.selected_index
-        pos_index = (box.default_size[1] + box.spacing) * index
-        scroll = self.convert_distance_to_scroll(0, pos_index - (self.height * 0.5))[1]
-        if scroll > 1.0:
-            scroll = 1.0
-        elif scroll < 0.0:
-            scroll = 0.0
-        self.scroll_y = 1.0 - scroll
-
-    def convert_distance_to_scroll(self, dx, dy):
-        box = self.children[0]
-        wheight = box.default_size[1] + box.spacing
-
-        if not self._viewport:
-            return 0, 0
-        vp = self._viewport
-        vp_height = len(self.data) * wheight
-        if vp.width > self.width:
-            sw = vp.width - self.width
-            sx = dx / float(sw)
-        else:
-            sx = 0
-        if vp_height > self.height:
-            sh = vp_height - self.height
-            sy = dy / float(sh)
-        else:
-            sy = 1
-        return sx, sy
-
-
-class MultiThreadOK(threading.Thread):
-    """Slightly modified version of sqlite multithread support by Louis RIVIERE"""
-
-    def __init__(self, db):
-        super(MultiThreadOK, self).__init__()
-        self.db = db
-        self.reqs = Queue()
-        self.start()
-
-    def run(self):
-        cnx = sqlite3.connect(self.db)
-        cursor = cnx.cursor()
-        while True:
-            req, arg, res = self.reqs.get()
-            if req == '--commit--':
-                cnx.commit()
-            if req == '--close--':
-                break
-            try:
-                cursor.execute(req, arg)
-            except:
-                pass
-            if res:
-                for rec in cursor:
-                    res.put(rec)
-                res.put('--no more--')
-        cursor.close()
-        cnx.commit()
-        cnx.close()
-
-    def execute(self, req, arg=None, res=None):
-        self.reqs.put((req, arg or tuple(), res))
-
-    def select(self, req, arg=None):
-        res = Queue()
-        self.execute(req, arg, res)
-        while True:
-            rec = res.get()
-            if rec == '--no more--':
-                break
-            yield rec
-
-    def commit(self):
-        self.execute('--commit--')
-
-    def close(self):
-        self.execute('--close--')
-
-
-class FloatInput(TextInput):
-    pat = re.compile('[^0-9]')
-
-    def insert_text(self, substring, from_undo=False):
-        pat = self.pat
-        if '.' in self.text:
-            s = re.sub(pat, '', substring)
-        else:
-            s = '.'.join([re.sub(pat, '', s) for s in substring.split('.', 1)])
-        return super(FloatInput, self).insert_text(s, from_undo=from_undo)
-
-
-class IntegerInput(TextInput):
-    pat = re.compile('[^0-9]')
-
-    def insert_text(self, substring, from_undo=False):
-        pat = self.pat
-        s = re.sub(pat, '', substring)
-        return super(IntegerInput, self).insert_text(s, from_undo=from_undo)
-
-
-class NormalPopup(Popup):
-    """Basic popup widget."""
-    pass
-
-
-class NormalButton(Button):
-    """Basic button widget."""
-    pass
-
-
-class WideButton(Button):
-    """Full width button widget"""
-
-    warn = BooleanProperty(False)
-
-
-class ShortLabel(Label):
-    """Label that only takes up as much space as needed."""
-    pass
-
-
-class InfoLabel(ShortLabel):
-    bgcolor = ListProperty([0, 0, 0, 0])
-    blinker = ObjectProperty()
-
-    def on_text(self, instance, text):
-        del instance
-        if self.blinker:
-            self.blinker.cancel()
-        self.reset_bgcolor()
-        if text:
-            self.blinker = Clock.schedule_interval(self.toggle_bgcolor, .33)
-            Clock.schedule_once(self.stop_blinking, 5)
-
-    def toggle_bgcolor(self, *_):
-        if self.bgcolor == [0, 0, 0, 0]:
-            self.hilight_bgcolor()
-        else:
-            self.reset_bgcolor()
-
-    def stop_blinking(self, *_):
-        if self.blinker:
-            self.blinker.cancel()
-        Clock.schedule_once(self.reset_bgcolor)
-
-    def hilight_bgcolor(self, *_):
-        self.bgcolor = [1, 1, 0, .75]
-
-    def reset_bgcolor(self, *_):
-        self.bgcolor = [0, 0, 0, 0]
 
 
 class CustomImage(KivyImage):
@@ -1987,8 +1484,7 @@ class AsyncThumbnail(KivyImage):
                     #if not self.temporary:
                     #    app.database_item_update(photo)
                     #    app.update_photoinfo(folders=[photo[1]])
-                    app.database_thumbnail_update(photo[0], photo[2], modified_date, photo[13],
-                                                  temporary=self.temporary)
+                    app.database_thumbnail_update(photo[0], photo[2], modified_date, photo[13], temporary=self.temporary)
             thumbnail_image = app.database_thumbnail_get(photo[0], temporary=self.temporary)
             if thumbnail_image:
                 imagedata = bytes(thumbnail_image[2])
@@ -1998,8 +1494,7 @@ class AsyncThumbnail(KivyImage):
                 image = CoreImage(data, ext='jpg')
             else:
                 if file_found:
-                    updated = app.database_thumbnail_update(photo[0], photo[2], modified_date, photo[13],
-                                                            temporary=self.temporary)
+                    updated = app.database_thumbnail_update(photo[0], photo[2], modified_date, photo[13], temporary=self.temporary)
                     if updated:
                         thumbnail_image = app.database_thumbnail_get(photo[0], temporary=self.temporary)
                         data = BytesIO(thumbnail_image[2])
@@ -2110,30 +1605,6 @@ class AsyncThumbnail(KivyImage):
         pass
 
 
-class DenoisePreview(RelativeLayout):
-    finished = BooleanProperty(False)
-
-    def __init__(self, **kwargs):
-        self.register_event_type('on_finished')
-        super(DenoisePreview, self).__init__(**kwargs)
-
-    def on_finished(self, *_):
-        print('on finished')
-        self.root.update_preview()
-
-
-class ScrollViewCentered(ScrollView):
-    """Special ScrollView that begins centered"""
-
-    def __init__(self, **kwargs):
-        self.scroll_x = 0.5
-        self.scroll_y = 0.5
-        super(ScrollViewCentered, self).__init__(**kwargs)
-
-    def window_to_parent(self, x, y, relative=False):
-        return self.to_parent(*self.to_widget(x, y))
-
-
 class VideoThumbnail(FloatLayout):
     source = ObjectProperty(None)
     video = ObjectProperty(None)
@@ -2146,6 +1617,88 @@ class VideoThumbnail(FloatLayout):
             self.click_done = True
             self.video.state = 'play'
         return True
+
+
+class NormalLabel(Label):
+    """Basic label widget"""
+    pass
+
+
+class ShortLabel(NormalLabel):
+    """Label widget that will remain the minimum width"""
+    pass
+
+
+class PhotoThumbLabel(NormalLabel):
+    pass
+
+
+class FloatInput(TextInput):
+    pat = re.compile('[^0-9]')
+
+    def insert_text(self, substring, from_undo=False):
+        pat = self.pat
+        if '.' in self.text:
+            s = re.sub(pat, '', substring)
+        else:
+            s = '.'.join([re.sub(pat, '', s) for s in substring.split('.', 1)])
+        return super(FloatInput, self).insert_text(s, from_undo=from_undo)
+
+
+class IntegerInput(TextInput):
+    pat = re.compile('[^0-9]')
+
+    def insert_text(self, substring, from_undo=False):
+        pat = self.pat
+        s = re.sub(pat, '', substring)
+        return super(IntegerInput, self).insert_text(s, from_undo=from_undo)
+
+
+class NormalButton(Button):
+    """Basic button widget."""
+    pass
+
+
+class WideButton(Button):
+    """Full width button widget"""
+
+    warn = BooleanProperty(False)
+
+
+class InfoLabel(ShortLabel):
+    bgcolor = ListProperty([0, 0, 0, 0])
+    blinker = ObjectProperty()
+
+    def on_text(self, instance, text):
+        del instance
+        if self.blinker:
+            self.blinker.cancel()
+        self.reset_bgcolor()
+        if text:
+            self.blinker = Clock.schedule_interval(self.toggle_bgcolor, .33)
+            Clock.schedule_once(self.stop_blinking, 5)
+
+    def toggle_bgcolor(self, *_):
+        if self.bgcolor == [0, 0, 0, 0]:
+            self.hilight_bgcolor()
+        else:
+            self.reset_bgcolor()
+
+    def stop_blinking(self, *_):
+        if self.blinker:
+            self.blinker.cancel()
+        Clock.schedule_once(self.reset_bgcolor)
+
+    def hilight_bgcolor(self, *_):
+        self.bgcolor = [1, 1, 0, .75]
+
+    def reset_bgcolor(self, *_):
+        self.bgcolor = [0, 0, 0, 0]
+
+
+class MenuButton(Button):
+    """Basic class for a drop-down menu button item."""
+    pass
 
 
 class Scroller(ScrollView):
@@ -2169,16 +1722,16 @@ class ScrollerContainer(Scroller):
         super(ScrollerContainer, self).on_touch_down(touch)
 
 
-class AlbumDetails(BoxLayout):
-    """Widget to display information about an album"""
+class ScrollViewCentered(ScrollView):
+    """Special ScrollView that begins centered"""
 
-    owner = ObjectProperty()
+    def __init__(self, **kwargs):
+        self.scroll_x = 0.5
+        self.scroll_y = 0.5
+        super(ScrollViewCentered, self).__init__(**kwargs)
 
-
-class FolderDetails(BoxLayout):
-    """Widget to display information about a folder of photos"""
-
-    owner = ObjectProperty()
+    def window_to_parent(self, x, y, relative=False):
+        return self.to_parent(*self.to_widget(x, y))
 
 
 class NormalDropDown(DropDown):
@@ -2186,24 +1739,366 @@ class NormalDropDown(DropDown):
     pass
 
 
-class DatabaseSortDropDown(NormalDropDown):
-    """Drop-down menu for database folder sorting"""
+class StencilViewTouch(StencilView):
+    """Custom StencilView that stencils touches as well as visual elements."""
+
+    def on_touch_down(self, touch):
+        """Modified to only register touch down events when inside stencil area."""
+        if self.collide_point(*touch.pos):
+            super(StencilViewTouch, self).on_touch_down(touch)
+
+
+class LimitedScatterLayout(ScatterLayout):
+    """Custom ScatterLayout that won't allow sub-widgets to be moved out of the visible area,
+    and will not respond to touches outside of the visible area.
+    """
+
+    bypass = BooleanProperty(False)
+
+    def on_bypass(self, instance, bypass):
+        if bypass:
+            self.transform = Matrix()
+
+    def on_transform_with_touch(self, touch):
+        """Modified to not allow widgets to be moved out of the visible area."""
+
+        width = self.bbox[1][0]
+        height = self.bbox[1][1]
+        scale = self.scale
+
+        local_bottom = self.bbox[0][1]
+        local_left = self.bbox[0][0]
+        local_top = local_bottom+height
+        local_right = local_left+width
+
+        local_xmax = width/scale
+        local_xmin = 0
+        local_ymax = height/scale
+        local_ymin = 0
+
+        if local_right < local_xmax:
+            self.transform[12] = local_xmin - (width - local_xmax)
+        if local_left > local_xmin:
+            self.transform[12] = local_xmin
+        if local_top < local_ymax:
+            self.transform[13] = local_ymin - (height - local_ymax)
+        if local_bottom > local_ymin:
+            self.transform[13] = local_ymin
+
+    def on_touch_down(self, touch):
+        """Modified to only register touches in visible area."""
+
+        if self.bypass:
+            for child in self.children[:]:
+                if child.dispatch('on_touch_down', touch):
+                    return True
+        else:
+            if self.collide_point(*touch.pos):
+                super(LimitedScatterLayout, self).on_touch_down(touch)
+
+
+class PhotoDrag(KivyImage):
+    """Special image widget for displaying the drag-n-drop location."""
+
+    angle = NumericProperty()
+    offset = []
+    opacity = .5
+    fullpath = StringProperty()
+
+
+class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
+    """Wrapper widget for image thumbnails.  Used for displaying images in grid views."""
+
+    found = BooleanProperty(True)  # Used to add a red overlay to the thumbnail if the source file doesn't exist
+    owner = ObjectProperty()
+    target = StringProperty()
+    type = StringProperty('None')
+    filename = StringProperty()
+    fullpath = StringProperty()
+    folder = StringProperty()
+    database_folder = StringProperty()
+    selected = BooleanProperty(False)
+    drag = False
+    dragable = BooleanProperty(True)
+    image = ObjectProperty()
+    photo_orientation = NumericProperty(1)
+    angle = NumericProperty(0)  # used to display the correct orientation of the image
+    favorite = BooleanProperty(False)  # if True, a star overlay will be displayed on the image
+    video = BooleanProperty(False)
+    source = StringProperty()
+    photoinfo = ListProperty()
+    temporary = BooleanProperty(False)
+    title = StringProperty('')
+    view_album = BooleanProperty(True)
+    mirror = BooleanProperty(False)
+    index = NumericProperty(0)
+    data = {}
+
+    def refresh_view_attrs(self, rv, index, data):
+        """Called when widget is loaded into recycleview layout"""
+        self.index = index
+        self.data = data
+        thumbnail = self.ids['thumbnail']
+        thumbnail.temporary = self.data['temporary']
+        thumbnail.photoinfo = self.data['photoinfo']
+        thumbnail.source = self.data['source']
+        self.image = thumbnail
+        return super(PhotoRecycleThumb, self).refresh_view_attrs(rv, index, data)
+
+    def on_source(self, *_):
+        """Sets up the display image when first loaded."""
+
+        found = isfile2(self.source)
+        self.found = found
+        if self.photo_orientation in [2, 4, 5, 7]:
+            self.mirror = True
+        else:
+            self.mirror = False
+        if self.photo_orientation == 3 or self.photo_orientation == 4:
+            self.angle = 180
+        elif self.photo_orientation == 5 or self.photo_orientation == 6:
+            self.angle = 270
+        elif self.photo_orientation == 7 or self.photo_orientation == 8:
+            self.angle = 90
+        else:
+            self.angle = 0
+
+    def apply_selection(self, rv, index, is_selected):
+        self.selected = is_selected
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if touch.is_double_tap:
+                if not self.temporary and self.view_album:
+                    app = App.get_running_app()
+                    if not app.shift_pressed:
+                        app.show_album(self)
+                        return
+            app = App.get_running_app()
+            if app.shift_pressed:
+                self.parent.select_range(self.index, touch)
+                return
+            self.parent.select_with_touch(self.index, touch)
+            self.owner.update_selected()
+            if self.dragable:
+                self.drag = True
+                app = App.get_running_app()
+                temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
+                widget_coords = (temp_coords[0] - self.pos[0], temp_coords[1] - self.pos[1])
+                window_coords = self.to_window(touch.pos[0], touch.pos[1])
+                app.drag(self, 'start', window_coords, image=self.image, offset=widget_coords, fullpath=self.fullpath)
+
+    def on_touch_move(self, touch):
+        if self.drag:
+            if not self.selected:
+                self.parent.select_node(self.index)
+                self.owner.update_selected()
+            app = App.get_running_app()
+            window_coords = self.to_window(touch.pos[0], touch.pos[1])
+            app.drag(self, 'move', window_coords)
+
+    def on_touch_up(self, touch):
+        if self.drag:
+            app = App.get_running_app()
+            window_coords = self.to_window(touch.pos[0], touch.pos[1])
+            app.drag(self, 'end', window_coords)
+            self.drag = False
+
+
+class PhotoRecycleThumbWide(PhotoRecycleThumb):
     pass
 
 
-class AlbumSortDropDown(NormalDropDown):
-    """Drop-down menu for sorting album elements"""
+class NormalRecycleView(RecycleView):
+    def get_selected(self):
+        selected = []
+        for item in self.data:
+            if item['selected']:
+                selected.append(item)
+        return selected
+
+
+class SelectableRecycleGrid(LayoutSelectionBehavior, RecycleGridLayout):
+    """Custom selectable grid layout widget."""
+
+    def __init__(self, **kwargs):
+        """ Use the initialize method to bind to the keyboard to enable
+        keyboard interaction e.g. using shift and control for multi-select.
+        """
+
+        super(SelectableRecycleGrid, self).__init__(**kwargs)
+        if str(platform) in ('linux', 'win', 'macosx'):
+            keyboard = Window.request_keyboard(None, self)
+            keyboard.bind(on_key_down=self.select_with_key_down, on_key_up=self.select_with_key_up)
+
+    def select_all(self):
+        for node in range(0, len(self.parent.data)):
+            self.select_node(node)
+
+    def select_with_touch(self, node, touch=None):
+        self._shift_down = False
+        super(SelectableRecycleGrid, self).select_with_touch(node, touch)
+
+    def _select_range(self, multiselect, keep_anchor, node, idx):
+        pass
+
+    def select_range(self, select_index, touch):
+        #find the closest selected button
+
+        if self.selected_nodes:
+            selected_nodes = self.selected_nodes
+        else:
+            selected_nodes = [0, len(self.parent.data)]
+        closest_node = min(selected_nodes, key=lambda x: abs(x-select_index))
+
+        for index in range(min(select_index, closest_node), max(select_index, closest_node)+1):
+            self.select_node(index)
+
+
+class NormalPopup(Popup):
+    """Basic popup widget."""
     pass
 
 
-class AspectRatioDropDown(NormalDropDown):
-    """Drop-down menu for sorting aspect ratio presets"""
-    pass
+class MoveConfirmPopup(NormalPopup):
+    """Popup that asks to confirm a file or folder move."""
+    target = StringProperty()
+    photos = ListProperty()
+    origin = StringProperty()
 
 
-class InterpolationDropDown(NormalDropDown):
-    """Drop-down menu for curves interpolation options"""
-    pass
+class ScanningPopup(NormalPopup):
+    """Popup for displaying database scanning progress."""
+    scanning_percentage = NumericProperty(0)
+    scanning_text = StringProperty('Building File List...')
+
+
+class RecycleItem(RecycleDataViewBehavior, BoxLayout):
+    bgcolor = ListProperty([0, 0, 0, 0])
+    owner = ObjectProperty()
+    text = StringProperty()
+    selected = BooleanProperty(False)
+    index = None
+    data = {}
+
+    def on_selected(self, *_):
+        self.set_color()
+
+    def set_color(self):
+        app = App.get_running_app()
+
+        if self.selected:
+            self.bgcolor = app.selected_color
+        else:
+            if self.index % 2 == 0:
+                self.bgcolor = app.color_even
+            else:
+                self.bgcolor = app.color_odd
+
+    def refresh_view_attrs(self, rv, index, data):
+        self.index = index
+        self.data = data
+        self.set_color()
+        return super(RecycleItem, self).refresh_view_attrs(rv, index, data)
+
+    def apply_selection(self, rv, index, is_selected):
+        self.selected = is_selected
+
+    def on_touch_down(self, touch):
+        if super(RecycleItem, self).on_touch_down(touch):
+            return True
+        if self.collide_point(*touch.pos):
+            self.parent.selected = self.data
+            try:
+                self.owner.select(self)
+            except:
+                pass
+            return True
+
+
+class SelectableRecycleBoxLayout(RecycleBoxLayout):
+    """Adds selection and focus behavior to the view."""
+    selected = DictProperty()
+    selects = ListProperty([])
+    multiselect = BooleanProperty(False)
+
+    def toggle_select(self, *_):
+        if self.multiselect:
+            if self.selects:
+                self.selects = []
+            else:
+                all_selects = self.parent.data
+                for select in all_selects:
+                    self.selects.append(select)
+        else:
+            if self.selected:
+                self.selected = {}
+        self.update_selected()
+
+    def on_selected(self, *_):
+        if self.selected:
+            if self.multiselect:
+                if self.selected in self.selects:
+                    self.selects.remove(self.selected)
+                else:
+                    self.selects.append(self.selected)
+            self.update_selected()
+
+    def on_children(self, *_):
+        self.update_selected()
+
+    def update_selected(self):
+        for child in self.children:
+            if self.multiselect:
+                if child.data in self.selects:
+                    child.selected = True
+                else:
+                    child.selected = False
+            else:
+                if child.data == self.selected:
+                    child.selected = True
+                else:
+                    child.selected = False
+
+
+class PhotoListRecycleView(RecycleView):
+    selected_index = NumericProperty(0)
+
+    def scroll_to_selected(self):
+        box = self.children[0]
+        selected = box.selected
+        for i, item in enumerate(self.data):
+            if item == selected:
+                self.selected_index = i
+                break
+        index = self.selected_index
+        pos_index = (box.default_size[1] + box.spacing) * index
+        scroll = self.convert_distance_to_scroll(0, pos_index - (self.height * 0.5))[1]
+        if scroll > 1.0:
+            scroll = 1.0
+        elif scroll < 0.0:
+            scroll = 0.0
+        self.scroll_y = 1.0 - scroll
+
+    def convert_distance_to_scroll(self, dx, dy):
+        box = self.children[0]
+        wheight = box.default_size[1] + box.spacing
+
+        if not self._viewport:
+            return 0, 0
+        vp = self._viewport
+        vp_height = len(self.data) * wheight
+        if vp.width > self.width:
+            sw = vp.width - self.width
+            sx = dx / float(sw)
+        else:
+            sx = 0
+        if vp_height > self.height:
+            sh = vp_height - self.height
+            sy = dy / float(sh)
+        else:
+            sy = 1
+        return sx, sy
 
 
 class SplitterPanel(Splitter):
@@ -2282,16 +2177,6 @@ class MessagePopup(GridLayout):
         app.popup.dismiss()
 
 
-class AboutPopup(Popup):
-    """Basic popup message with a message and 'ok' button."""
-
-    button_text = StringProperty('OK')
-
-    def close(self, *_):
-        app = App.get_running_app()
-        app.popup.dismiss()
-
-
 class InputPopup(GridLayout):
     """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
 
@@ -2346,107 +2231,6 @@ class RemoveButton(NormalButton):
     to_remove = StringProperty()
     remove_from = StringProperty()
     owner = ObjectProperty()
-
-
-class RemoveProgramButton(RemoveButton):
-    """Button to remove a program from the external programs list."""
-
-    def on_press(self):
-        app = App.get_running_app()
-        app.program_remove(int(self.to_remove))
-        self.owner.update_programs()
-
-
-class HiddenRemoveTagButton(ShortLabel):
-    """Dummy remove tag button, used specifically for the 'favorite' tag that cannot be removed."""
-
-    remove = True
-    to_remove = StringProperty()
-    remove_from = StringProperty()
-    owner = ObjectProperty()
-
-
-class RemoveTagButton(RemoveButton):
-    """Button to remove a tag from the tags list.  Will popup a confirm dialog before removing."""
-
-    def on_press(self):
-        app = App.get_running_app()
-        content = ConfirmPopup(text='Delete The Tag "'+self.to_remove+'"?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
-        content.bind(on_answer=self.on_answer)
-        self.owner.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
-                                       size=(app.popup_x, app.button_scale * 4),
-                                       auto_dismiss=False)
-        self.owner.popup.open()
-
-    def on_answer(self, instance, answer):
-        del instance
-        if answer == 'yes':
-            app = App.get_running_app()
-            app.remove_tag(self.to_remove)
-            self.owner.update_treeview()
-        self.owner.dismiss_popup()
-
-
-class RemoveFromTagButton(RemoveButton):
-    """Button to remove a tag from the current photo."""
-
-    def on_press(self):
-        app = App.get_running_app()
-        app.database_remove_tag(self.remove_from, self.to_remove, message=True)
-        self.owner.update_treeview()
-
-
-class RemoveAlbumButton(RemoveButton):
-    """Button to remove an album.  Pops up a confirmation dialog."""
-
-    def on_press(self):
-        app = App.get_running_app()
-        content = ConfirmPopup(text='Delete The Album "'+self.to_remove+'"?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
-        content.bind(on_answer=self.on_answer)
-        self.owner.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
-                                       size=(app.popup_x, app.button_scale * 4),
-                                       auto_dismiss=False)
-        self.owner.popup.open()
-
-    def on_answer(self, instance, answer):
-        del instance
-        if answer == 'yes':
-            app = App.get_running_app()
-            index = app.album_find(self.to_remove)
-            if index >= 0:
-                app.album_delete(index)
-            self.owner.update_treeview()
-        self.owner.dismiss_popup()
-
-
-class PhotoRecycleViewButton(RecycleItem):
-    video = BooleanProperty(False)
-    favorite = BooleanProperty(False)
-    fullpath = StringProperty()
-    photoinfo = ListProperty()
-    source = StringProperty()
-    selectable = BooleanProperty(True)
-    found = BooleanProperty(True)
-
-    def on_source(self, *_):
-        """Sets up the display image when first loaded."""
-
-        found = isfile2(self.source)
-        self.found = found
-
-    def refresh_view_attrs(self, rv, index, data):
-        super(PhotoRecycleViewButton, self).refresh_view_attrs(rv, index, data)
-        thumbnail = self.ids['thumbnail']
-        thumbnail.photoinfo = self.data['photoinfo']
-        thumbnail.source = self.data['source']
-
-    def on_touch_down(self, touch):
-        super(PhotoRecycleViewButton, self).on_touch_down(touch)
-        if self.collide_point(*touch.pos) and self.selectable:
-            self.owner.fullpath = self.fullpath
-            self.owner.photo = self.source
-            self.parent.selected = self.data
-            return True
 
 
 class TreenodeDrag(BoxLayout):
@@ -2640,46 +2424,6 @@ class TreeViewInfo(BoxLayout, TreeViewNode):
     content = StringProperty()
 
 
-class ExternalProgramEditor(GridLayout):
-    """Widget to display and edit an external program command."""
-
-    name = StringProperty()  #Command name
-    command = StringProperty()  #Command to run
-    argument = StringProperty()  #Command argument, added to the end of 'command'
-    owner = ObjectProperty()
-    index = NumericProperty()
-
-    def save_program(self):
-        self.owner.save_program(self.index, self.name, self.command, self.argument)
-
-    def set_name(self, instance):
-        if not instance.focus:
-            self.name = instance.text
-            self.save_program()
-
-    def set_argument(self, instance):
-        if not instance.focus:
-            self.argument = instance.text
-            self.save_program()
-
-    def select_command(self):
-        """Opens a popup filebrowser to select a program to run."""
-
-        content = FileBrowser(ok_text='Select', filters=['*'])
-        content.bind(on_cancel=lambda x: self.owner.owner.dismiss_popup())
-        content.bind(on_ok=self.select_command_confirm)
-        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content,
-                                                         size_hint=(0.9, 0.9))
-        filepopup.open()
-
-    def select_command_confirm(self, *_):
-        """Called when the filebrowser dialog is successfully closed."""
-
-        self.command = self.owner.owner.popup.content.filename
-        self.owner.owner.dismiss_popup()
-        self.save_program()
-
-
 class ExpandableButton(GridLayout):
     """Base class for a button with a checkbox to enable/disable an extra area.
     It also features an 'x' remove button that calls 'on_remove' when clicked."""
@@ -2713,1327 +2457,317 @@ class ExpandableButton(GridLayout):
         pass
 
 
-class TagSelectButton(WideButton):
-    """Tag display button - used for adding a tag to a photo"""
+class MultiThreadOK(threading.Thread):
+    """Slightly modified version of sqlite multithread support by Louis RIVIERE"""
 
-    remove = False
-    target = StringProperty()
-    type = StringProperty('None')
-    owner = ObjectProperty()
+    def __init__(self, db):
+        super(MultiThreadOK, self).__init__()
+        self.db = db
+        self.reqs = Queue()
+        self.start()
 
-    def on_press(self):
-        self.owner.add_to_tag(self.target)
+    def run(self):
+        cnx = sqlite3.connect(self.db)
+        cursor = cnx.cursor()
+        while True:
+            req, arg, res = self.reqs.get()
+            if req == '--commit--':
+                cnx.commit()
+            if req == '--close--':
+                break
+            try:
+                cursor.execute(req, arg)
+            except:
+                pass
+            if res:
+                for rec in cursor:
+                    res.put(rec)
+                res.put('--no more--')
+        cursor.close()
+        cnx.commit()
+        cnx.close()
 
+    def execute(self, req, arg=None, res=None):
+        self.reqs.put((req, arg or tuple(), res))
 
-class AlbumSelectButton(WideButton):
-    """Album display button - used for adding a photo to an album."""
+    def select(self, req, arg=None):
+        res = Queue()
+        self.execute(req, arg, res)
+        while True:
+            rec = res.get()
+            if rec == '--no more--':
+                break
+            yield rec
 
-    remove = False
-    target = StringProperty()
-    type = StringProperty('None')
-    owner = ObjectProperty()
+    def commit(self):
+        self.execute('--commit--')
 
-    def on_press(self):
-        self.owner.add_to_album(self.target)
-
-
-class MultiTreeView(TreeView):
-    def toggle_select(self):
-        deselect = False
-        for node in self.iterate_all_nodes():
-            if node.is_selected:
-                deselect = True
-                node.is_selected = False
-        if not deselect:
-            for node in self.iterate_all_nodes():
-                node.is_selected = True
-
-    def select_node(self, node):
-        """Modified to allow multiple nodes to be selected and toggled"""
-
-        if node.no_selection:
-            return
-        if node.is_selected:
-            node.is_selected = False
-        else:
-            node.is_selected = True
-            app = App.get_running_app()
-            if app.shift_pressed:
-                #find the closest selected node
-                nodes = list(self.iterate_all_nodes())
-                node_index = nodes.index(node)
-                next_select = node_index
-                prev_select = node_index
-                while next_select < len(nodes) - 1:
-                    next_select = next_select + 1
-                    if nodes[next_select].is_selected:
-                        break
-                while prev_select > 0:
-                    prev_select = prev_select - 1
-                    if nodes[prev_select].is_selected:
-                        break
-                next_delta = next_select - node_index
-                prev_delta = node_index - prev_select
-                if next_select == len(nodes) - 1 and prev_select != 0:
-                    next_delta = len(nodes)
-                if prev_select == 0 and next_select != len(nodes) - 1:
-                    prev_delta = len(nodes)
-                if prev_delta < next_delta:
-                    #select between node and previous selected
-                    for index in range(prev_select, node_index):
-                        nodes[index].is_selected = True
-                else:
-                    #select between node and next selected
-                    for index in range(node_index, next_select+1):
-                        nodes[index].is_selected = True
-
-        self._selected_node = node
+    def close(self):
+        self.execute('--close--')
 
 
-class NormalRecycleView(RecycleView):
-    def get_selected(self):
-        selected = []
-        for item in self.data:
-            if item['selected']:
-                selected.append(item)
-        return selected
-
-
-class SelectableRecycleGrid(LayoutSelectionBehavior, RecycleGridLayout):
-    """Custom selectable grid layout widget."""
-
-    def __init__(self, **kwargs):
-        """ Use the initialize method to bind to the keyboard to enable
-        keyboard interaction e.g. using shift and control for multi-select.
-        """
-
-        super(SelectableRecycleGrid, self).__init__(**kwargs)
-        if str(platform) in ('linux', 'win', 'macosx'):
-            keyboard = Window.request_keyboard(None, self)
-            keyboard.bind(on_key_down=self.select_with_key_down, on_key_up=self.select_with_key_up)
-
-    def select_all(self):
-        for node in range(0, len(self.parent.data)):
-            self.select_node(node)
-
-    def select_with_touch(self, node, touch=None):
-        self._shift_down = False
-        super(SelectableRecycleGrid, self).select_with_touch(node, touch)
-
-    def _select_range(self, multiselect, keep_anchor, node, idx):
-        pass
-
-    def select_range(self, select_index, touch):
-        #find the closest selected button
-
-        if self.selected_nodes:
-            selected_nodes = self.selected_nodes
-        else:
-            selected_nodes = [0, len(self.parent.data)]
-        closest_node = min(selected_nodes, key=lambda x: abs(x-select_index))
-
-        for index in range(min(select_index, closest_node), max(select_index, closest_node)+1):
-            self.select_node(index)
-
-
-class NormalLabel(Label):
-    """Basic label widget"""
+class AlbumSortDropDown(NormalDropDown):
+    """Drop-down menu for sorting album elements"""
     pass
 
 
-class ShortLabel(NormalLabel):
-    """Label widget that will remain the minimum width"""
-    pass
+#Functions and classes related to the file browser
+def get_drives():
+    drives = []
+    if platform == 'win':
+        for path in ['Desktop', 'Documents', 'Pictures']:
+            drives.append((os.path.expanduser(u'~') + os.path.sep + path + os.path.sep, path))
+        bitmask = windll.kernel32.GetLogicalDrives()
+        for letter in string.ascii_uppercase:
+            if bitmask & 1:
+                name = create_unicode_buffer(64)
+                # get name of the drive
+                drive = letter + u':'
+                res = windll.kernel32.GetVolumeInformationW(drive + os.path.sep, name, 64, None, None, None, None, 0)
+                drive_name = drive
+                if name.value:
+                    drive_name = drive_name + '(' + name.value + ')'
+                drives.append((drive + os.path.sep, drive_name))
+            bitmask >>= 1
+    elif platform == 'linux':
+        drives.append((os.path.sep, os.path.sep))
+        drives.append((os.path.expanduser(u'~') + os.path.sep, 'Home'))
+        drives.append((os.path.sep + u'mnt' + os.path.sep, os.path.sep + u'mnt'))
+        places = (os.path.sep + u'mnt' + os.path.sep, os.path.sep + u'media')
+        for place in places:
+            if os.path.isdir(place):
+                for directory in next(os.walk(place))[1]:
+                    drives.append((place + os.path.sep + directory + os.path.sep, directory))
+    elif platform == 'macosx' or platform == 'ios':
+        drives.append((os.path.expanduser(u'~') + os.path.sep, 'Home'))
+        vol = os.path.sep + u'Volume'
+        if os.path.isdir(vol):
+            for drive in next(os.walk(vol))[1]:
+                drives.append((vol + os.path.sep + drive + os.path.sep, drive))
+    elif platform == 'android':
+        drives.append((os.path.sep, os.path.sep))
+        drives.append((os.path.sep + u'mnt' + os.path.sep, '/mnt'))
+        drives.append((os.path.sep + u'mnt' + os.path.sep + 'sdcard' + os.path.sep, 'Internal Memory'))
+    return drives
 
 
-class MenuButton(Button):
-    """Basic class for a drop-down menu button item."""
-    pass
+class FileBrowser(BoxLayout):
 
-
-class FolderSettingsItem(RecycleItem):
-    """A Folder item displayed in a folder list popup dialog."""
-    pass
-
-
-class FolderSettingsList(RecycleView):
-    pass
-
-
-class SettingAboutButton(SettingItem):
-    """Widget that opens an about dialog."""
-    pass
-
-
-class SettingMultiDirectory(SettingItem):
-    """Widget for displaying and editing a multi-folder setting in the settings dialog.
-    Supports a popup widget to display an editable list of folders.
-    """
+    __events__ = ('on_cancel', 'on_ok')
+    path = StringProperty()
+    file = StringProperty()
+    filename = StringProperty()
+    root = StringProperty()
 
     popup = ObjectProperty(None, allownone=True)
-    filepopup = ObjectProperty(None, allownone=True)
-    textinput = ObjectProperty(None)
-    folderlist = ObjectProperty(None)
-    value = StringProperty('')
-    modified = BooleanProperty(False)
 
-    def remove_empty(self, elements):
-        return_list = []
-        for element in elements:
-            if element != '':
-                return_list.append(element)
-        return return_list
+    allow_new = BooleanProperty(True)
+    allow_delete = BooleanProperty(True)
+    new_folder = StringProperty('')
+    start_in = StringProperty()
+    directory_select = BooleanProperty(False)
+    file_editable = BooleanProperty(False)
+    filters = ListProperty([])
+    target_selected = BooleanProperty(False)
 
-    def on_panel(self, instance, value):
-        del instance
-        if value is None:
-            return
-        self.bind(on_release=self._create_popup)
-        app = App.get_running_app()
-        if not app.has_database():
-            Clock.schedule_once(self._create_popup)
+    header_text = StringProperty('Select A File')
+    cancel_text = StringProperty('Cancel')
+    ok_text = StringProperty('OK')
 
-    def _dismiss(self, rescan=True, *_):
+    def __init__(self, **kwargs):
+        if not self.start_in:
+            self.start_in = '/'
+        Clock.schedule_once(self.refresh_locations)
+        super(FileBrowser, self).__init__(**kwargs)
+
+    def dismiss_popup(self):
+        """If this dialog has a popup, closes it and removes it."""
+
         if self.popup:
             self.popup.dismiss()
-        self.popup = None
-        if rescan:
-            if self.modified:
-                app = App.get_running_app()
-                app.database_rescan()
-                app.set_single_database()
-            self.modified = False
-
-    def _create_popup(self, *_):
-        app = App.get_running_app()
-        content = BoxLayout(orientation='vertical')
-        popup_width = min(0.95 * Window.width, dp(500))
-        self.popup = popup = NormalPopup(title=self.title, content=content, size_hint=(None, 0.9), width=popup_width)
-        if not self.value:
-            content.add_widget(ShortLabel(height=app.button_scale * 3, text="You must set at least one database directory.\n\nThis is a folder where your photos are stored.\nNew photos will be imported to a database folder."))
-            content.add_widget(BoxLayout())
-        else:
-            folders = filter(None, self.value.split(';'))
-            folderdata = []
-            for folder in folders:
-                folderdata.append({'text': folder})
-            self.folderlist = folderlist = FolderSettingsList(size_hint=(1, .8), id='folderlist')
-            folderlist.data = folderdata
-            content.add_widget(folderlist)
-        buttons = BoxLayout(orientation='horizontal', size_hint=(1, None),
-                            height=app.button_scale)
-        addbutton = NormalButton(text='Add')
-        addbutton.bind(on_press=self.add_path)
-        removebutton = NormalButton(text='Remove')
-        removebutton.bind(on_press=self.remove_path)
-        okbutton = NormalButton(text='OK')
-        okbutton.bind(on_press=self._dismiss)
-        buttons.add_widget(addbutton)
-        buttons.add_widget(removebutton)
-        buttons.add_widget(okbutton)
-        content.add_widget(buttons)
-        popup.open()
-
-    def add_path(self, *_):
-        self.filechooser_popup()
-
-    def remove_path(self, *_):
-        self.modified = True
-        listed_folders = self.folderlist.data
-        all_folders = []
-        for folder in listed_folders:
-            if folder != self.folderlist.children[0].selected:
-                all_folders.append(folder['text'])
-        self.value = u';'.join(all_folders)
-        self.refresh()
-
-    def refresh(self):
-        self._dismiss(rescan=False)
-        self._create_popup(self)
-
-    def filechooser_popup(self):
-        content = FileBrowser(ok_text='Add', directory_select=True)
-        content.bind(on_cancel=self.filepopup_dismiss)
-        content.bind(on_ok=self.add_directory)
-        self.filepopup = filepopup = NormalPopup(title=self.title, content=content, size_hint=(0.9, 0.9))
-        filepopup.open()
-
-    def filepopup_dismiss(self, *_):
-        if self.filepopup:
-            self.filepopup.dismiss()
-        self.filepopup = None
-
-    def add_directory(self, *_):
-        self.modified = True
-        all_folders = self.value.split(';')
-        all_folders.append(agnostic_path(self.filepopup.content.filename))
-        all_folders = self.remove_empty(all_folders)
-        self.value = u';'.join(all_folders)
-        self.filepopup_dismiss()
-        self.refresh()
-
-
-class SettingDatabaseImport(SettingItem):
-    """Database scan/import widget for the settings screen."""
-    def database_import(self):
-        app = App.get_running_app()
-        app.database_import()
-
-
-class SettingDatabaseClean(SettingItem):
-    """Database deep-clean widget for the settings screen."""
-    def database_clean(self):
-        app = App.get_running_app()
-        app.database_clean(deep=True)
-
-
-class SettingDatabaseRestore(SettingItem):
-    """Database backup restore widget for the settings screen."""
-    def database_restore(self):
-        app = App.get_running_app()
-        app.database_restore()
-
-
-class SettingDatabaseBackup(SettingItem):
-    """Database backup restore widget for the settings screen."""
-    def database_backup(self):
-        app = App.get_running_app()
-        app.database_backup()
-
-
-class MoveConfirmPopup(NormalPopup):
-    """Popup that asks to confirm a file or folder move."""
-    target = StringProperty()
-    photos = ListProperty()
-    origin = StringProperty()
-
-
-class ScanningPopup(NormalPopup):
-    """Popup for displaying database scanning progress."""
-    scanning_percentage = NumericProperty(0)
-    scanning_text = StringProperty('Building File List...')
-
-
-class PhotoManagerSettings(Settings):
-    """Expanded settings class to add new settings buttons and types."""
-
-    def __init__(self, **kwargs):
-        super(PhotoManagerSettings, self).__init__(**kwargs)
-        self.register_type('multidirectory', SettingMultiDirectory)
-        self.register_type('databaseimport', SettingDatabaseImport)
-        self.register_type('databaseclean', SettingDatabaseClean)
-        self.register_type('aboutbutton', SettingAboutButton)
-        self.register_type('databaserestore', SettingDatabaseRestore)
-        self.register_type('databasebackup', SettingDatabaseBackup)
-
-
-class PhotoDrag(KivyImage):
-    """Special image widget for displaying the drag-n-drop location."""
-
-    angle = NumericProperty()
-    offset = []
-    opacity = .5
-    fullpath = StringProperty()
-
-
-class PhotoThumbLabel(NormalLabel):
-    pass
-
-
-class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
-    """Wrapper widget for image thumbnails.  Used for displaying images in grid views."""
-
-    found = BooleanProperty(True)  # Used to add a red overlay to the thumbnail if the source file doesn't exist
-    owner = ObjectProperty()
-    target = StringProperty()
-    type = StringProperty('None')
-    filename = StringProperty()
-    fullpath = StringProperty()
-    folder = StringProperty()
-    database_folder = StringProperty()
-    selected = BooleanProperty(False)
-    drag = False
-    dragable = BooleanProperty(True)
-    image = ObjectProperty()
-    photo_orientation = NumericProperty(1)
-    angle = NumericProperty(0)  # used to display the correct orientation of the image
-    favorite = BooleanProperty(False)  # if True, a star overlay will be displayed on the image
-    video = BooleanProperty(False)
-    source = StringProperty()
-    photoinfo = ListProperty()
-    temporary = BooleanProperty(False)
-    title = StringProperty('')
-    view_album = BooleanProperty(True)
-    mirror = BooleanProperty(False)
-    index = NumericProperty(0)
-    data = {}
-
-    def refresh_view_attrs(self, rv, index, data):
-        """Called when widget is loaded into recycleview layout"""
-        self.index = index
-        self.data = data
-        thumbnail = self.ids['thumbnail']
-        thumbnail.temporary = self.data['temporary']
-        thumbnail.photoinfo = self.data['photoinfo']
-        thumbnail.source = self.data['source']
-        self.image = thumbnail
-        return super(PhotoRecycleThumb, self).refresh_view_attrs(rv, index, data)
-
-    def on_source(self, *_):
-        """Sets up the display image when first loaded."""
-
-        found = isfile2(self.source)
-        self.found = found
-        if self.photo_orientation in [2, 4, 5, 7]:
-            self.mirror = True
-        else:
-            self.mirror = False
-        if self.photo_orientation == 3 or self.photo_orientation == 4:
-            self.angle = 180
-        elif self.photo_orientation == 5 or self.photo_orientation == 6:
-            self.angle = 270
-        elif self.photo_orientation == 7 or self.photo_orientation == 8:
-            self.angle = 90
-        else:
-            self.angle = 0
-
-    def apply_selection(self, rv, index, is_selected):
-        self.selected = is_selected
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            if touch.is_double_tap:
-                if not self.temporary and self.view_album:
-                    app = App.get_running_app()
-                    if not app.shift_pressed:
-                        app.show_album(self)
-                        return
-            app = App.get_running_app()
-            if app.shift_pressed:
-                self.parent.select_range(self.index, touch)
-                return
-            self.parent.select_with_touch(self.index, touch)
-            self.owner.update_selected()
-            if self.dragable:
-                self.drag = True
-                app = App.get_running_app()
-                temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
-                widget_coords = (temp_coords[0] - self.pos[0], temp_coords[1] - self.pos[1])
-                window_coords = self.to_window(touch.pos[0], touch.pos[1])
-                app.drag(self, 'start', window_coords, image=self.image, offset=widget_coords, fullpath=self.fullpath)
-
-    def on_touch_move(self, touch):
-        if self.drag:
-            if not self.selected:
-                self.parent.select_node(self.index)
-                self.owner.update_selected()
-            app = App.get_running_app()
-            window_coords = self.to_window(touch.pos[0], touch.pos[1])
-            app.drag(self, 'move', window_coords)
-
-    def on_touch_up(self, touch):
-        if self.drag:
-            app = App.get_running_app()
-            window_coords = self.to_window(touch.pos[0], touch.pos[1])
-            app.drag(self, 'end', window_coords)
-            self.drag = False
-
-
-class PhotoRecycleThumbWide(PhotoRecycleThumb):
-    pass
-
-
-class StencilViewTouch(StencilView):
-    """Custom StencilView that stencils touches as well as visual elements."""
-
-    def on_touch_down(self, touch):
-        """Modified to only register touch down events when inside stencil area."""
-        if self.collide_point(*touch.pos):
-            super(StencilViewTouch, self).on_touch_down(touch)
-
-
-class LimitedScatterLayout(ScatterLayout):
-    """Custom ScatterLayout that won't allow sub-widgets to be moved out of the visible area,
-    and will not respond to touches outside of the visible area.  
-    """
-
-    bypass = BooleanProperty(False)
-
-    def on_bypass(self, instance, bypass):
-        if bypass:
-            self.transform = Matrix()
-
-    def on_transform_with_touch(self, touch):
-        """Modified to not allow widgets to be moved out of the visible area."""
-
-        width = self.bbox[1][0]
-        height = self.bbox[1][1]
-        scale = self.scale
-
-        local_bottom = self.bbox[0][1]
-        local_left = self.bbox[0][0]
-        local_top = local_bottom+height
-        local_right = local_left+width
-
-        local_xmax = width/scale
-        local_xmin = 0
-        local_ymax = height/scale
-        local_ymin = 0
-
-        if local_right < local_xmax:
-            self.transform[12] = local_xmin - (width - local_xmax)
-        if local_left > local_xmin:
-            self.transform[12] = local_xmin
-        if local_top < local_ymax:
-            self.transform[13] = local_ymin - (height - local_ymax)
-        if local_bottom > local_ymin:
-            self.transform[13] = local_ymin
-
-    def on_touch_down(self, touch):
-        """Modified to only register touches in visible area."""
-
-        if self.bypass:
-            for child in self.children[:]:
-                if child.dispatch('on_touch_down', touch):
-                    return True
-        else:
-            if self.collide_point(*touch.pos):
-                super(LimitedScatterLayout, self).on_touch_down(touch)
-
-
-class PhotoShow(ButtonBehavior, RelativeLayout):
-    """Widget that holds the image widget.  Used for catching double and tripple clicks."""
-
-    filename = StringProperty()
-    fullpath = StringProperty()
-    current_touch = None
-    bypass = BooleanProperty(False)
-
-    def on_touch_down(self, touch):
-        if touch.is_double_tap and not self.bypass:
-            app = App.get_running_app()
-            if not app.shift_pressed:
-                photowrapper = self.parent.parent
-                photocontainer = photowrapper.parent.parent
-                if photowrapper.scale > 1:
-                    photocontainer.zoom = 0
-                else:
-                    zoompos = self.to_local(touch.pos[0], touch.pos[1])
-                    photocontainer.zoompos = zoompos
-                    photocontainer.zoom = 1
-        elif touch.is_triple_tap and not self.bypass:
-            app = App.get_running_app()
-            if not app.shift_pressed:
-                app.show_photo()
-        else:
-            super(PhotoShow, self).on_touch_down(touch)
-
-
-class TreeViewNodeSpacer(BoxLayout, TreeViewNode):
-    """Provides a spacer for treeview elements.  Defaults to app.button_scale height."""
-    pass
-
-
-class ImportPresetArea(GridLayout):
-    """Widget to display and edit all settings for a particular import preset."""
-
-    title = StringProperty()
-    import_to = StringProperty('')
-    naming_method = StringProperty('')
-    last_naming_method = StringProperty('')
-    delete_originals = BooleanProperty(False)
-    single_folder = BooleanProperty(False)
-    preset_index = NumericProperty()
-    naming_example = StringProperty('Naming Example')
-    owner = ObjectProperty()
-    import_from = ListProperty()
-    index = NumericProperty()
-
-    def __init__(self, **kwargs):
-        super(ImportPresetArea, self).__init__(**kwargs)
-        Clock.schedule_once(self.update_import_from)
-        app = App.get_running_app()
-        self.imports_dropdown = NormalDropDown()
-        database_folders = app.config.get('Database Directories', 'paths')
-        database_folders = local_path(database_folders)
-        if database_folders.strip(' '):
-            databases = database_folders.split(';')
-        else:
-            databases = []
-        for database in databases:
-            menu_button = MenuButton(text=database)
-            menu_button.bind(on_release=self.change_import_to)
-            self.imports_dropdown.add_widget(menu_button)
-
-    def update_preset(self):
-        """Updates the app preset setting with the current data."""
-
-        app = App.get_running_app()
-        import_preset = {}
-        import_preset['title'] = self.title
-        import_preset['import_to'] = self.import_to
-        import_preset['naming_method'] = self.naming_method
-        import_preset['delete_originals'] = self.delete_originals
-        import_preset['import_from'] = self.import_from
-        import_preset['single_folder'] = self.single_folder
-        app.imports[self.index] = import_preset
-        self.owner.owner.selected_import = self.index
-
-    def set_title(self, instance):
-        if not instance.focus:
-            self.title = instance.text
-            self.update_preset()
-            self.owner.owner.update_treeview()
-
-    def test_naming_method(self, string, *_):
-        return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;")
-
-    def new_naming_method(self, instance):
-        if not instance.focus:
-            if not naming(instance.text, title=''):
-                self.naming_method = self.last_naming_method
-                instance.text = self.last_naming_method
-            else:
-                self.last_naming_method = instance.text
-                self.naming_method = instance.text
-                self.naming_example = naming(self.naming_method)
-                self.update_preset()
-
-    def set_single_folder(self, state):
-        if state == 'down':
-            self.single_folder = True
-        else:
-            self.single_folder = False
-        self.update_preset()
-
-    def set_delete_originals(self, state):
-        if state == 'down':
-            self.delete_originals = True
-        else:
-            self.delete_originals = False
-        self.update_preset()
-
-    def remove_folder(self, index):
-        del self.import_from[index]
-        self.update_preset()
-        self.update_import_from()
-
-    def change_import_to(self, instance):
-        self.imports_dropdown.dismiss()
-        self.import_to = instance.text
-        self.update_preset()
+            self.popup = None
 
     def add_folder(self):
-        content = FileBrowser(ok_text='Add', directory_select=True)
-        content.bind(on_cancel=self.owner.owner.dismiss_popup)
-        content.bind(on_ok=self.add_folder_confirm)
-        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Folder To Import From', content=content,
-                                                         size_hint=(0.9, 0.9))
-        filepopup.open()
+        """Starts the add folder process, creates an input text popup."""
 
-    def add_folder_confirm(self, *_):
-        folder = self.owner.owner.popup.content.filename
-        self.import_from.append(folder)
-        self.owner.owner.dismiss_popup()
-        self.update_preset()
-        self.update_import_from()
-
-    def update_import_from(self, *_):
-        preset_folders = self.ids['importPresetFolders']
-        nodes = list(preset_folders.iterate_all_nodes())
-        for node in nodes:
-            preset_folders.remove_node(node)
-        for index, folder in enumerate(self.import_from):
-            preset_folders.add_node(ImportPresetFolder(folder=folder, owner=self, index=index))
-        #self.update_preset()
-
-
-class ScaleSettings(GridLayout):
-    """Widget layout for the scale settings on the export dialog."""
-    owner = ObjectProperty()
-
-
-class WatermarkSettings(GridLayout):
-    """Widget layout for the watermark settings on the export dialog."""
-    owner = ObjectProperty()
-
-
-class FolderToggleSettings(GridLayout):
-    """Widget layout for the export to folder settings on the export dialog."""
-    owner = ObjectProperty()
-
-
-class FTPToggleSettings(GridLayout):
-    """Widget layout for the export to ftp settings on the export dialog."""
-    owner = ObjectProperty()
-
-
-class ImportPreset(ExpandableButton):
-    data = DictProperty()
-    owner = ObjectProperty()
-    import_to = StringProperty('')
-
-    def on_data(self, *_):
-        import_preset = self.data
-        naming_method = import_preset['naming_method']
-        self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=import_preset['import_to'], naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], owner=self)
-
-    def on_remove(self):
+        content = InputPopup(hint='Folder Name', text='Enter A Folder Name:')
         app = App.get_running_app()
-        app.import_preset_remove(self.index)
-        self.owner.selected_import = -1
-        self.owner.update_treeview()
-
-    def on_press(self):
-        self.owner.selected_import = self.index
-        self.owner.import_preset()
-
-
-class ExportPreset(ExpandableButton):
-    data = DictProperty()
-    owner = ObjectProperty()
-
-    def on_data(self, *_):
-        export_preset = self.data
-        self.content = ExportPresetArea(owner=self, index=self.index, name=export_preset['name'], export=export_preset['export'], ftp_address=export_preset['ftp_address'], ftp_user=export_preset['ftp_user'], ftp_password=export_preset['ftp_password'], ftp_passive=export_preset['ftp_passive'], ftp_port=export_preset['ftp_port'], export_folder=export_preset['export_folder'], create_subfolder=export_preset['create_subfolder'], export_info=export_preset['export_info'], scale_image=export_preset['scale_image'], scale_size=export_preset['scale_size'], scale_size_to=export_preset['scale_size_to'], jpeg_quality=export_preset['jpeg_quality'], watermark=export_preset['watermark'], watermark_image=export_preset['watermark_image'], watermark_opacity=export_preset['watermark_opacity'], watermark_horizontal=export_preset['watermark_horizontal'], watermark_vertical=export_preset['watermark_vertical'], watermark_size=export_preset['watermark_size'], ignore_tags=' '.join(export_preset['ignore_tags']), export_videos=export_preset['export_videos'])
-
-    def on_expanded(self, *_):
-        if self.content:
-            content_container = self.ids['contentContainer']
-            if self.expanded:
-                content_container.add_widget(self.content)
-                Clock.schedule_once(self.content.update_test_image)
-            else:
-                content_container.clear_widgets()
-
-    def on_remove(self):
-        app = App.get_running_app()
-        app.export_preset_remove(self.index)
-        self.owner.selected_preset = -1
-        self.owner.update_treeview()
-
-    def on_press(self):
-        self.owner.selected_preset = self.index
-        self.owner.export()
-
-
-class ExportPresetArea(GridLayout):
-    """Widget for displaying and editing settings for an export preset."""
-
-    owner = ObjectProperty()
-    name = StringProperty('')
-    export_folder = StringProperty('')
-    last_export_folder = StringProperty('')
-    create_subfolder = BooleanProperty(True)
-    export_info = BooleanProperty(True)
-    scale_image = BooleanProperty(False)
-    scale_size = NumericProperty(1000)
-    scale_size_to = StringProperty('long')
-    jpeg_quality = NumericProperty(90)
-    watermark = BooleanProperty(False)
-    watermark_image = StringProperty()
-    watermark_opacity = NumericProperty(50)
-    watermark_horizontal = NumericProperty(80)
-    watermark_vertical = NumericProperty(20)
-    watermark_size = NumericProperty(25)
-    export_videos = BooleanProperty(False)
-    ignore_tags = StringProperty()
-    scale_size_to_text = StringProperty('Long Side')
-    scale_settings = ObjectProperty()
-    watermark_settings = ObjectProperty()
-    export = StringProperty('folder')
-    ftp_address = StringProperty()
-    ftp_user = StringProperty()
-    ftp_password = StringProperty()
-    ftp_passive = BooleanProperty(True)
-    ftp_port = NumericProperty(21)
-    index = NumericProperty(0)
-
-    def __init__(self, **kwargs):
-        super(ExportPresetArea, self).__init__(**kwargs)
-        self.scale_size_to_dropdown = NormalDropDown()
-        self.last_export_folder = self.export_folder
-        if self.scale_image:
-            self.add_scale_settings()
-        if self.watermark:
-            self.add_watermark_settings()
-        for option in scale_size_to_options:
-            menu_button = MenuButton(text=scale_size_to_options[option])
-            menu_button.bind(on_release=self.change_scale_to)
-            menu_button.target = option
-            self.scale_size_to_dropdown.add_widget(menu_button)
-        self.add_export_settings()
-
-    def update_preset(self):
-        """Updates this export preset in the app."""
-
-        app = App.get_running_app()
-        export_preset = {}
-        export_preset['name'] = self.name
-        export_preset['export'] = self.export
-        export_preset['ftp_address'] = self.ftp_address
-        export_preset['ftp_user'] = self.ftp_user
-        export_preset['ftp_password'] = self.ftp_password
-        export_preset['ftp_passive'] = self.ftp_passive
-        export_preset['ftp_port'] = self.ftp_port
-        export_preset['export_folder'] = self.export_folder
-        export_preset['create_subfolder'] = self.create_subfolder
-        export_preset['export_info'] = self.export_info
-        export_preset['scale_image'] = self.scale_image
-        export_preset['scale_size'] = self.scale_size
-        export_preset['scale_size_to'] = self.scale_size_to
-        export_preset['jpeg_quality'] = self.jpeg_quality
-        export_preset['watermark'] = self.watermark
-        export_preset['watermark_image'] = self.watermark_image
-        export_preset['watermark_opacity'] = self.watermark_opacity
-        export_preset['watermark_horizontal'] = self.watermark_horizontal
-        export_preset['watermark_vertical'] = self.watermark_vertical
-        export_preset['watermark_size'] = self.watermark_size
-        ignore_tags = self.ignore_tags.split(',')
-        ignore_tags = list(filter(bool, ignore_tags))
-        export_preset['ignore_tags'] = ignore_tags
-        export_preset['export_videos'] = self.export_videos
-        app.exports[self.index] = export_preset
-        self.owner.owner.selected_preset = self.index
-        app.export_preset_write()
-
-    def toggle_exports(self, button):
-        """Switch between folder and ftp export."""
-
-        if button.text == 'FTP':
-            self.export = 'ftp'
-        else:
-            self.export = 'folder'
-        self.add_export_settings()
-        self.update_preset()
-
-    def add_export_settings(self, *_):
-        """Add the proper export settings to the export dialog."""
-
-        if self.export == 'ftp':
-            button = self.ids['toggleFTP']
-            button.state = 'down'
-            toggle_area = self.ids['toggleSettings']
-            toggle_area.clear_widgets()
-            toggle_area.add_widget(FTPToggleSettings(owner=self))
-        else:
-            button = self.ids['toggleFolder']
-            button.state = 'down'
-            toggle_area = self.ids['toggleSettings']
-            toggle_area.clear_widgets()
-            toggle_area.add_widget(FolderToggleSettings(owner=self))
-
-    def update_test_image(self, *_):
-        """Regenerate the watermark preview image."""
-
-        if self.watermark_settings:
-            test_image = self.watermark_settings.ids['testImage']
-            test_image.clear_widgets()
-            if os.path.isfile(self.watermark_image):
-                image = KivyImage(source=self.watermark_image)
-                size_x = test_image.size[0]*(self.watermark_size/100)
-                size_y = test_image.size[1]*(self.watermark_size/100)
-                image.size = (size_x, size_y)
-                image.size_hint = (None, None)
-                image.opacity = self.watermark_opacity/100
-                x_pos = test_image.pos[0]+((test_image.size[0] - size_x)*(self.watermark_horizontal/100))
-                y_pos = test_image.pos[1]+((test_image.size[1] - size_y)*(self.watermark_vertical/100))
-                image.pos = (x_pos, y_pos)
-                test_image.add_widget(image)
-
-    def add_watermark_settings(self, *_):
-        """Add the watermark settings widget to the proper area."""
-
-        watermark_settings_widget = self.ids['watermarkSettings']
-        self.watermark_settings = WatermarkSettings(owner=self)
-        watermark_settings_widget.add_widget(self.watermark_settings)
-        Clock.schedule_once(self.update_test_image)
-
-    def add_scale_settings(self, *_):
-        """Add the scale settings widget to the proper area."""
-
-        scale_settings_widget = self.ids['scaleSettings']
-        self.scale_settings = ScaleSettings(owner=self)
-        scale_settings_widget.add_widget(self.scale_settings)
-
-    def select_watermark(self):
-        """Open a filebrowser to select the watermark image."""
-
-        content = FileBrowser(ok_text='Select', filters=['*.png'])
-        content.bind(on_cancel=self.owner.owner.dismiss_popup)
-        content.bind(on_ok=self.select_watermark_confirm)
-        self.owner.owner.popup = filepopup = NormalPopup(title='Select Watermark PNG Image', content=content,
-                                                         size_hint=(0.9, 0.9))
-        filepopup.open()
-
-    def select_watermark_confirm(self, *_):
-        """Called when the watermark file browse dialog is closed."""
-
-        self.watermark_image = self.owner.owner.popup.content.filename
-        self.owner.owner.dismiss_popup()
-        self.update_preset()
-        self.update_test_image()
-
-    def set_scale_size(self, instance):
-        """Apply the scale size setting, only when the input area loses focus."""
-
-        if not instance.focus:
-            self.scale_size = int(instance.text)
-            self.update_preset()
-
-    def on_scale_size_to(self, *_):
-        self.scale_size_to_text = scale_size_to_options[self.scale_size_to]
-
-    def set_watermark_opacity(self, instance):
-        self.watermark_opacity = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkOpacityValue']
-        value_display.text = 'Watermark Opacity:'+str(self.watermark_opacity)+'%'
-        self.update_preset()
-        self.update_test_image()
-
-    def set_watermark_horizontal(self, instance):
-        self.watermark_horizontal = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkHorizontalValue']
-        value_display.text = 'Horizontal Position:'+str(self.watermark_horizontal)+'%'
-        self.update_preset()
-        self.update_test_image()
-
-    def set_watermark_vertical(self, instance):
-        self.watermark_vertical = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkVerticalValue']
-        value_display.text = 'Vertical Position:'+str(self.watermark_vertical)+'%'
-        self.update_preset()
-        self.update_test_image()
-
-    def set_watermark_size(self, instance):
-        self.watermark_size = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkSizeValue']
-        value_display.text = 'Watermark Size:'+str(self.watermark_size)+'%'
-        self.update_preset()
-        self.update_test_image()
-
-    def set_jpeg_quality(self, instance):
-        self.jpeg_quality = int(instance.value)
-        value_display = self.scale_settings.ids['jpegQualityValue']
-        value_display.text = 'JPEG Quality: '+str(self.jpeg_quality)+'%'
-        self.update_preset()
-
-    def change_scale_to(self, instance):
-        self.scale_size_to_dropdown.dismiss()
-        self.scale_size_to = instance.target
-        self.update_preset()
-
-    def set_scale_image(self, state):
-        if state == 'down':
-            self.scale_image = True
-            self.add_scale_settings()
-        else:
-            self.scale_image = False
-            scale_settings_widget = self.ids['scaleSettings']
-            scale_settings_widget.clear_widgets()
-        self.update_preset()
-
-    def set_export_videos(self, state):
-        if state == 'down':
-            self.export_videos = True
-        else:
-            self.export_videos = False
-        self.update_preset()
-
-    def set_export_info(self, state):
-        if state == 'down':
-            self.export_info = True
-        else:
-            self.export_info = False
-        self.update_preset()
-
-    def set_watermark(self, state):
-        if state == 'down':
-            self.watermark = True
-            self.add_watermark_settings()
-        else:
-            self.watermark = False
-            watermark_settings_widget = self.ids['watermarkSettings']
-            watermark_settings_widget.clear_widgets()
-        self.update_preset()
-
-    def set_create_subfolder(self, state):
-        if state == 'down':
-            self.create_subfolder = True
-        else:
-            self.create_subfolder = False
-        self.update_preset()
-
-    def test_tags(self, string, *_):
-        return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;").lower()
-
-    def set_ignore_tags(self, instance):
-        if not instance.focus:
-            self.ignore_tags = instance.text
-            self.update_preset()
-
-    def set_ftp_passive(self, instance):
-        if instance.state == 'down':
-            self.ftp_passive = True
-            instance.text = 'Passive Mode'
-        else:
-            self.ftp_passive = False
-            instance.text = 'Active Mode'
-        self.update_preset()
-
-    def set_title(self, instance):
-        if not instance.focus:
-            self.name = instance.text
-            self.update_preset()
-            self.owner.owner.update_treeview()
-
-    def filename_filter(self, string, *_):
-        remove_string = '\\/*?<>|,'.replace(os.path.sep, "")
-        return "".join(i for i in string if i not in remove_string)
-
-    def set_ftp_user(self, instance):
-        if not instance.focus:
-            self.ftp_user = instance.text
-            self.update_preset()
-
-    def set_ftp_password(self, instance):
-        if not instance.focus:
-            self.ftp_password = instance.text
-            self.update_preset()
-
-    def set_ftp_address(self, instance):
-        if not instance.focus:
-            self.ftp_address = instance.text
-            self.update_preset()
-
-    def set_ftp_port(self, instance):
-        if not instance.focus:
-            self.ftp_port = int(instance.text)
-            self.update_preset()
-
-    def ftp_filter(self, string, *_):
-        remove_string = '\\:<>| "\''
-        return "".join(i for i in string if i not in remove_string).lower()
-
-    def set_export_folder(self, instance):
-        if not instance.focus:
-            if os.path.exists(instance.text):
-                self.export_folder = instance.text
-                self.last_export_folder = instance.text
-            else:
-                instance.text = self.last_export_folder
-                self.export_folder = self.last_export_folder
-            self.update_preset()
-
-    def select_export(self):
-        """Activates a popup folder browser dialog to select the export folder."""
-
-        content = FileBrowser(ok_text='Select', directory_select=True)
-        content.bind(on_cancel=self.owner.owner.dismiss_popup)
-        content.bind(on_ok=self.select_export_confirm)
-        self.owner.owner.popup = filepopup = NormalPopup(title='Select An Export Folder', content=content,
-                                                         size_hint=(0.9, 0.9))
-        filepopup.open()
-
-    def select_export_confirm(self, *_):
-        """Called when the export folder select dialog is closed successfully."""
-
-        self.export_folder = self.owner.owner.popup.content.filename
-        self.owner.owner.dismiss_popup()
-        self.update_preset()
-
-
-class ImportPresetFolder(ButtonBehavior, BoxLayout, TreeViewNode):
-    """TreeView widget to display a folder scanned on the import process."""
-
-    folder = StringProperty()
-    index = NumericProperty()
-    owner = ObjectProperty()
-
-    def remove_folder(self):
-        self.owner.remove_folder(self.index)
-
-
-class RotationGrid(FloatLayout):
-    """A grid display overlay used for alignment when an image is being rotated."""
-    pass
-
-
-class CropOverlay(ResizableBehavior, RelativeLayout):
-    """Overlay widget for showing cropping area."""
-
-    owner = ObjectProperty()
-    drag_mode = BooleanProperty(False)
-
-    def __init__(self, **kwargs):
-        super(CropOverlay, self).__init__(**kwargs)
-        self._drag_touch = None
-
-    def on_mouse_move(self, _, pos):
-        """need to override this because the original class will still change mouse cursor after it's removed..."""
-        if self.parent:
-            super(CropOverlay, self).on_mouse_move(_, pos)
-
-    def on_size(self, instance, size):
-        self.owner.set_crop(self.pos[0], self.pos[1], size[0], size[1])
-
-    def on_pos(self, instance, pos):
-        self.owner.set_crop(pos[0], pos[1], self.size[0], self.size[1])
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            if touch.button == 'left':
-                if self.check_resizable_side(*touch.pos):
-                    self.drag_mode = False
-                    super(CropOverlay, self).on_touch_down(touch)
+        content.bind(on_answer=self.add_folder_answer)
+        self.popup = NormalPopup(title='Create Folder', content=content, size_hint=(None, None),
+                                 size=(app.popup_x, app.button_scale * 5),
+                                 auto_dismiss=False)
+        self.popup.open()
+
+    def add_folder_answer(self, instance, answer):
+        """Tells the app to rename the folder if the dialog is confirmed.
+        Arguments:
+            instance: The dialog that called this function.
+            answer: String, if 'yes', the folder will be created, all other answers will just close the dialog.
+        """
+
+        if answer == 'yes':
+            text = instance.ids['input'].text.strip(' ')
+            if text:
+                app = App.get_running_app()
+                folder = os.path.join(self.path, text)
+                created = False
+                try:
+                    if not os.path.isdir(folder):
+                        os.makedirs(folder)
+                        created = True
+                except:
+                    pass
+                if created:
+                    app.message("Created the folder '"+folder+"'")
+                    self.path = folder
+                    self.refresh_folder()
                 else:
-                    self.drag_mode = True
-            return True
+                    app.message("Could Not Create Folder.")
+        self.dismiss_popup()
 
-    def on_touch_move(self, touch):
-        if self.drag_mode:
-            self.x += touch.dx
-            self.y += touch.dy
-
-        else:
-            super(CropOverlay, self).on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-        if self.drag_mode:
-            self.drag_mode = False
-        else:
-            super(CropOverlay, self).on_touch_up(touch)
-
-    def on_resizing(self, instance, resizing):
-        pass
-
-
-class PhotoViewer(BoxLayout):
-    """Holds the fullsized photo image in album view mode."""
-
-    photoinfo = ListProperty()
-    favorite = BooleanProperty(False)
-    angle = NumericProperty(0)
-    mirror = BooleanProperty(False)
-    file = StringProperty()
-    scale_max = NumericProperty(1)
-    edit_mode = StringProperty('main')
-    edit_image = ObjectProperty()
-    overlay = ObjectProperty(allownone=True)
-    bypass = BooleanProperty(False)
-    zoom = NumericProperty(0)
-    zoompos = ListProperty([0, 0])
-    set_fullscreen = BooleanProperty(False)
-
-    def on_height(self, *_):
-        self.reset_zoompos()
-
-    def reset_zoompos(self):
-        self.zoompos = [self.width / 2, self.height / 2]
-
-    def on_zoom(self, *_):
-        if self.zoom == 0:
-            self.reset_zoompos()
-        scale_max = self.scale_max
-        scale_size = 1 + ((scale_max - 1) * self.zoom)
-        scale = Matrix().scale(scale_size, scale_size, scale_size)
-        wrapper = self.ids['wrapper']
-        wrapper.transform = Matrix()
-        zoompos = self.zoompos
-        wrapper.apply_transform(scale, anchor=zoompos)
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            if self.edit_mode != 'main' and not self.overlay:
-                self.edit_image.opacity = 0
-                image = self.ids['image']
-                image.opacity = 1
-                return True
-            else:
-                return super(PhotoViewer, self).on_touch_down(touch)
-
-    def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos):
-            if self.edit_mode != 'main' and not self.overlay:
-                self.edit_image.opacity = 1
-                image = self.ids['image']
-                image.opacity = 0
-                return True
-            else:
-                return super(PhotoViewer, self).on_touch_up(touch)
-
-    def is_fullscreen(self):
-        """Dummy function, only for video, but here in case it gets called on the wrong viewer type."""
-        return False
-
-    def refresh(self):
-        """Updates the image subwidget's source file."""
-
-        image = self.ids['image']
-        image.source = self.file
-
-    def on_edit_mode(self, *_):
-        """Called when the user enters or exits edit mode.
-        Adds the edit image widget, and overlay if need be, and sets them up."""
-
-        image = self.ids['image']
-        if self.edit_mode == 'main':
-            image.opacity = 1
-            viewer = self.ids['photoShow']
-            if self.edit_image:
-                viewer.remove_widget(self.edit_image)
-            if self.overlay:
-                viewer.remove_widget(self.overlay)
-                self.overlay = None
-        else:
-            image.opacity = 0
-            viewer = self.ids['photoShow']
-            self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle,
-                                          photoinfo=self.photoinfo)
-            viewer.add_widget(self.edit_image)
-            if self.edit_mode == 'rotate':
-                #add rotation grid overlay
-                self.overlay = RotationGrid()
-                viewer.add_widget(self.overlay)
-            if self.edit_mode == 'crop':
-                #add cropper overlay and set image to crop mode
-                self.overlay = CropOverlay(owner=self.edit_image)
-                viewer.add_widget(self.overlay)
-                self.edit_image.cropping = True
-                self.edit_image.cropper = self.overlay
-
-    def stop(self):
-        """Dummy function, only for video, but here in case it gets called on the wrong viewer type."""
-        pass
-
-    def fullscreen(self):
-        """Switches the app to single image view."""
+    def delete_folder(self):
+        """Starts the delete folder process, creates the confirmation popup."""
 
         app = App.get_running_app()
-        app.show_photo()
-
-
-class PauseableVideo(Video):
-    """modified Video class to allow clicking anywhere to pause/resume."""
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            if self.state == 'play':
-                self.state = 'pause'
-            else:
-                self.state = 'play'
-            return True
-
-
-class SpecialVideoPlayer(VideoPlayer):
-    """Custom VideoPlayer class that replaces the default video widget with the 'PauseableVideo' widget."""
-
-    photoinfo = ListProperty()
-    mirror = BooleanProperty(False)
-    favorite = BooleanProperty(False)
-
-    def _load_thumbnail(self):
-        if not self.container:
-            return
-        self.container.clear_widgets()
-        if self.photoinfo:
-            self._image = VideoThumbnail(photoinfo=self.photoinfo, source=self.source, favorite=self.favorite, video=self)
-            self.container.add_widget(self._image)
-
-    def on_fullscreen(self, instance, value):
-        """Auto-play the video when set to fullscreen."""
-
-        if self.fullscreen:
-            self.state = 'play'
-        return super(SpecialVideoPlayer, self).on_fullscreen(instance, value)
-
-    def _do_video_load(self, *largs):
-        """this function has been changed to replace the Video object with the special PauseableVideo object.
-        Also, checks if auto-play videos are enabled in the settings.
-        """
-
-        if isfile2(self.source):
-            self._video = PauseableVideo(source=self.source, state=self.state, volume=self.volume,
-                                         pos_hint={'x': 0, 'y': 0}, **self.options)
-            self._video.bind(texture=self._play_started, duration=self.setter('duration'), position=self.setter('position'),
-                             volume=self.setter('volume'), state=self._set_state)
-            app = App.get_running_app()
-            if app.config.getboolean("Settings", "videoautoplay"):
-                self._video.state = 'play'
-
-    def on_touch_down(self, touch):
-        """Checks if a double-click was detected, switches to fullscreen if it is."""
-
-        if not self.disabled:
-            if not self.collide_point(*touch.pos):
-                return False
-            if touch.is_double_tap and self.allow_fullscreen:
-                self.fullscreen = not self.fullscreen
-                return True
-            return super(SpecialVideoPlayer, self).on_touch_down(touch)
-
-
-class VideoViewer(FloatLayout):
-    """Holds the fullsized video in album view mode."""
-
-    photoinfo = ListProperty()
-    favorite = BooleanProperty(False)
-    angle = NumericProperty(0)
-    mirror = BooleanProperty(False)
-    file = StringProperty()
-    edit_mode = StringProperty('main')
-    bypass = BooleanProperty(False)
-    edit_image = ObjectProperty(None, allownone=True)
-    position = NumericProperty(0.5)
-
-    def on_position(self, *_):
-        if self.edit_image:
-            self.edit_image.position = self.position
-
-    def on_edit_mode(self, *_):
-        """Called when the user enters or exits edit mode.
-        Adds the edit image widget, and overlay if need be, and sets them up."""
-
-        overlay = self.ids['overlay']
-        player = self.ids['player']
-        if self.edit_mode == 'main':
-            player.opacity = 1
-            overlay.opacity = 0
-            viewer = self.ids['photoShow']
-            if self.edit_image:
-                self.edit_image.close_video()
-                viewer.remove_widget(self.edit_image)
-                self.edit_image = None
+        if not os.listdir(self.path):
+            text = "Delete The Selected Folder?"
+            content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
+            content.bind(on_answer=self.delete_folder_answer)
+            self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
+                                     size=(app.popup_x, app.button_scale * 4),
+                                     auto_dismiss=False)
+            self.popup.open()
         else:
-            overlay.opacity = 1
-            player.opacity = 0
-            viewer = self.ids['photoShow']
-            self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle,
-                                          photoinfo=self.photoinfo)
-            viewer.add_widget(self.edit_image)
+            app.message("Folder Is Not Empty.")
 
-    def is_fullscreen(self):
-        """Checks if the embedded video is currently fullscreen, and returns that value.
-        Returns: True or False
+    def delete_folder_answer(self, instance, answer):
+        """Tells the app to delete the folder if the dialog is confirmed.
+        Arguments:
+            instance: The dialog that called this function.
+            answer: String, if 'yes', the folder will be deleted, all other answers will just close the dialog.
         """
 
-        player = self.ids['player']
-        return player.fullscreen
+        del instance
+        if answer == 'yes':
+            app = App.get_running_app()
+            try:
+                os.rmdir(self.path)
+                app.message("Deleted Folder: \""+self.path+"\"")
+                self.go_up()
+            except:
+                app.message("Could Not Delete Folder...")
+        self.dismiss_popup()
 
-    def stop(self):
-        """Stops the video playback."""
+    def refresh_locations(self, *_):
+        locations_list = self.ids['locationsList']
+        locations = get_drives()
+        self.root = locations[0][0]
+        data = []
+        for location in locations:
+            data.append({
+                'text': location[1],
+                'fullpath': location[0],
+                'path': location[0],
+                'type': 'folder',
+                'owner': self
+            })
+        locations_list.data = data
+        if not self.path:
+            self.path = locations[0][0]
+        self.refresh_folder()
 
-        player = self.ids['player']
-        player.fullscreen = False
-        player.state = 'stop'
+    def refresh_folder(self, *_):
+        file_list = self.ids['fileList']
+        data = []
+        files = []
+        dirs = []
+        if os.path.isdir(self.path):
+            try:
+                for file in os.listdir(self.path):
+                    fullpath = os.path.join(self.path, file)
+                    if os.path.isfile(fullpath):
+                        files.append(file)
+                    elif os.path.isdir(fullpath):
+                        dirs.append(file)
+            except:
+                self.go_up()
+                return
+            dirs = sorted(dirs, key=lambda s: s.lower())
+            for directory in dirs:
+                fullpath = os.path.join(self.path, directory)
+                data.append({
+                    'text': directory,
+                    'fullpath': fullpath,
+                    'path': fullpath + os.path.sep,
+                    'type': 'folder',
+                    'owner': self,
+                    'selected': False
+                })
+            if not self.directory_select:
+                if self.filters:
+                    filtered_files = []
+                    for filter in self.filters:
+                        filtered_files += fnmatch.filter(files, filter)
+                    files = filtered_files
+                files = sorted(files, key=lambda s: s.lower())
+                for file in files:
+                    data.append({
+                        'text': file,
+                        'fullpath': os.path.join(self.path, file),
+                        'path': self.path,
+                        'type': file,
+                        'file': file,
+                        'owner': self,
+                        'selected': False
+                    })
 
-    def fullscreen(self):
-        """Toggles the video player to fullscreen mode."""
+        file_list.data = data
+        if not self.directory_select:
+            self.file = ''
+            self.target_selected = False
+        else:
+            self.filename = self.path
+            self.target_selected = True
 
-        player = self.ids['player']
-        player.fullscreen = not player.fullscreen
+    def go_up(self, *_):
+        up_path = os.path.realpath(os.path.join(self.path, '..'))
+        if not up_path.endswith(os.path.sep):
+            up_path += os.path.sep
+        if up_path == self.path:
+            up_path = self.root
+        self.path = up_path
+        self.refresh_folder()
+
+    def select(self, button):
+        if button.type == 'folder':
+            self.path = button.path
+            self.refresh_folder()
+            if self.directory_select:
+                self.filename = button.fullpath
+                self.target_selected = True
+            else:
+                self.filename = ''
+                self.target_selected = False
+        else:
+            self.filename = button.fullpath
+            self.file = button.file
+            self.target_selected = True
+
+    def on_cancel(self):
+        pass
+
+    def on_ok(self):
+        pass
 
 
+class FileBrowserItem(RecycleItem):
+    path = StringProperty()
+    fullpath = StringProperty()
+    file = StringProperty()
+    type = StringProperty('folder')
+
+
+#Functions and classes related to the Database
 class DatabaseScreen(Screen):
     """Screen layout for the main photo database."""
 
@@ -5203,6 +3937,474 @@ class DatabaseScreen(Screen):
         self.on_selected()
 
 
+class TransferScreen(Screen):
+    """Database folder transfer screen layout."""
+
+    popup = None
+    database_dropdown_left = ObjectProperty()
+    database_dropdown_right = ObjectProperty()
+    left_database = StringProperty()
+    right_database = StringProperty()
+    left_sort_method = StringProperty()
+    right_sort_method = StringProperty()
+    left_sort_reverse = BooleanProperty()
+    right_sort_reverse = BooleanProperty()
+    left_sort_dropdown = ObjectProperty()
+    right_sort_dropdown = ObjectProperty()
+    quick = BooleanProperty(False)
+
+    transfer_from = StringProperty()
+    transfer_to = StringProperty()
+    folders = ListProperty()
+
+    cancel_copying = BooleanProperty(False)
+    copying = BooleanProperty(False)
+    copyingpopup = ObjectProperty()
+    percent_completed = NumericProperty(0)
+    copyingthread = ObjectProperty()
+
+    selected = ''
+    expanded_folders = []
+
+    def has_popup(self):
+        """Detects if the current screen has a popup active.
+        Returns: True or False
+        """
+
+        if self.popup:
+            if self.popup.open:
+                return True
+        return False
+
+    def dismiss_extra(self):
+        """Cancels the copy process if it is running"""
+
+        if self.copying:
+            self.cancel_copy()
+            return True
+        else:
+            return False
+
+    def dismiss_popup(self):
+        """Close a currently open popup for this screen."""
+
+        if self.popup:
+            self.popup.dismiss()
+            self.popup = None
+
+    def key(self, key):
+        """Dummy function, not valid for this screen but the app calls it."""
+
+        if not self.popup or (not self.popup.open):
+            del key
+
+    def resort_method_left(self, method):
+        self.left_sort_method = method
+        self.refresh_left_database()
+
+    def resort_method_right(self, method):
+        self.right_sort_method = method
+        self.refresh_right_database()
+
+    def left_resort_reverse(self, reverse):
+        sort_reverse = True if reverse == 'down' else False
+        self.left_sort_reverse = sort_reverse
+        self.refresh_left_database()
+
+    def right_resort_reverse(self, reverse):
+        sort_reverse = True if reverse == 'down' else False
+        self.right_sort_reverse = sort_reverse
+        self.refresh_right_database()
+
+    def on_enter(self):
+        """Called when screen is entered, set up the needed variables and image viewer."""
+
+        app = App.get_running_app()
+
+        #set up sort buttons
+        self.left_sort_dropdown = DatabaseSortDropDown()
+        self.left_sort_dropdown.bind(on_select=lambda instance, x: self.resort_method_left(x))
+        self.left_sort_method = app.config.get('Sorting', 'database_sort')
+        self.left_sort_reverse = to_bool(app.config.get('Sorting', 'database_sort_reverse'))
+        self.right_sort_dropdown = DatabaseSortDropDown()
+        self.right_sort_dropdown.bind(on_select=lambda instance, x: self.resort_method_right(x))
+        self.right_sort_method = app.config.get('Sorting', 'database_sort')
+        self.right_sort_reverse = to_bool(app.config.get('Sorting', 'database_sort_reverse'))
+
+        databases = app.get_database_directories()
+        self.database_dropdown_left = NormalDropDown()
+        self.database_dropdown_right = NormalDropDown()
+        for database in databases:
+            database_button_left = MenuButton(text=database)
+            database_button_left.bind(on_release=self.set_database_left)
+            self.database_dropdown_left.add_widget(database_button_left)
+            database_button_right = MenuButton(text=database)
+            database_button_right.bind(on_release=self.set_database_right)
+            self.database_dropdown_right.add_widget(database_button_right)
+        self.left_database = databases[0]
+        self.right_database = databases[1]
+        self.refresh_databases()
+
+    def set_database_left(self, button):
+        self.database_dropdown_left.dismiss()
+        if self.right_database == button.text:
+            self.right_database = self.left_database
+            self.refresh_right_database()
+        self.left_database = button.text
+        self.refresh_left_database()
+
+    def set_database_right(self, button):
+        self.database_dropdown_right.dismiss()
+        if self.left_database == button.text:
+            self.left_database = self.right_database
+            self.refresh_left_database()
+        self.right_database = button.text
+        self.refresh_right_database()
+
+    def refresh_left_database(self):
+        database_area = self.ids['leftDatabaseHolder']
+        self.refresh_database_area(database_area, self.left_database, self.left_sort_method, self.left_sort_reverse)
+
+    def refresh_right_database(self):
+        database_area = self.ids['rightDatabaseHolder']
+        self.refresh_database_area(database_area, self.right_database, self.right_sort_method, self.right_sort_reverse)
+
+    def drop_widget(self, fullpath, position, dropped_type):
+        """Called when a widget is dropped after being dragged.
+        Determines what to do with the widget based on where it is dropped.
+        Arguments:
+            fullpath: String, file location of the object being dragged.
+            position: List of X,Y window coordinates that the widget is dropped on.
+            dropped_type: String, describes the object's database origin directory
+        """
+
+        app = App.get_running_app()
+        transfer_from = dropped_type
+        left_database_holder = self.ids['leftDatabaseHolder']
+        left_database_area = self.ids['leftDatabaseArea']
+        right_database_holder = self.ids['rightDatabaseHolder']
+        right_database_area = self.ids['rightDatabaseArea']
+        transfer_to = False
+        folders = []
+        if left_database_holder.collide_point(position[0], position[1]):
+            if transfer_from != self.left_database:
+                selects = right_database_area.selects
+                for select in selects:
+                    folders.append(local_path(select['fullpath']))
+                transfer_to = self.left_database
+        elif right_database_holder.collide_point(position[0], position[1]):
+            if transfer_from != self.right_database:
+                selects = left_database_area.selects
+                for select in selects:
+                    folders.append(local_path(select['fullpath']))
+                transfer_to = self.right_database
+        if transfer_to:
+            if fullpath not in folders:
+                folders.append(fullpath)
+            #remove subfolders
+            removes = []
+            for folder in folders:
+                for fold in folders:
+                    if folder.startswith(fold+os.path.sep):
+                        removes.append(folder)
+                        break
+            reduced_folders = []
+            for folder in folders:
+                if folder not in removes:
+                    reduced_folders.append(folder)
+
+            content = ConfirmPopup(text='Move These Folders From "'+transfer_from+'" to "'+transfer_to+'"?', yes_text='Move', no_text="Don't Move", warn_yes=True)
+            content.bind(on_answer=self.move_folders)
+            self.transfer_to = transfer_to
+            self.transfer_from = transfer_from
+            self.folders = reduced_folders
+            self.popup = MoveConfirmPopup(title='Confirm Move', content=content, size_hint=(None, None),
+                                          size=(app.popup_x, app.button_scale * 4),
+                                          auto_dismiss=False)
+            self.popup.open()
+
+    def cancel_copy(self, *_):
+        self.cancel_copying = True
+
+    def move_folders(self, instance, answer):
+        del instance
+        app = App.get_running_app()
+        self.dismiss_popup()
+        if answer == 'yes':
+            self.cancel_copying = False
+            self.copyingpopup = ScanningPopup(title='Moving Files', auto_dismiss=False, size_hint=(None, None),
+                                              size=(app.popup_x, app.button_scale * 4))
+            self.copyingpopup.open()
+            scanning_button = self.copyingpopup.ids['scanningButton']
+            scanning_button.bind(on_press=self.cancel_copy)
+
+            # Start importing thread
+            self.percent_completed = 0
+            self.copyingthread = threading.Thread(target=self.move_process)
+            self.copyingthread.start()
+
+    def move_process(self):
+        app = App.get_running_app()
+        self.quick = app.config.get("Settings", "quicktransfer")
+        transfer_from = self.transfer_from
+        transfer_to = self.transfer_to
+        folders = self.folders
+
+        total_files = 0
+        total_size = 0
+        for folder in folders:
+            origin = os.path.join(transfer_from, folder)
+            for root, dirs, files in os.walk(origin):
+                for file in files:
+                    total_files = total_files + 1
+                    total_size = total_size + os.path.getsize(os.path.join(root, file))
+
+        current_files = 0
+        current_size = 0
+        for folder in folders:
+            origin = os.path.join(transfer_from, folder)
+            #target = os.path.join(transfer_to, folder)
+            for root, dirs, files in os.walk(origin, topdown=False):
+                for file in files:
+                    copy_from = os.path.join(root, file)
+                    fullpath = os.path.relpath(copy_from, transfer_from)
+                    copy_to = os.path.join(transfer_to, fullpath)
+                    directory = os.path.split(copy_to)[0]
+                    if not os.path.isdir(directory):
+                        os.makedirs(directory)
+                    self.copyingpopup.scanning_text = "Moving "+str(current_files)+" of "+str(total_files)+"."
+                    self.copyingpopup.scanning_percentage = (current_size / total_size) * 100
+
+                    if self.cancel_copying:
+                        app.message("Canceled Moving Files, "+str(current_files)+" Files Moved.")
+                        app.photos.commit()
+                        self.copyingpopup.dismiss()
+                        return
+                    fileinfo = app.database_exists(fullpath)
+                    copied = False
+                    if self.quick == '1':
+                        try:
+                            move(copy_from, copy_to)
+                            copied = True
+                        except:
+                            pass
+                    else:
+                        result = verify_copy(copy_from, copy_to)
+                        if result is True:
+                            os.remove(copy_from)
+                            copied = True
+                    if copied:
+                        if fileinfo:
+                            fileinfo[2] = transfer_to
+                            app.database_item_database_move(fileinfo)
+                        current_files = current_files + 1
+                        current_size = current_size + os.path.getsize(copy_to)
+                    if os.path.isfile(copy_from):
+                        if os.path.split(copy_from)[1] == '.photoinfo.ini':
+                            os.remove(copy_from)
+                try:
+                    os.rmdir(root)
+                except:
+                    pass
+        self.copyingpopup.dismiss()
+        app.photos.commit()
+        app.message("Finished Moving "+str(current_files)+" Files.")
+        Clock.schedule_once(self.refresh_databases)
+
+    def toggle_expanded_folder(self, folder):
+        if folder in self.expanded_folders:
+            self.expanded_folders.remove(folder)
+        else:
+            self.expanded_folders.append(folder)
+        self.refresh_databases()
+
+    def refresh_database_area(self, database, database_folder, sort_method, sort_reverse):
+        app = App.get_running_app()
+
+        database.data = []
+        data = []
+
+        #Get and sort folder list
+        unsorted_folders = app.database_get_folders(database_folder=database_folder)
+        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
+            folders = []
+            for folder in unsorted_folders:
+                folderpath = folder
+                if sort_method == 'Total Photos':
+                    sortby = len(app.database_get_folder(folderpath, database=database_folder))
+                elif sort_method == 'Title':
+                    folderinfo = app.database_folder_exists(folderpath)
+                    if folderinfo:
+                        sortby = folderinfo[1]
+                    else:
+                        sortby = folderpath
+                elif sort_method == 'Import Date':
+                    folder_photos = app.database_get_folder(folderpath, database=database_folder)
+                    sortby = 0
+                    for folder_photo in folder_photos:
+                        if folder_photo[6] > sortby:
+                            sortby = folder_photo[6]
+                elif sort_method == 'Modified Date':
+                    folder_photos = app.database_get_folder(folderpath, database=database_folder)
+                    sortby = 0
+                    for folder_photo in folder_photos:
+                        if folder_photo[7] > sortby:
+                            sortby = folder_photo[7]
+
+                folders.append([sortby, folderpath])
+            sorted_folders = sorted(folders, key=lambda x: x[0], reverse=sort_reverse)
+            sorts, all_folders = zip(*sorted_folders)
+        else:
+            all_folders = sorted(unsorted_folders, reverse=sort_reverse)
+
+        #Parse and sort folders and subfolders
+        root_folders = []
+        for full_folder in all_folders:
+            if full_folder and not any(avoidfolder in full_folder for avoidfolder in avoidfolders):
+                newname = full_folder
+                children = root_folders
+                parent_folder = ''
+                while os.path.sep in newname:
+                    #split the base path and the leaf paths
+                    root, leaf = newname.split(os.path.sep, 1)
+                    parent_folder = os.path.join(parent_folder, root)
+
+                    #check if the root path is already in the tree
+                    root_element = False
+                    for child in children:
+                        if child['folder'] == root:
+                            root_element = child
+                    if not root_element:
+                        children.append({'folder': root, 'full_folder': parent_folder, 'children': []})
+                        root_element = children[-1]
+                    children = root_element['children']
+                    newname = leaf
+                root_element = False
+                for child in children:
+                    if child['folder'] == newname:
+                        root_element = child
+                if not root_element:
+                    children.append({'folder': newname, 'full_folder': full_folder, 'children': []})
+
+        folder_data = self.populate_folders(root_folders, self.expanded_folders, sort_method, sort_reverse, database_folder)
+        data = data + folder_data
+
+        database.data = data
+
+    def populate_folders(self, folder_root, expanded, sort_method, sort_reverse, database_folder):
+        app = App.get_running_app()
+        folders = []
+        folder_root = self.sort_folders(folder_root, sort_method, sort_reverse)
+        for folder in folder_root:
+            full_folder = folder['full_folder']
+            expandable = True if len(folder['children']) > 0 else False
+            is_expanded = True if full_folder in expanded else False
+            folder_info = app.database_folder_exists(full_folder)
+            if folder_info:
+                subtext = folder_info[1]
+            else:
+                subtext = ''
+            folder_element = {
+                'fullpath': full_folder,
+                'folder_name': folder['folder'],
+                'target': full_folder,
+                'type': 'Folder',
+                'total_photos': '',
+                'total_photos_numeric': 0,
+                'displayable': True,
+                'expandable': expandable,
+                'expanded': is_expanded,
+                'owner': self,
+                'indent': 1 + full_folder.count(os.path.sep),
+                'subtext': subtext,
+                'height': app.button_scale * (1.5 if subtext else 1),
+                'end': False,
+                'droptype': database_folder,
+                'dragable': True
+            }
+            folders.append(folder_element)
+            if is_expanded:
+                if len(folder['children']) > 0:
+                    more_folders = self.populate_folders(folder['children'], expanded)
+                    folders = folders + more_folders
+                    folders[-1]['end'] = True
+                    folders[-1]['height'] = folders[-1]['height'] + int(app.button_scale * 0.1)
+        return folders
+
+    def sort_folders(self, sort_folders, sort_method, sort_reverse):
+        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
+            app = App.get_running_app()
+            folders = []
+            for folder in sort_folders:
+                folderpath = folder['full_folder']
+                if sort_method == 'Total Photos':
+                    sortby = len(app.database_get_folder(folderpath))
+                elif sort_method == 'Title':
+                    folderinfo = app.database_folder_exists(folderpath)
+                    if folderinfo:
+                        sortby = folderinfo[1]
+                    else:
+                        sortby = folderpath
+                elif sort_method == 'Import Date':
+                    folder_photos = app.database_get_folder(folderpath)
+                    sortby = 0
+                    for folder_photo in folder_photos:
+                        if folder_photo[6] > sortby:
+                            sortby = folder_photo[6]
+                elif sort_method == 'Modified Date':
+                    folder_photos = app.database_get_folder(folderpath)
+                    sortby = 0
+                    for folder_photo in folder_photos:
+                        if folder_photo[7] > sortby:
+                            sortby = folder_photo[7]
+
+                folders.append([sortby, folder])
+            sorted_folders = sorted(folders, key=lambda x: x[0], reverse=sort_reverse)
+            sorts, all_folders = zip(*sorted_folders)
+        else:
+            all_folders = sorted(sort_folders, key=lambda x: x['folder'], reverse=sort_reverse)
+
+        return all_folders
+
+    def refresh_databases(self, *_):
+        self.refresh_left_database()
+        self.refresh_right_database()
+
+
+class DatabaseRestoreScreen(Screen):
+    popup = None
+
+    def dismiss_extra(self):
+        """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
+        return True
+
+    def on_enter(self):
+        app = App.get_running_app()
+        completed = app.database_restore_process()
+        if completed != True:
+            app.message("Error: "+completed)
+        app.setup_database(restore=True)
+        Clock.schedule_once(app.show_database, 1)
+
+
+class AlbumDetails(BoxLayout):
+    """Widget to display information about an album"""
+
+    owner = ObjectProperty()
+
+
+class FolderDetails(BoxLayout):
+    """Widget to display information about a folder of photos"""
+
+    owner = ObjectProperty()
+
+
+class DatabaseSortDropDown(NormalDropDown):
+    """Drop-down menu for database folder sorting"""
+    pass
+
+
+#Functions and classes related to the Album screen
 class AlbumScreen(Screen):
     """Screen layout of the album viewer."""
 
@@ -5847,10 +5049,9 @@ class AlbumScreen(Screen):
         if self.edit_panel != 'main':
             self.set_edit_panel('main')
             return True
-        if not self.view_image:
-            if self.viewer.is_fullscreen():
-                self.viewer.stop()
-                return True
+        if self.viewer.fullscreen:
+            self.viewer.stop()
+            return True
         return False
 
     def key(self, key):
@@ -5868,7 +5069,7 @@ class AlbumScreen(Screen):
                 if key == 'right' or key == 'down':
                     self.next_photo()
                 if key == 'enter':
-                    self.viewer.fullscreen()
+                    self.viewer.fullscreen = True
                 if key == 'space':
                     self.set_favorite()
                 if key == 'delete':
@@ -6073,7 +5274,7 @@ class AlbumScreen(Screen):
         """Tells the viewer to switch to fullscreen mode."""
 
         if self.viewer:
-            self.viewer.fullscreen()
+            self.viewer.fullscreen = True
 
     def on_photo(self, *_):
         """Called when a new photo is viewed.
@@ -6907,746 +6108,275 @@ class AlbumScreen(Screen):
         app.message("Saved edits to image")
 
 
-class TransferScreen(Screen):
-    """Database folder transfer screen layout."""
-
-    popup = None
-    database_dropdown_left = ObjectProperty()
-    database_dropdown_right = ObjectProperty()
-    left_database = StringProperty()
-    right_database = StringProperty()
-    left_sort_method = StringProperty()
-    right_sort_method = StringProperty()
-    left_sort_reverse = BooleanProperty()
-    right_sort_reverse = BooleanProperty()
-    left_sort_dropdown = ObjectProperty()
-    right_sort_dropdown = ObjectProperty()
-    quick = BooleanProperty(False)
-
-    transfer_from = StringProperty()
-    transfer_to = StringProperty()
-    folders = ListProperty()
-
-    cancel_copying = BooleanProperty(False)
-    copying = BooleanProperty(False)
-    copyingpopup = ObjectProperty()
-    percent_completed = NumericProperty(0)
-    copyingthread = ObjectProperty()
-
-    selected = ''
-    expanded_folders = []
-
-    def has_popup(self):
-        """Detects if the current screen has a popup active.
-        Returns: True or False
-        """
-
-        if self.popup:
-            if self.popup.open:
-                return True
-        return False
-
-    def dismiss_extra(self):
-        """Cancels the copy process if it is running"""
-
-        if self.copying:
-            self.cancel_copy()
-            return True
-        else:
-            return False
-
-    def dismiss_popup(self):
-        """Close a currently open popup for this screen."""
-
-        if self.popup:
-            self.popup.dismiss()
-            self.popup = None
-
-    def key(self, key):
-        """Dummy function, not valid for this screen but the app calls it."""
-
-        if not self.popup or (not self.popup.open):
-            del key
-
-    def resort_method_left(self, method):
-        self.left_sort_method = method
-        self.refresh_left_database()
-
-    def resort_method_right(self, method):
-        self.right_sort_method = method
-        self.refresh_right_database()
-
-    def left_resort_reverse(self, reverse):
-        sort_reverse = True if reverse == 'down' else False
-        self.left_sort_reverse = sort_reverse
-        self.refresh_left_database()
-
-    def right_resort_reverse(self, reverse):
-        sort_reverse = True if reverse == 'down' else False
-        self.right_sort_reverse = sort_reverse
-        self.refresh_right_database()
-
-    def on_enter(self):
-        """Called when screen is entered, set up the needed variables and image viewer."""
-
-        app = App.get_running_app()
-
-        #set up sort buttons
-        self.left_sort_dropdown = DatabaseSortDropDown()
-        self.left_sort_dropdown.bind(on_select=lambda instance, x: self.resort_method_left(x))
-        self.left_sort_method = app.config.get('Sorting', 'database_sort')
-        self.left_sort_reverse = to_bool(app.config.get('Sorting', 'database_sort_reverse'))
-        self.right_sort_dropdown = DatabaseSortDropDown()
-        self.right_sort_dropdown.bind(on_select=lambda instance, x: self.resort_method_right(x))
-        self.right_sort_method = app.config.get('Sorting', 'database_sort')
-        self.right_sort_reverse = to_bool(app.config.get('Sorting', 'database_sort_reverse'))
-
-        databases = app.get_database_directories()
-        self.database_dropdown_left = NormalDropDown()
-        self.database_dropdown_right = NormalDropDown()
-        for database in databases:
-            database_button_left = MenuButton(text=database)
-            database_button_left.bind(on_release=self.set_database_left)
-            self.database_dropdown_left.add_widget(database_button_left)
-            database_button_right = MenuButton(text=database)
-            database_button_right.bind(on_release=self.set_database_right)
-            self.database_dropdown_right.add_widget(database_button_right)
-        self.left_database = databases[0]
-        self.right_database = databases[1]
-        self.refresh_databases()
-
-    def set_database_left(self, button):
-        self.database_dropdown_left.dismiss()
-        if self.right_database == button.text:
-            self.right_database = self.left_database
-            self.refresh_right_database()
-        self.left_database = button.text
-        self.refresh_left_database()
-
-    def set_database_right(self, button):
-        self.database_dropdown_right.dismiss()
-        if self.left_database == button.text:
-            self.left_database = self.right_database
-            self.refresh_left_database()
-        self.right_database = button.text
-        self.refresh_right_database()
-
-    def refresh_left_database(self):
-        database_area = self.ids['leftDatabaseHolder']
-        self.refresh_database_area(database_area, self.left_database, self.left_sort_method, self.left_sort_reverse)
-
-    def refresh_right_database(self):
-        database_area = self.ids['rightDatabaseHolder']
-        self.refresh_database_area(database_area, self.right_database, self.right_sort_method, self.right_sort_reverse)
-
-    def drop_widget(self, fullpath, position, dropped_type):
-        """Called when a widget is dropped after being dragged.
-        Determines what to do with the widget based on where it is dropped.
-        Arguments:
-            fullpath: String, file location of the object being dragged.
-            position: List of X,Y window coordinates that the widget is dropped on.
-            dropped_type: String, describes the object's database origin directory
-        """
-
-        app = App.get_running_app()
-        transfer_from = dropped_type
-        left_database_holder = self.ids['leftDatabaseHolder']
-        left_database_area = self.ids['leftDatabaseArea']
-        right_database_holder = self.ids['rightDatabaseHolder']
-        right_database_area = self.ids['rightDatabaseArea']
-        transfer_to = False
-        folders = []
-        if left_database_holder.collide_point(position[0], position[1]):
-            if transfer_from != self.left_database:
-                selects = right_database_area.selects
-                for select in selects:
-                    folders.append(local_path(select['fullpath']))
-                transfer_to = self.left_database
-        elif right_database_holder.collide_point(position[0], position[1]):
-            if transfer_from != self.right_database:
-                selects = left_database_area.selects
-                for select in selects:
-                    folders.append(local_path(select['fullpath']))
-                transfer_to = self.right_database
-        if transfer_to:
-            if fullpath not in folders:
-                folders.append(fullpath)
-            #remove subfolders
-            removes = []
-            for folder in folders:
-                for fold in folders:
-                    if folder.startswith(fold+os.path.sep):
-                        removes.append(folder)
-                        break
-            reduced_folders = []
-            for folder in folders:
-                if folder not in removes:
-                    reduced_folders.append(folder)
-
-            content = ConfirmPopup(text='Move These Folders From "'+transfer_from+'" to "'+transfer_to+'"?', yes_text='Move', no_text="Don't Move", warn_yes=True)
-            content.bind(on_answer=self.move_folders)
-            self.transfer_to = transfer_to
-            self.transfer_from = transfer_from
-            self.folders = reduced_folders
-            self.popup = MoveConfirmPopup(title='Confirm Move', content=content, size_hint=(None, None),
-                                          size=(app.popup_x, app.button_scale * 4),
-                                          auto_dismiss=False)
-            self.popup.open()
-
-    def cancel_copy(self, *_):
-        self.cancel_copying = True
-
-    def move_folders(self, instance, answer):
-        del instance
-        app = App.get_running_app()
-        self.dismiss_popup()
-        if answer == 'yes':
-            self.cancel_copying = False
-            self.copyingpopup = ScanningPopup(title='Moving Files', auto_dismiss=False, size_hint=(None, None),
-                                              size=(app.popup_x, app.button_scale * 4))
-            self.copyingpopup.open()
-            scanning_button = self.copyingpopup.ids['scanningButton']
-            scanning_button.bind(on_press=self.cancel_copy)
-
-            # Start importing thread
-            self.percent_completed = 0
-            self.copyingthread = threading.Thread(target=self.move_process)
-            self.copyingthread.start()
-
-    def move_process(self):
-        app = App.get_running_app()
-        self.quick = app.config.get("Settings", "quicktransfer")
-        transfer_from = self.transfer_from
-        transfer_to = self.transfer_to
-        folders = self.folders
-
-        total_files = 0
-        total_size = 0
-        for folder in folders:
-            origin = os.path.join(transfer_from, folder)
-            for root, dirs, files in os.walk(origin):
-                for file in files:
-                    total_files = total_files + 1
-                    total_size = total_size + os.path.getsize(os.path.join(root, file))
-
-        current_files = 0
-        current_size = 0
-        for folder in folders:
-            origin = os.path.join(transfer_from, folder)
-            #target = os.path.join(transfer_to, folder)
-            for root, dirs, files in os.walk(origin, topdown=False):
-                for file in files:
-                    copy_from = os.path.join(root, file)
-                    fullpath = os.path.relpath(copy_from, transfer_from)
-                    copy_to = os.path.join(transfer_to, fullpath)
-                    directory = os.path.split(copy_to)[0]
-                    if not os.path.isdir(directory):
-                        os.makedirs(directory)
-                    self.copyingpopup.scanning_text = "Moving "+str(current_files)+" of "+str(total_files)+"."
-                    self.copyingpopup.scanning_percentage = (current_size / total_size) * 100
-
-                    if self.cancel_copying:
-                        app.message("Canceled Moving Files, "+str(current_files)+" Files Moved.")
-                        app.photos.commit()
-                        self.copyingpopup.dismiss()
-                        return
-                    fileinfo = app.database_exists(fullpath)
-                    copied = False
-                    if self.quick == '1':
-                        try:
-                            move(copy_from, copy_to)
-                            copied = True
-                        except:
-                            pass
-                    else:
-                        result = verify_copy(copy_from, copy_to)
-                        if result is True:
-                            os.remove(copy_from)
-                            copied = True
-                    if copied:
-                        if fileinfo:
-                            fileinfo[2] = transfer_to
-                            app.database_item_database_move(fileinfo)
-                        current_files = current_files + 1
-                        current_size = current_size + os.path.getsize(copy_to)
-                    if os.path.isfile(copy_from):
-                        if os.path.split(copy_from)[1] == '.photoinfo.ini':
-                            os.remove(copy_from)
-                try:
-                    os.rmdir(root)
-                except:
-                    pass
-        self.copyingpopup.dismiss()
-        app.photos.commit()
-        app.message("Finished Moving "+str(current_files)+" Files.")
-        Clock.schedule_once(self.refresh_databases)
-
-    def toggle_expanded_folder(self, folder):
-        if folder in self.expanded_folders:
-            self.expanded_folders.remove(folder)
-        else:
-            self.expanded_folders.append(folder)
-        self.refresh_databases()
-
-    def refresh_database_area(self, database, database_folder, sort_method, sort_reverse):
-        app = App.get_running_app()
-
-        database.data = []
-        data = []
-
-        #Get and sort folder list
-        unsorted_folders = app.database_get_folders(database_folder=database_folder)
-        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
-            folders = []
-            for folder in unsorted_folders:
-                folderpath = folder
-                if sort_method == 'Total Photos':
-                    sortby = len(app.database_get_folder(folderpath, database=database_folder))
-                elif sort_method == 'Title':
-                    folderinfo = app.database_folder_exists(folderpath)
-                    if folderinfo:
-                        sortby = folderinfo[1]
-                    else:
-                        sortby = folderpath
-                elif sort_method == 'Import Date':
-                    folder_photos = app.database_get_folder(folderpath, database=database_folder)
-                    sortby = 0
-                    for folder_photo in folder_photos:
-                        if folder_photo[6] > sortby:
-                            sortby = folder_photo[6]
-                elif sort_method == 'Modified Date':
-                    folder_photos = app.database_get_folder(folderpath, database=database_folder)
-                    sortby = 0
-                    for folder_photo in folder_photos:
-                        if folder_photo[7] > sortby:
-                            sortby = folder_photo[7]
-
-                folders.append([sortby, folderpath])
-            sorted_folders = sorted(folders, key=lambda x: x[0], reverse=sort_reverse)
-            sorts, all_folders = zip(*sorted_folders)
-        else:
-            all_folders = sorted(unsorted_folders, reverse=sort_reverse)
-
-        #Parse and sort folders and subfolders
-        root_folders = []
-        for full_folder in all_folders:
-            if full_folder and not any(avoidfolder in full_folder for avoidfolder in avoidfolders):
-                newname = full_folder
-                children = root_folders
-                parent_folder = ''
-                while os.path.sep in newname:
-                    #split the base path and the leaf paths
-                    root, leaf = newname.split(os.path.sep, 1)
-                    parent_folder = os.path.join(parent_folder, root)
-
-                    #check if the root path is already in the tree
-                    root_element = False
-                    for child in children:
-                        if child['folder'] == root:
-                            root_element = child
-                    if not root_element:
-                        children.append({'folder': root, 'full_folder': parent_folder, 'children': []})
-                        root_element = children[-1]
-                    children = root_element['children']
-                    newname = leaf
-                root_element = False
-                for child in children:
-                    if child['folder'] == newname:
-                        root_element = child
-                if not root_element:
-                    children.append({'folder': newname, 'full_folder': full_folder, 'children': []})
-
-        folder_data = self.populate_folders(root_folders, self.expanded_folders, sort_method, sort_reverse, database_folder)
-        data = data + folder_data
-
-        database.data = data
-
-    def populate_folders(self, folder_root, expanded, sort_method, sort_reverse, database_folder):
-        app = App.get_running_app()
-        folders = []
-        folder_root = self.sort_folders(folder_root, sort_method, sort_reverse)
-        for folder in folder_root:
-            full_folder = folder['full_folder']
-            expandable = True if len(folder['children']) > 0 else False
-            is_expanded = True if full_folder in expanded else False
-            folder_info = app.database_folder_exists(full_folder)
-            if folder_info:
-                subtext = folder_info[1]
-            else:
-                subtext = ''
-            folder_element = {
-                'fullpath': full_folder,
-                'folder_name': folder['folder'],
-                'target': full_folder,
-                'type': 'Folder',
-                'total_photos': '',
-                'total_photos_numeric': 0,
-                'displayable': True,
-                'expandable': expandable,
-                'expanded': is_expanded,
-                'owner': self,
-                'indent': 1 + full_folder.count(os.path.sep),
-                'subtext': subtext,
-                'height': app.button_scale * (1.5 if subtext else 1),
-                'end': False,
-                'droptype': database_folder,
-                'dragable': True
-            }
-            folders.append(folder_element)
-            if is_expanded:
-                if len(folder['children']) > 0:
-                    more_folders = self.populate_folders(folder['children'], expanded)
-                    folders = folders + more_folders
-                    folders[-1]['end'] = True
-                    folders[-1]['height'] = folders[-1]['height'] + int(app.button_scale * 0.1)
-        return folders
-
-    def sort_folders(self, sort_folders, sort_method, sort_reverse):
-        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
-            app = App.get_running_app()
-            folders = []
-            for folder in sort_folders:
-                folderpath = folder['full_folder']
-                if sort_method == 'Total Photos':
-                    sortby = len(app.database_get_folder(folderpath))
-                elif sort_method == 'Title':
-                    folderinfo = app.database_folder_exists(folderpath)
-                    if folderinfo:
-                        sortby = folderinfo[1]
-                    else:
-                        sortby = folderpath
-                elif sort_method == 'Import Date':
-                    folder_photos = app.database_get_folder(folderpath)
-                    sortby = 0
-                    for folder_photo in folder_photos:
-                        if folder_photo[6] > sortby:
-                            sortby = folder_photo[6]
-                elif sort_method == 'Modified Date':
-                    folder_photos = app.database_get_folder(folderpath)
-                    sortby = 0
-                    for folder_photo in folder_photos:
-                        if folder_photo[7] > sortby:
-                            sortby = folder_photo[7]
-
-                folders.append([sortby, folder])
-            sorted_folders = sorted(folders, key=lambda x: x[0], reverse=sort_reverse)
-            sorts, all_folders = zip(*sorted_folders)
-        else:
-            all_folders = sorted(sort_folders, key=lambda x: x['folder'], reverse=sort_reverse)
-
-        return all_folders
-
-    def refresh_databases(self, *_):
-        self.refresh_left_database()
-        self.refresh_right_database()
-
-
-class Curves(FloatLayout):
-    """Widget for viewing and generating color curves information."""
-
-    points = ListProperty()  #List of curves points
-    current_point = ListProperty()  #
-    moving = BooleanProperty(False)  #
-    touch_range = NumericProperty(0.1)  #
-    scroll_timeout = NumericProperty()  #
-    curve = ListProperty()  #
-    resolution = 256  #Horizontal resolution of the curve
-    bytes = 256  #Vertical resolution of the curve
-
-    def __init__(self, **kwargs):
-        super(Curves, self).__init__(**kwargs)
-        self.bind(pos=self.refresh, size=self.refresh)
-        self.points = [[0, 0], [1, 1]]
-
-    def reset(self):
-        """Clears the canvas and sets up the default curve."""
-
-        self.points = [[0, 0], [1, 1]]
-        self.refresh()
-
-    def refresh(self, *_):
-        """Sorts and redraws points on the canvas."""
-
-        if len(self.points) < 2:
-            self.reset()
-        self.points = sorted(self.points, key=itemgetter(0))
-        self.points[0][0] = 0
-        self.points[-1][0] = 1
-
-        canvas = self.canvas
-        canvas.clear()
-        canvas.before.add(Color(0, 0, 0))
-        canvas.before.add(Rectangle(size=self.size, pos=self.pos))
-        self.generate_curve()
-        self.draw_line(canvas)
-
-        for point in self.points:
-            self.draw_point(canvas, point)
-
-        if self.parent:
-            if self.parent.parent:
-                if self.parent.parent.parent:
-                    image = self.parent.parent.parent.owner.viewer.edit_image
-                    if self.points == [[0, 0], [1, 1]]:
-                        image.curve = []
-                    else:
-                        image.curve = self.curve
-
-    def relative_to_local(self, point):
-        """Convert relative coordinates (0-1) into window coordinates.
-        Argument:
-            point: List, [x, y] coordinates.
-        Returns: List, [x, y] coordinates.
-        """
-
-        x = point[0]*self.width + self.pos[0]
-        y = point[1]*self.height + self.pos[1]
-        return [x, y]
-
-    def local_to_relative(self, point):
-        """Convert window coordinates into relative coordinates (0-1).
-        Argument:
-            point: List, [x, y] coordinates.
-        Returns: List, [x, y] coordinates.
-        """
-
-        x = (point[0] - self.pos[0])/self.width
-        y = (point[1] - self.pos[1])/self.height
-        return [x, y]
-
-    def draw_line(self, canvas):
-        """Draws the canvas display line from the current curves data.
-        Argument:
-            canvas: A Kivy canvas object
-        """
-
-        canvas.add(Color(1, 1, 1))
-        step = self.width/self.resolution
-        x = 0
-        points = []
-        vscale = self.height/(self.bytes-1)
-        for point in self.curve:
-            points.append(x + self.pos[0])
-            points.append((point*vscale) + self.pos[1])
-            x = x+step
-        canvas.add(Line(points=points))
-
-    def draw_point(self, canvas, point):
-        """Draws a curve edit point graphic on the canvas.
-        Arguments:
-            canvas: A Kivy canvas object
-            point: List containing relative coordinates of the point, x, y
-        """
-
-        size = 20
-        real_point = self.relative_to_local(point)
-        if point == self.current_point:
-            source = 'data/curve_point_selected.png'
-        else:
-            source = 'data/curve_point.png'
-        canvas.add(Rectangle(source=source, pos=(real_point[0]-(size/2), real_point[1]-(size/2)), size=(size, size)))
-
-    def add_point(self, point):
-        """Adds a new point to the curve and regenerates and redraws the curve.
-        Argument:
-            point: List containing relative coordinates of the point, x, y
-        """
-
-        x = point[0]
-        y = point[1]
-
-        #dont allow illegal values for x or y
-        if x > 1 or y > 1 or x < 0 or y < 0:
-            return
-
-        #dont allow point on an x position that already exists
-        for point in self.points:
-            if point[0] == x:
-                return
-        self.points.append([x, y])
-        self.current_point = [x, y]
-        self.refresh()
-
-    def remove_point(self):
-        """Removes the last moved point and regenerates and redraws the curve."""
-
-        if self.current_point:
-            for index, point in enumerate(self.points):
-                if point[0] == self.current_point[0] and point[1] == self.current_point[1]:
-                    self.points.pop(index)
-        self.refresh()
-
-    def generate_curve(self):
-        """Regenerates the curve data based on self.points."""
-
-        app = App.get_running_app()
-        self.curve = []
-        resolution = self.resolution - 1
-        total_bytes = self.bytes - 1
-        interpolation = app.interpolation
-
-        x = 0
-        index = 0
-        previous_point = False
-        start_point = self.points[index]
-
-        while x < resolution:
-            if index < (len(self.points)-2):
-                next_point = self.points[index+2]
-            else:
-                next_point = False
-            stop_point = self.points[index+1]
-            stop_x = int(stop_point[0]*resolution)
-            distance = stop_x - x
-            start_y = start_point[1] * total_bytes
-            stop_y = stop_point[1] * total_bytes
-            if previous_point != False:
-                previous_y = previous_point[1] * total_bytes
-                previous_distance = (start_point[0] - previous_point[0]) * total_bytes
-            else:
-                previous_y = None
-                previous_distance = distance
-            if next_point != False:
-                next_y = next_point[1] * total_bytes
-                next_distance = (next_point[0] - stop_point[0]) * total_bytes
-            else:
-                next_distance = distance
-                next_y = None
-            if interpolation == 'Catmull-Rom':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, previous=previous_y,
-                                 previous_distance=previous_distance, next=next_y, next_distance=next_distance,
-                                 mode='catmull')
-            elif interpolation == 'Cubic':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, previous=previous_y,
-                                 previous_distance=previous_distance, next=next_y, next_distance=next_distance,
-                                 mode='cubic')
-            elif interpolation == 'Cosine':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine')
-            else:
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes)
-            self.curve = self.curve + ys
-            x = stop_x
-            index = index + 1
-            previous_point = start_point
-            start_point = stop_point
-        self.curve.append(self.points[-1][1] * total_bytes)
-
-    def near_x(self, first, second):
-        """Check if two points on the x axis are near each other using self.touch_range.
-        Arguments:
-            first: First point
-            second: Second point
-        Returns: True or False
-        """
-
-        aspect = self.width/self.height
-        touch_range = self.touch_range / aspect
-
-        if abs(second-first) <= touch_range:
-            return True
-        else:
-            return False
-
-    def near_y(self, first, second):
-        """Check if two points on the y axis are near each other using self.touch_range.
-        Arguments:
-            first: First point
-            second: Second point
-        Returns: True or False
-        """
-
-        touch_range = self.touch_range
-
-        if abs(second-first) <= touch_range:
-            return True
-        else:
-            return False
+class PhotoShow(ButtonBehavior, RelativeLayout):
+    """Widget that holds the image widget.  Used for catching double and tripple clicks."""
+
+    filename = StringProperty()
+    fullpath = StringProperty()
+    current_touch = None
+    bypass = BooleanProperty(False)
 
     def on_touch_down(self, touch):
-        """Intercept touches and begin moving points.
-        Will also modify scrolling in the parent scroller widget to improve usability.
-        """
+        if touch.is_double_tap and not self.bypass:
+            app = App.get_running_app()
+            if not app.shift_pressed:
+                photowrapper = self.parent.parent
+                photocontainer = photowrapper.parent.parent
+                if photowrapper.scale > 1:
+                    photocontainer.zoom = 0
+                else:
+                    zoompos = self.to_local(touch.pos[0], touch.pos[1])
+                    photocontainer.zoompos = zoompos
+                    photocontainer.zoom = 1
 
-        edit_scroller = self.parent.parent.parent.owner.ids['editScroller']
-        self.scroll_timeout = edit_scroller.scroll_timeout  #cache old scroll timeout
+        else:
+            super(PhotoShow, self).on_touch_down(touch)
 
-        #Handle touch
+
+class PhotoViewer(BoxLayout):
+    """Holds the fullsized photo image in album view mode."""
+
+    photoinfo = ListProperty()
+    favorite = BooleanProperty(False)
+    angle = NumericProperty(0)
+    mirror = BooleanProperty(False)
+    file = StringProperty()
+    scale_max = NumericProperty(1)
+    edit_mode = StringProperty('main')
+    edit_image = ObjectProperty()
+    overlay = ObjectProperty(allownone=True)
+    bypass = BooleanProperty(False)
+    zoom = NumericProperty(0)
+    zoompos = ListProperty([0, 0])
+    fullscreen = BooleanProperty(False)
+    _fullscreen_state = None
+
+    def on_height(self, *_):
+        self.reset_zoompos()
+
+    def reset_zoompos(self):
+        self.zoompos = [self.width / 2, self.height / 2]
+
+    def on_zoom(self, *_):
+        if self.zoom == 0:
+            self.reset_zoompos()
+        scale_max = self.scale_max
+        scale_size = 1 + ((scale_max - 1) * self.zoom)
+        scale = Matrix().scale(scale_size, scale_size, scale_size)
+        wrapper = self.ids['wrapper']
+        wrapper.transform = Matrix()
+        zoompos = self.zoompos
+        wrapper.apply_transform(scale, anchor=zoompos)
+
+    def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
-            edit_scroller.scroll_timeout = 0  #Temporarily modify scrolling in parent widget
-            self.moving = True
-            point = self.local_to_relative(touch.pos)
-            for existing in self.points:
-                if self.near_x(point[0], existing[0]) and self.near_y(point[1], existing[1]):
-                    #touch is over an existing point, select it so it can start to move
-                    self.current_point = existing
-                    self.refresh()
-                    return
-
-            self.add_point(point)
-            return True
-
-    def on_touch_move(self, touch):
-        """Intercept touch move events and move point if one is active."""
-
-        if self.collide_point(*touch.pos):
-            new_point = self.local_to_relative(touch.pos)
-            if self.moving:
-                #We were already moving a point
-                for index, point in enumerate(self.points):
-                    if point[0] == self.current_point[0]:
-                        too_close = False
-                        for other_point in self.points:
-                            if other_point != point:
-                                if self.near_x(other_point[0], new_point[0]) and self.near_y(other_point[1], new_point[1]):
-                                    too_close = True
-                        if point[0] == 0:
-                            new_point[0] = 0
-                        elif new_point[0] <= 0:
-                            too_close = True
-                        if point[0] == 1:
-                            new_point[0] = 1
-                        elif new_point[0] >= 1:
-                            too_close = True
-
-                        if not too_close:
-                            self.points[index] = new_point
-                            self.current_point = new_point
-                        self.refresh()
-                        break
-            return True
+            if self.edit_mode != 'main' and not self.overlay:
+                self.edit_image.opacity = 0
+                image = self.ids['image']
+                image.opacity = 1
+                return True
+            else:
+                return super(PhotoViewer, self).on_touch_down(touch)
 
     def on_touch_up(self, touch):
-        """Touch is released, turn off move mode regardless of if touch is over widget or not."""
-
-        edit_scroller = self.parent.parent.parent.owner.ids['editScroller']
-        edit_scroller.scroll_timeout = self.scroll_timeout  #Reset parent scroller object to normal operation
-        self.moving = False
         if self.collide_point(*touch.pos):
-            return True
+            if self.edit_mode != 'main' and not self.overlay:
+                self.edit_image.opacity = 1
+                image = self.ids['image']
+                image.opacity = 0
+                return True
+            else:
+                return super(PhotoViewer, self).on_touch_up(touch)
 
+    def refresh(self):
+        """Updates the image subwidget's source file."""
 
-class VideoEncodePreset(BoxLayout):
-    preset_drop = ObjectProperty()
-    preset_name = StringProperty()
+        image = self.ids['image']
+        image.source = self.file
 
-    def __init__(self, **kwargs):
-        self.preset_drop = NormalDropDown()
-        app = App.get_running_app()
-        for index, preset in enumerate(app.encoding_presets):
-            menu_button = MenuButton(text=preset['name'])
-            menu_button.bind(on_release=self.set_preset)
-            self.preset_drop.add_widget(menu_button)
-        if app.selected_encoder_preset:
-            self.preset_name = app.selected_encoder_preset
+    def on_edit_mode(self, *_):
+        """Called when the user enters or exits edit mode.
+        Adds the edit image widget, and overlay if need be, and sets them up."""
+
+        image = self.ids['image']
+        if self.edit_mode == 'main':
+            image.opacity = 1
+            viewer = self.ids['photoShow']
+            if self.edit_image:
+                viewer.remove_widget(self.edit_image)
+            if self.overlay:
+                viewer.remove_widget(self.overlay)
+                self.overlay = None
         else:
-            self.preset_name = app.encoding_presets[0]['name']
-        super(VideoEncodePreset, self).__init__(**kwargs)
+            image.opacity = 0
+            viewer = self.ids['photoShow']
+            self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle,
+                                          photoinfo=self.photoinfo)
+            viewer.add_widget(self.edit_image)
+            if self.edit_mode == 'rotate':
+                #add rotation grid overlay
+                self.overlay = RotationGrid()
+                viewer.add_widget(self.overlay)
+            if self.edit_mode == 'crop':
+                #add cropper overlay and set image to crop mode
+                self.overlay = CropOverlay(owner=self.edit_image)
+                viewer.add_widget(self.overlay)
+                self.edit_image.cropping = True
+                self.edit_image.cropper = self.overlay
 
-    def set_preset(self, instance):
-        app = App.get_running_app()
-        self.preset_name = instance.text
-        self.preset_drop.dismiss()
-        app.selected_encoder_preset = self.preset_name
+    def stop(self):
+        self.fullscreen = False
+
+    def on_fullscreen(self, instance, value):
+        window = self.get_parent_window()
+        if value:
+            self._fullscreen_state = state = {
+                'parent': self.parent,
+                'pos': self.pos,
+                'size': self.size,
+                'pos_hint': self.pos_hint,
+                'size_hint': self.size_hint,
+                'window_children': window.children[:]}
+
+            #remove all window children
+            for child in window.children[:]:
+                window.remove_widget(child)
+
+            #put the video in fullscreen
+            if state['parent'] is not window:
+                state['parent'].remove_widget(self)
+            window.add_widget(self)
+
+            #ensure the widget is in 0, 0, and the size will be readjusted
+            self.pos = (0, 0)
+            self.size = (100, 100)
+            self.pos_hint = {}
+            self.size_hint = (1, 1)
+        else:
+            state = self._fullscreen_state
+            window.remove_widget(self)
+            for child in state['window_children']:
+                window.add_widget(child)
+            self.pos_hint = state['pos_hint']
+            self.size_hint = state['size_hint']
+            self.pos = state['pos']
+            self.size = state['size']
+            if state['parent'] is not window:
+                state['parent'].add_widget(self)
+
+
+class VideoViewer(FloatLayout):
+    """Holds the fullsized video in album view mode."""
+
+    photoinfo = ListProperty()
+    favorite = BooleanProperty(False)
+    angle = NumericProperty(0)
+    mirror = BooleanProperty(False)
+    file = StringProperty()
+    edit_mode = StringProperty('main')
+    bypass = BooleanProperty(False)
+    edit_image = ObjectProperty(None, allownone=True)
+    position = NumericProperty(0.5)
+    fullscreen = BooleanProperty(False)
+
+    def on_position(self, *_):
+        if self.edit_image:
+            self.edit_image.position = self.position
+
+    def on_edit_mode(self, *_):
+        """Called when the user enters or exits edit mode.
+        Adds the edit image widget, and overlay if need be, and sets them up."""
+
+        overlay = self.ids['overlay']
+        player = self.ids['player']
+        if self.edit_mode == 'main':
+            player.opacity = 1
+            overlay.opacity = 0
+            viewer = self.ids['photoShow']
+            if self.edit_image:
+                self.edit_image.close_video()
+                viewer.remove_widget(self.edit_image)
+                self.edit_image = None
+        else:
+            overlay.opacity = 1
+            player.opacity = 0
+            viewer = self.ids['photoShow']
+            self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle,
+                                          photoinfo=self.photoinfo)
+            viewer.add_widget(self.edit_image)
+
+    def on_fullscreen(self, instance, value):
+        player = self.ids['player']
+        player.fullscreen = self.fullscreen
+
+    def stop(self):
+        """Stops the video playback."""
+
+        player = self.ids['player']
+        self.fullscreen = False
+        player.state = 'stop'
+
+
+class SpecialVideoPlayer(VideoPlayer):
+    """Custom VideoPlayer class that replaces the default video widget with the 'PauseableVideo' widget."""
+
+    photoinfo = ListProperty()
+    mirror = BooleanProperty(False)
+    favorite = BooleanProperty(False)
+
+    def _load_thumbnail(self):
+        if not self.container:
+            return
+        self.container.clear_widgets()
+        if self.photoinfo:
+            self._image = VideoThumbnail(photoinfo=self.photoinfo, source=self.source, favorite=self.favorite, video=self)
+            self.container.add_widget(self._image)
+
+    def on_fullscreen(self, instance, value):
+        """Auto-play the video when set to fullscreen."""
+
+        if self.parent.fullscreen != self.fullscreen:
+            self.parent.fullscreen = self.fullscreen
+        if self.fullscreen:
+            self.state = 'play'
+        return super(SpecialVideoPlayer, self).on_fullscreen(instance, value)
+
+    def _do_video_load(self, *largs):
+        """this function has been changed to replace the Video object with the special PauseableVideo object.
+        Also, checks if auto-play videos are enabled in the settings.
+        """
+
+        if isfile2(self.source):
+            self._video = PauseableVideo(source=self.source, state=self.state, volume=self.volume,
+                                         pos_hint={'x': 0, 'y': 0}, **self.options)
+            self._video.bind(texture=self._play_started, duration=self.setter('duration'), position=self.setter('position'),
+                             volume=self.setter('volume'), state=self._set_state)
+            app = App.get_running_app()
+            if app.config.getboolean("Settings", "videoautoplay"):
+                self._video.state = 'play'
+
+    def on_touch_down(self, touch):
+        """Checks if a double-click was detected, switches to fullscreen if it is."""
+
+        if not self.disabled:
+            if not self.collide_point(*touch.pos):
+                return False
+            if touch.is_double_tap and self.allow_fullscreen:
+                self.fullscreen = not self.fullscreen
+                return True
+            return super(SpecialVideoPlayer, self).on_touch_down(touch)
+
+
+class PauseableVideo(Video):
+    """modified Video class to allow clicking anywhere to pause/resume."""
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if self.state == 'play':
+                self.state = 'pause'
+            else:
+                self.state = 'play'
+            return True
 
 
 class EditNone(GridLayout):
@@ -8793,70 +7523,515 @@ class EditConvertVideo(GridLayout):
         self.owner.begin_encode()
 
 
-class PhotoScreen(Screen):
-    """Fullscreen photo viewer screen layout."""
+class DenoisePreview(RelativeLayout):
+    finished = BooleanProperty(False)
 
-    orientation = NumericProperty()
-    angle = NumericProperty()
-    mirror = BooleanProperty(False)
-    popup = None
-    viewer = ObjectProperty()
-    favorite = BooleanProperty(False)
+    def __init__(self, **kwargs):
+        self.register_event_type('on_finished')
+        super(DenoisePreview, self).__init__(**kwargs)
 
-    def has_popup(self):
-        """Detects if the current screen has a popup active.
+    def on_finished(self, *_):
+        print('on finished')
+        self.root.update_preview()
+
+
+class AspectRatioDropDown(NormalDropDown):
+    """Drop-down menu for sorting aspect ratio presets"""
+    pass
+
+
+class InterpolationDropDown(NormalDropDown):
+    """Drop-down menu for curves interpolation options"""
+    pass
+
+
+class Curves(FloatLayout):
+    """Widget for viewing and generating color curves information."""
+
+    points = ListProperty()  #List of curves points
+    current_point = ListProperty()  #
+    moving = BooleanProperty(False)  #
+    touch_range = NumericProperty(0.1)  #
+    scroll_timeout = NumericProperty()  #
+    curve = ListProperty()  #
+    resolution = 256  #Horizontal resolution of the curve
+    bytes = 256  #Vertical resolution of the curve
+
+    def __init__(self, **kwargs):
+        super(Curves, self).__init__(**kwargs)
+        self.bind(pos=self.refresh, size=self.refresh)
+        self.points = [[0, 0], [1, 1]]
+
+    def reset(self):
+        """Clears the canvas and sets up the default curve."""
+
+        self.points = [[0, 0], [1, 1]]
+        self.refresh()
+
+    def refresh(self, *_):
+        """Sorts and redraws points on the canvas."""
+
+        if len(self.points) < 2:
+            self.reset()
+        self.points = sorted(self.points, key=itemgetter(0))
+        self.points[0][0] = 0
+        self.points[-1][0] = 1
+
+        canvas = self.canvas
+        canvas.clear()
+        canvas.before.add(Color(0, 0, 0))
+        canvas.before.add(Rectangle(size=self.size, pos=self.pos))
+        self.generate_curve()
+        self.draw_line(canvas)
+
+        for point in self.points:
+            self.draw_point(canvas, point)
+
+        if self.parent:
+            if self.parent.parent:
+                if self.parent.parent.parent:
+                    image = self.parent.parent.parent.owner.viewer.edit_image
+                    if self.points == [[0, 0], [1, 1]]:
+                        image.curve = []
+                    else:
+                        image.curve = self.curve
+
+    def relative_to_local(self, point):
+        """Convert relative coordinates (0-1) into window coordinates.
+        Argument:
+            point: List, [x, y] coordinates.
+        Returns: List, [x, y] coordinates.
+        """
+
+        x = point[0]*self.width + self.pos[0]
+        y = point[1]*self.height + self.pos[1]
+        return [x, y]
+
+    def local_to_relative(self, point):
+        """Convert window coordinates into relative coordinates (0-1).
+        Argument:
+            point: List, [x, y] coordinates.
+        Returns: List, [x, y] coordinates.
+        """
+
+        x = (point[0] - self.pos[0])/self.width
+        y = (point[1] - self.pos[1])/self.height
+        return [x, y]
+
+    def draw_line(self, canvas):
+        """Draws the canvas display line from the current curves data.
+        Argument:
+            canvas: A Kivy canvas object
+        """
+
+        canvas.add(Color(1, 1, 1))
+        step = self.width/self.resolution
+        x = 0
+        points = []
+        vscale = self.height/(self.bytes-1)
+        for point in self.curve:
+            points.append(x + self.pos[0])
+            points.append((point*vscale) + self.pos[1])
+            x = x+step
+        canvas.add(Line(points=points))
+
+    def draw_point(self, canvas, point):
+        """Draws a curve edit point graphic on the canvas.
+        Arguments:
+            canvas: A Kivy canvas object
+            point: List containing relative coordinates of the point, x, y
+        """
+
+        size = 20
+        real_point = self.relative_to_local(point)
+        if point == self.current_point:
+            source = 'data/curve_point_selected.png'
+        else:
+            source = 'data/curve_point.png'
+        canvas.add(Rectangle(source=source, pos=(real_point[0]-(size/2), real_point[1]-(size/2)), size=(size, size)))
+
+    def add_point(self, point):
+        """Adds a new point to the curve and regenerates and redraws the curve.
+        Argument:
+            point: List containing relative coordinates of the point, x, y
+        """
+
+        x = point[0]
+        y = point[1]
+
+        #dont allow illegal values for x or y
+        if x > 1 or y > 1 or x < 0 or y < 0:
+            return
+
+        #dont allow point on an x position that already exists
+        for point in self.points:
+            if point[0] == x:
+                return
+        self.points.append([x, y])
+        self.current_point = [x, y]
+        self.refresh()
+
+    def remove_point(self):
+        """Removes the last moved point and regenerates and redraws the curve."""
+
+        if self.current_point:
+            for index, point in enumerate(self.points):
+                if point[0] == self.current_point[0] and point[1] == self.current_point[1]:
+                    self.points.pop(index)
+        self.refresh()
+
+    def generate_curve(self):
+        """Regenerates the curve data based on self.points."""
+
+        app = App.get_running_app()
+        self.curve = []
+        resolution = self.resolution - 1
+        total_bytes = self.bytes - 1
+        interpolation = app.interpolation
+
+        x = 0
+        index = 0
+        previous_point = False
+        start_point = self.points[index]
+
+        while x < resolution:
+            if index < (len(self.points)-2):
+                next_point = self.points[index+2]
+            else:
+                next_point = False
+            stop_point = self.points[index+1]
+            stop_x = int(stop_point[0]*resolution)
+            distance = stop_x - x
+            start_y = start_point[1] * total_bytes
+            stop_y = stop_point[1] * total_bytes
+            if previous_point != False:
+                previous_y = previous_point[1] * total_bytes
+                previous_distance = (start_point[0] - previous_point[0]) * total_bytes
+            else:
+                previous_y = None
+                previous_distance = distance
+            if next_point != False:
+                next_y = next_point[1] * total_bytes
+                next_distance = (next_point[0] - stop_point[0]) * total_bytes
+            else:
+                next_distance = distance
+                next_y = None
+            if interpolation == 'Catmull-Rom':
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y,
+                                 before_distance=previous_distance, after=next_y, after_distance=next_distance,
+                                 mode='catmull')
+            elif interpolation == 'Cubic':
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y,
+                                 before_distance=previous_distance, after=next_y, after_distance=next_distance,
+                                 mode='cubic')
+            elif interpolation == 'Cosine':
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine')
+            else:
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes)
+            self.curve = self.curve + ys
+            x = stop_x
+            index = index + 1
+            previous_point = start_point
+            start_point = stop_point
+        self.curve.append(self.points[-1][1] * total_bytes)
+
+    def near_x(self, first, second):
+        """Check if two points on the x axis are near each other using self.touch_range.
+        Arguments:
+            first: First point
+            second: Second point
         Returns: True or False
         """
 
-        if self.popup:
-            if self.popup.open:
-                return True
-        return False
+        aspect = self.width/self.height
+        touch_range = self.touch_range / aspect
 
-    def dismiss_extra(self):
-        """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
-        return False
+        if abs(second-first) <= touch_range:
+            return True
+        else:
+            return False
 
-    def dismiss_popup(self):
-        """Close a currently open popup for this screen."""
+    def near_y(self, first, second):
+        """Check if two points on the y axis are near each other using self.touch_range.
+        Arguments:
+            first: First point
+            second: Second point
+        Returns: True or False
+        """
 
-        if self.popup:
-            self.popup.dismiss()
-            self.popup = None
+        touch_range = self.touch_range
 
-    def key(self, key):
-        """Dummy function, not valid for this screen but the app calls it."""
+        if abs(second-first) <= touch_range:
+            return True
+        else:
+            return False
 
-        if not self.popup or (not self.popup.open):
-            del key
+    def on_touch_down(self, touch):
+        """Intercept touches and begin moving points.
+        Will also modify scrolling in the parent scroller widget to improve usability.
+        """
 
-    def on_enter(self):
-        """Called when screen is entered, set up the needed variables and image viewer."""
+        edit_scroller = self.parent.parent.parent.owner.ids['editScroller']
+        self.scroll_timeout = edit_scroller.scroll_timeout  #cache old scroll timeout
 
+        #Handle touch
+        if self.collide_point(*touch.pos):
+            edit_scroller.scroll_timeout = 0  #Temporarily modify scrolling in parent widget
+            self.moving = True
+            point = self.local_to_relative(touch.pos)
+            for existing in self.points:
+                if self.near_x(point[0], existing[0]) and self.near_y(point[1], existing[1]):
+                    #touch is over an existing point, select it so it can start to move
+                    self.current_point = existing
+                    self.refresh()
+                    return
+
+            self.add_point(point)
+            return True
+
+    def on_touch_move(self, touch):
+        """Intercept touch move events and move point if one is active."""
+
+        if self.collide_point(*touch.pos):
+            new_point = self.local_to_relative(touch.pos)
+            if self.moving:
+                #We were already moving a point
+                for index, point in enumerate(self.points):
+                    if point[0] == self.current_point[0]:
+                        too_close = False
+                        for other_point in self.points:
+                            if other_point != point:
+                                if self.near_x(other_point[0], new_point[0]) and self.near_y(other_point[1], new_point[1]):
+                                    too_close = True
+                        if point[0] == 0:
+                            new_point[0] = 0
+                        elif new_point[0] <= 0:
+                            too_close = True
+                        if point[0] == 1:
+                            new_point[0] = 1
+                        elif new_point[0] >= 1:
+                            too_close = True
+
+                        if not too_close:
+                            self.points[index] = new_point
+                            self.current_point = new_point
+                        self.refresh()
+                        break
+            return True
+
+    def on_touch_up(self, touch):
+        """Touch is released, turn off move mode regardless of if touch is over widget or not."""
+
+        edit_scroller = self.parent.parent.parent.owner.ids['editScroller']
+        edit_scroller.scroll_timeout = self.scroll_timeout  #Reset parent scroller object to normal operation
+        self.moving = False
+        if self.collide_point(*touch.pos):
+            return True
+
+
+class VideoEncodePreset(BoxLayout):
+    preset_drop = ObjectProperty()
+    preset_name = StringProperty()
+
+    def __init__(self, **kwargs):
+        self.preset_drop = NormalDropDown()
         app = App.get_running_app()
-        container = self.ids['photoViewerContainer']
-        container.clear_widgets()
-        photoinfo = app.database_exists(app.fullpath)
-        if photoinfo:
-            self.orientation = photoinfo[13]
+        for index, preset in enumerate(app.encoding_presets):
+            menu_button = MenuButton(text=preset['name'])
+            menu_button.bind(on_release=self.set_preset)
+            self.preset_drop.add_widget(menu_button)
+        if app.selected_encoder_preset:
+            self.preset_name = app.selected_encoder_preset
         else:
-            self.orientation = 1
-        if self.orientation == 3 or self.orientation == 4:
-            self.angle = 180
-        elif self.orientation == 5 or self.orientation == 6:
-            self.angle = 270
-        elif self.orientation == 7 or self.orientation == 8:
-            self.angle = 90
-        else:
-            self.angle = 0
-        if self.orientation in [2, 4, 5, 7]:
-            self.mirror = True
-        else:
-            self.mirror = False
-        self.viewer = PhotoViewer(angle=self.angle, mirror=self.mirror, file=app.photo, photoinfo=photoinfo, set_fullscreen=True)
-        container.add_widget(self.viewer)
+            self.preset_name = app.encoding_presets[0]['name']
+        super(VideoEncodePreset, self).__init__(**kwargs)
+
+    def set_preset(self, instance):
+        app = App.get_running_app()
+        self.preset_name = instance.text
+        self.preset_drop.dismiss()
+        app.selected_encoder_preset = self.preset_name
 
 
+class RotationGrid(FloatLayout):
+    """A grid display overlay used for alignment when an image is being rotated."""
+    pass
+
+
+class CropOverlay(ResizableBehavior, RelativeLayout):
+    """Overlay widget for showing cropping area."""
+
+    owner = ObjectProperty()
+    drag_mode = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        super(CropOverlay, self).__init__(**kwargs)
+        self._drag_touch = None
+
+    def on_mouse_move(self, _, pos):
+        """need to override this because the original class will still change mouse cursor after it's removed..."""
+        if self.parent:
+            super(CropOverlay, self).on_mouse_move(_, pos)
+
+    def on_size(self, instance, size):
+        self.owner.set_crop(self.pos[0], self.pos[1], size[0], size[1])
+
+    def on_pos(self, instance, pos):
+        self.owner.set_crop(pos[0], pos[1], self.size[0], self.size[1])
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if touch.button == 'left':
+                if self.check_resizable_side(*touch.pos):
+                    self.drag_mode = False
+                    super(CropOverlay, self).on_touch_down(touch)
+                else:
+                    self.drag_mode = True
+            return True
+
+    def on_touch_move(self, touch):
+        if self.drag_mode:
+            self.x += touch.dx
+            self.y += touch.dy
+
+        else:
+            super(CropOverlay, self).on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        if self.drag_mode:
+            self.drag_mode = False
+        else:
+            super(CropOverlay, self).on_touch_up(touch)
+
+    def on_resizing(self, instance, resizing):
+        pass
+
+
+class ExternalProgramEditor(GridLayout):
+    """Widget to display and edit an external program command."""
+
+    name = StringProperty()  #Command name
+    command = StringProperty()  #Command to run
+    argument = StringProperty()  #Command argument, added to the end of 'command'
+    owner = ObjectProperty()
+    index = NumericProperty()
+
+    def save_program(self):
+        self.owner.save_program(self.index, self.name, self.command, self.argument)
+
+    def set_name(self, instance):
+        if not instance.focus:
+            self.name = instance.text
+            self.save_program()
+
+    def set_argument(self, instance):
+        if not instance.focus:
+            self.argument = instance.text
+            self.save_program()
+
+    def select_command(self):
+        """Opens a popup filebrowser to select a program to run."""
+
+        content = FileBrowser(ok_text='Select', filters=['*'])
+        content.bind(on_cancel=lambda x: self.owner.owner.dismiss_popup())
+        content.bind(on_ok=self.select_command_confirm)
+        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content,
+                                                         size_hint=(0.9, 0.9))
+        filepopup.open()
+
+    def select_command_confirm(self, *_):
+        """Called when the filebrowser dialog is successfully closed."""
+
+        self.command = self.owner.owner.popup.content.filename
+        self.owner.owner.dismiss_popup()
+        self.save_program()
+
+
+class TagSelectButton(WideButton):
+    """Tag display button - used for adding a tag to a photo"""
+
+    remove = False
+    target = StringProperty()
+    type = StringProperty('None')
+    owner = ObjectProperty()
+
+    def on_press(self):
+        self.owner.add_to_tag(self.target)
+
+
+class AlbumSelectButton(WideButton):
+    """Album display button - used for adding a photo to an album."""
+
+    remove = False
+    target = StringProperty()
+    type = StringProperty('None')
+    owner = ObjectProperty()
+
+    def on_press(self):
+        self.owner.add_to_album(self.target)
+
+
+class PhotoRecycleViewButton(RecycleItem):
+    video = BooleanProperty(False)
+    favorite = BooleanProperty(False)
+    fullpath = StringProperty()
+    photoinfo = ListProperty()
+    source = StringProperty()
+    selectable = BooleanProperty(True)
+    found = BooleanProperty(True)
+
+    def on_source(self, *_):
+        """Sets up the display image when first loaded."""
+
+        found = isfile2(self.source)
+        self.found = found
+
+    def refresh_view_attrs(self, rv, index, data):
+        super(PhotoRecycleViewButton, self).refresh_view_attrs(rv, index, data)
+        thumbnail = self.ids['thumbnail']
+        thumbnail.photoinfo = self.data['photoinfo']
+        thumbnail.source = self.data['source']
+
+    def on_touch_down(self, touch):
+        super(PhotoRecycleViewButton, self).on_touch_down(touch)
+        if self.collide_point(*touch.pos) and self.selectable:
+            self.owner.fullpath = self.fullpath
+            self.owner.photo = self.source
+            self.parent.selected = self.data
+            return True
+
+
+class RemoveFromTagButton(RemoveButton):
+    """Button to remove a tag from the current photo."""
+
+    def on_press(self):
+        app = App.get_running_app()
+        app.database_remove_tag(self.remove_from, self.to_remove, message=True)
+        self.owner.update_treeview()
+
+
+class RemoveTagButton(RemoveButton):
+    """Button to remove a tag from the tags list.  Will popup a confirm dialog before removing."""
+
+    def on_press(self):
+        app = App.get_running_app()
+        content = ConfirmPopup(text='Delete The Tag "'+self.to_remove+'"?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
+        content.bind(on_answer=self.on_answer)
+        self.owner.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
+                                       size=(app.popup_x, app.button_scale * 4),
+                                       auto_dismiss=False)
+        self.owner.popup.open()
+
+    def on_answer(self, instance, answer):
+        del instance
+        if answer == 'yes':
+            app = App.get_running_app()
+            app.remove_tag(self.to_remove)
+            self.owner.update_treeview()
+        self.owner.dismiss_popup()
+
+
+#Functions and classes related to Importing
 class ImportScreen(Screen):
     """Screen layout for beginning the import photos process.
     Displays import presets and allows the user to pick one.
@@ -9708,6 +8883,153 @@ class ImportingScreen(Screen):
                     self.popup.content.dispatch('on_answer', 'yes')
 
 
+class ImportPresetArea(GridLayout):
+    """Widget to display and edit all settings for a particular import preset."""
+
+    title = StringProperty()
+    import_to = StringProperty('')
+    naming_method = StringProperty('')
+    last_naming_method = StringProperty('')
+    delete_originals = BooleanProperty(False)
+    single_folder = BooleanProperty(False)
+    preset_index = NumericProperty()
+    naming_example = StringProperty('Naming Example')
+    owner = ObjectProperty()
+    import_from = ListProperty()
+    index = NumericProperty()
+
+    def __init__(self, **kwargs):
+        super(ImportPresetArea, self).__init__(**kwargs)
+        Clock.schedule_once(self.update_import_from)
+        app = App.get_running_app()
+        self.imports_dropdown = NormalDropDown()
+        database_folders = app.config.get('Database Directories', 'paths')
+        database_folders = local_path(database_folders)
+        if database_folders.strip(' '):
+            databases = database_folders.split(';')
+        else:
+            databases = []
+        for database in databases:
+            menu_button = MenuButton(text=database)
+            menu_button.bind(on_release=self.change_import_to)
+            self.imports_dropdown.add_widget(menu_button)
+
+    def update_preset(self):
+        """Updates the app preset setting with the current data."""
+
+        app = App.get_running_app()
+        import_preset = {}
+        import_preset['title'] = self.title
+        import_preset['import_to'] = self.import_to
+        import_preset['naming_method'] = self.naming_method
+        import_preset['delete_originals'] = self.delete_originals
+        import_preset['import_from'] = self.import_from
+        import_preset['single_folder'] = self.single_folder
+        app.imports[self.index] = import_preset
+        self.owner.owner.selected_import = self.index
+
+    def set_title(self, instance):
+        if not instance.focus:
+            self.title = instance.text
+            self.update_preset()
+            self.owner.owner.update_treeview()
+
+    def test_naming_method(self, string, *_):
+        return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;")
+
+    def new_naming_method(self, instance):
+        if not instance.focus:
+            if not naming(instance.text, title=''):
+                self.naming_method = self.last_naming_method
+                instance.text = self.last_naming_method
+            else:
+                self.last_naming_method = instance.text
+                self.naming_method = instance.text
+                self.naming_example = naming(self.naming_method)
+                self.update_preset()
+
+    def set_single_folder(self, state):
+        if state == 'down':
+            self.single_folder = True
+        else:
+            self.single_folder = False
+        self.update_preset()
+
+    def set_delete_originals(self, state):
+        if state == 'down':
+            self.delete_originals = True
+        else:
+            self.delete_originals = False
+        self.update_preset()
+
+    def remove_folder(self, index):
+        del self.import_from[index]
+        self.update_preset()
+        self.update_import_from()
+
+    def change_import_to(self, instance):
+        self.imports_dropdown.dismiss()
+        self.import_to = instance.text
+        self.update_preset()
+
+    def add_folder(self):
+        content = FileBrowser(ok_text='Add', directory_select=True)
+        content.bind(on_cancel=self.owner.owner.dismiss_popup)
+        content.bind(on_ok=self.add_folder_confirm)
+        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Folder To Import From', content=content,
+                                                         size_hint=(0.9, 0.9))
+        filepopup.open()
+
+    def add_folder_confirm(self, *_):
+        folder = self.owner.owner.popup.content.filename
+        self.import_from.append(folder)
+        self.owner.owner.dismiss_popup()
+        self.update_preset()
+        self.update_import_from()
+
+    def update_import_from(self, *_):
+        preset_folders = self.ids['importPresetFolders']
+        nodes = list(preset_folders.iterate_all_nodes())
+        for node in nodes:
+            preset_folders.remove_node(node)
+        for index, folder in enumerate(self.import_from):
+            preset_folders.add_node(ImportPresetFolder(folder=folder, owner=self, index=index))
+        #self.update_preset()
+
+
+class ImportPreset(ExpandableButton):
+    data = DictProperty()
+    owner = ObjectProperty()
+    import_to = StringProperty('')
+
+    def on_data(self, *_):
+        import_preset = self.data
+        naming_method = import_preset['naming_method']
+        self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=import_preset['import_to'], naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], owner=self)
+
+    def on_remove(self):
+        app = App.get_running_app()
+        app.import_preset_remove(self.index)
+        self.owner.selected_import = -1
+        self.owner.update_treeview()
+
+    def on_press(self):
+        self.owner.selected_import = self.index
+        self.owner.import_preset()
+
+
+class ImportPresetFolder(ButtonBehavior, BoxLayout, TreeViewNode):
+    """TreeView widget to display a folder scanned on the import process."""
+
+    folder = StringProperty()
+    index = NumericProperty()
+    owner = ObjectProperty()
+
+    def remove_folder(self):
+        self.owner.remove_folder(self.index)
+
+
+#Functions and classes related to Exporting
 class ExportScreen(Screen):
     popup = None
     sort_dropdown = ObjectProperty()
@@ -10264,20 +9586,552 @@ class ExportScreen(Screen):
                     self.toggle_select()
 
 
-class DatabaseRestoreScreen(Screen):
-    popup = None
+class ExportPresetArea(GridLayout):
+    """Widget for displaying and editing settings for an export preset."""
 
-    def dismiss_extra(self):
-        """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
-        return True
+    owner = ObjectProperty()
+    name = StringProperty('')
+    export_folder = StringProperty('')
+    last_export_folder = StringProperty('')
+    create_subfolder = BooleanProperty(True)
+    export_info = BooleanProperty(True)
+    scale_image = BooleanProperty(False)
+    scale_size = NumericProperty(1000)
+    scale_size_to = StringProperty('long')
+    jpeg_quality = NumericProperty(90)
+    watermark = BooleanProperty(False)
+    watermark_image = StringProperty()
+    watermark_opacity = NumericProperty(50)
+    watermark_horizontal = NumericProperty(80)
+    watermark_vertical = NumericProperty(20)
+    watermark_size = NumericProperty(25)
+    export_videos = BooleanProperty(False)
+    ignore_tags = StringProperty()
+    scale_size_to_text = StringProperty('Long Side')
+    scale_settings = ObjectProperty()
+    watermark_settings = ObjectProperty()
+    export = StringProperty('folder')
+    ftp_address = StringProperty()
+    ftp_user = StringProperty()
+    ftp_password = StringProperty()
+    ftp_passive = BooleanProperty(True)
+    ftp_port = NumericProperty(21)
+    index = NumericProperty(0)
 
-    def on_enter(self):
+    def __init__(self, **kwargs):
+        super(ExportPresetArea, self).__init__(**kwargs)
+        self.scale_size_to_dropdown = NormalDropDown()
+        self.last_export_folder = self.export_folder
+        if self.scale_image:
+            self.add_scale_settings()
+        if self.watermark:
+            self.add_watermark_settings()
+        for option in scale_size_to_options:
+            menu_button = MenuButton(text=scale_size_to_options[option])
+            menu_button.bind(on_release=self.change_scale_to)
+            menu_button.target = option
+            self.scale_size_to_dropdown.add_widget(menu_button)
+        self.add_export_settings()
+
+    def update_preset(self):
+        """Updates this export preset in the app."""
+
         app = App.get_running_app()
-        completed = app.database_restore_process()
-        if completed != True:
-            app.message("Error: "+completed)
-        app.setup_database(restore=True)
-        Clock.schedule_once(app.show_database, 1)
+        export_preset = {}
+        export_preset['name'] = self.name
+        export_preset['export'] = self.export
+        export_preset['ftp_address'] = self.ftp_address
+        export_preset['ftp_user'] = self.ftp_user
+        export_preset['ftp_password'] = self.ftp_password
+        export_preset['ftp_passive'] = self.ftp_passive
+        export_preset['ftp_port'] = self.ftp_port
+        export_preset['export_folder'] = self.export_folder
+        export_preset['create_subfolder'] = self.create_subfolder
+        export_preset['export_info'] = self.export_info
+        export_preset['scale_image'] = self.scale_image
+        export_preset['scale_size'] = self.scale_size
+        export_preset['scale_size_to'] = self.scale_size_to
+        export_preset['jpeg_quality'] = self.jpeg_quality
+        export_preset['watermark'] = self.watermark
+        export_preset['watermark_image'] = self.watermark_image
+        export_preset['watermark_opacity'] = self.watermark_opacity
+        export_preset['watermark_horizontal'] = self.watermark_horizontal
+        export_preset['watermark_vertical'] = self.watermark_vertical
+        export_preset['watermark_size'] = self.watermark_size
+        ignore_tags = self.ignore_tags.split(',')
+        ignore_tags = list(filter(bool, ignore_tags))
+        export_preset['ignore_tags'] = ignore_tags
+        export_preset['export_videos'] = self.export_videos
+        app.exports[self.index] = export_preset
+        self.owner.owner.selected_preset = self.index
+        app.export_preset_write()
+
+    def toggle_exports(self, button):
+        """Switch between folder and ftp export."""
+
+        if button.text == 'FTP':
+            self.export = 'ftp'
+        else:
+            self.export = 'folder'
+        self.add_export_settings()
+        self.update_preset()
+
+    def add_export_settings(self, *_):
+        """Add the proper export settings to the export dialog."""
+
+        if self.export == 'ftp':
+            button = self.ids['toggleFTP']
+            button.state = 'down'
+            toggle_area = self.ids['toggleSettings']
+            toggle_area.clear_widgets()
+            toggle_area.add_widget(FTPToggleSettings(owner=self))
+        else:
+            button = self.ids['toggleFolder']
+            button.state = 'down'
+            toggle_area = self.ids['toggleSettings']
+            toggle_area.clear_widgets()
+            toggle_area.add_widget(FolderToggleSettings(owner=self))
+
+    def update_test_image(self, *_):
+        """Regenerate the watermark preview image."""
+
+        if self.watermark_settings:
+            test_image = self.watermark_settings.ids['testImage']
+            test_image.clear_widgets()
+            if os.path.isfile(self.watermark_image):
+                image = KivyImage(source=self.watermark_image)
+                size_x = test_image.size[0]*(self.watermark_size/100)
+                size_y = test_image.size[1]*(self.watermark_size/100)
+                image.size = (size_x, size_y)
+                image.size_hint = (None, None)
+                image.opacity = self.watermark_opacity/100
+                x_pos = test_image.pos[0]+((test_image.size[0] - size_x)*(self.watermark_horizontal/100))
+                y_pos = test_image.pos[1]+((test_image.size[1] - size_y)*(self.watermark_vertical/100))
+                image.pos = (x_pos, y_pos)
+                test_image.add_widget(image)
+
+    def add_watermark_settings(self, *_):
+        """Add the watermark settings widget to the proper area."""
+
+        watermark_settings_widget = self.ids['watermarkSettings']
+        self.watermark_settings = WatermarkSettings(owner=self)
+        watermark_settings_widget.add_widget(self.watermark_settings)
+        Clock.schedule_once(self.update_test_image)
+
+    def add_scale_settings(self, *_):
+        """Add the scale settings widget to the proper area."""
+
+        scale_settings_widget = self.ids['scaleSettings']
+        self.scale_settings = ScaleSettings(owner=self)
+        scale_settings_widget.add_widget(self.scale_settings)
+
+    def select_watermark(self):
+        """Open a filebrowser to select the watermark image."""
+
+        content = FileBrowser(ok_text='Select', filters=['*.png'])
+        content.bind(on_cancel=self.owner.owner.dismiss_popup)
+        content.bind(on_ok=self.select_watermark_confirm)
+        self.owner.owner.popup = filepopup = NormalPopup(title='Select Watermark PNG Image', content=content,
+                                                         size_hint=(0.9, 0.9))
+        filepopup.open()
+
+    def select_watermark_confirm(self, *_):
+        """Called when the watermark file browse dialog is closed."""
+
+        self.watermark_image = self.owner.owner.popup.content.filename
+        self.owner.owner.dismiss_popup()
+        self.update_preset()
+        self.update_test_image()
+
+    def set_scale_size(self, instance):
+        """Apply the scale size setting, only when the input area loses focus."""
+
+        if not instance.focus:
+            self.scale_size = int(instance.text)
+            self.update_preset()
+
+    def on_scale_size_to(self, *_):
+        self.scale_size_to_text = scale_size_to_options[self.scale_size_to]
+
+    def set_watermark_opacity(self, instance):
+        self.watermark_opacity = int(instance.value)
+        value_display = self.watermark_settings.ids['watermarkOpacityValue']
+        value_display.text = 'Watermark Opacity:'+str(self.watermark_opacity)+'%'
+        self.update_preset()
+        self.update_test_image()
+
+    def set_watermark_horizontal(self, instance):
+        self.watermark_horizontal = int(instance.value)
+        value_display = self.watermark_settings.ids['watermarkHorizontalValue']
+        value_display.text = 'Horizontal Position:'+str(self.watermark_horizontal)+'%'
+        self.update_preset()
+        self.update_test_image()
+
+    def set_watermark_vertical(self, instance):
+        self.watermark_vertical = int(instance.value)
+        value_display = self.watermark_settings.ids['watermarkVerticalValue']
+        value_display.text = 'Vertical Position:'+str(self.watermark_vertical)+'%'
+        self.update_preset()
+        self.update_test_image()
+
+    def set_watermark_size(self, instance):
+        self.watermark_size = int(instance.value)
+        value_display = self.watermark_settings.ids['watermarkSizeValue']
+        value_display.text = 'Watermark Size:'+str(self.watermark_size)+'%'
+        self.update_preset()
+        self.update_test_image()
+
+    def set_jpeg_quality(self, instance):
+        self.jpeg_quality = int(instance.value)
+        value_display = self.scale_settings.ids['jpegQualityValue']
+        value_display.text = 'JPEG Quality: '+str(self.jpeg_quality)+'%'
+        self.update_preset()
+
+    def change_scale_to(self, instance):
+        self.scale_size_to_dropdown.dismiss()
+        self.scale_size_to = instance.target
+        self.update_preset()
+
+    def set_scale_image(self, state):
+        if state == 'down':
+            self.scale_image = True
+            self.add_scale_settings()
+        else:
+            self.scale_image = False
+            scale_settings_widget = self.ids['scaleSettings']
+            scale_settings_widget.clear_widgets()
+        self.update_preset()
+
+    def set_export_videos(self, state):
+        if state == 'down':
+            self.export_videos = True
+        else:
+            self.export_videos = False
+        self.update_preset()
+
+    def set_export_info(self, state):
+        if state == 'down':
+            self.export_info = True
+        else:
+            self.export_info = False
+        self.update_preset()
+
+    def set_watermark(self, state):
+        if state == 'down':
+            self.watermark = True
+            self.add_watermark_settings()
+        else:
+            self.watermark = False
+            watermark_settings_widget = self.ids['watermarkSettings']
+            watermark_settings_widget.clear_widgets()
+        self.update_preset()
+
+    def set_create_subfolder(self, state):
+        if state == 'down':
+            self.create_subfolder = True
+        else:
+            self.create_subfolder = False
+        self.update_preset()
+
+    def test_tags(self, string, *_):
+        return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;").lower()
+
+    def set_ignore_tags(self, instance):
+        if not instance.focus:
+            self.ignore_tags = instance.text
+            self.update_preset()
+
+    def set_ftp_passive(self, instance):
+        if instance.state == 'down':
+            self.ftp_passive = True
+            instance.text = 'Passive Mode'
+        else:
+            self.ftp_passive = False
+            instance.text = 'Active Mode'
+        self.update_preset()
+
+    def set_title(self, instance):
+        if not instance.focus:
+            self.name = instance.text
+            self.update_preset()
+            self.owner.owner.update_treeview()
+
+    def filename_filter(self, string, *_):
+        remove_string = '\\/*?<>|,'.replace(os.path.sep, "")
+        return "".join(i for i in string if i not in remove_string)
+
+    def set_ftp_user(self, instance):
+        if not instance.focus:
+            self.ftp_user = instance.text
+            self.update_preset()
+
+    def set_ftp_password(self, instance):
+        if not instance.focus:
+            self.ftp_password = instance.text
+            self.update_preset()
+
+    def set_ftp_address(self, instance):
+        if not instance.focus:
+            self.ftp_address = instance.text
+            self.update_preset()
+
+    def set_ftp_port(self, instance):
+        if not instance.focus:
+            self.ftp_port = int(instance.text)
+            self.update_preset()
+
+    def ftp_filter(self, string, *_):
+        remove_string = '\\:<>| "\''
+        return "".join(i for i in string if i not in remove_string).lower()
+
+    def set_export_folder(self, instance):
+        if not instance.focus:
+            if os.path.exists(instance.text):
+                self.export_folder = instance.text
+                self.last_export_folder = instance.text
+            else:
+                instance.text = self.last_export_folder
+                self.export_folder = self.last_export_folder
+            self.update_preset()
+
+    def select_export(self):
+        """Activates a popup folder browser dialog to select the export folder."""
+
+        content = FileBrowser(ok_text='Select', directory_select=True)
+        content.bind(on_cancel=self.owner.owner.dismiss_popup)
+        content.bind(on_ok=self.select_export_confirm)
+        self.owner.owner.popup = filepopup = NormalPopup(title='Select An Export Folder', content=content,
+                                                         size_hint=(0.9, 0.9))
+        filepopup.open()
+
+    def select_export_confirm(self, *_):
+        """Called when the export folder select dialog is closed successfully."""
+
+        self.export_folder = self.owner.owner.popup.content.filename
+        self.owner.owner.dismiss_popup()
+        self.update_preset()
+
+
+class ExportPreset(ExpandableButton):
+    data = DictProperty()
+    owner = ObjectProperty()
+
+    def on_data(self, *_):
+        export_preset = self.data
+        self.content = ExportPresetArea(owner=self, index=self.index, name=export_preset['name'], export=export_preset['export'], ftp_address=export_preset['ftp_address'], ftp_user=export_preset['ftp_user'], ftp_password=export_preset['ftp_password'], ftp_passive=export_preset['ftp_passive'], ftp_port=export_preset['ftp_port'], export_folder=export_preset['export_folder'], create_subfolder=export_preset['create_subfolder'], export_info=export_preset['export_info'], scale_image=export_preset['scale_image'], scale_size=export_preset['scale_size'], scale_size_to=export_preset['scale_size_to'], jpeg_quality=export_preset['jpeg_quality'], watermark=export_preset['watermark'], watermark_image=export_preset['watermark_image'], watermark_opacity=export_preset['watermark_opacity'], watermark_horizontal=export_preset['watermark_horizontal'], watermark_vertical=export_preset['watermark_vertical'], watermark_size=export_preset['watermark_size'], ignore_tags=' '.join(export_preset['ignore_tags']), export_videos=export_preset['export_videos'])
+
+    def on_expanded(self, *_):
+        if self.content:
+            content_container = self.ids['contentContainer']
+            if self.expanded:
+                content_container.add_widget(self.content)
+                Clock.schedule_once(self.content.update_test_image)
+            else:
+                content_container.clear_widgets()
+
+    def on_remove(self):
+        app = App.get_running_app()
+        app.export_preset_remove(self.index)
+        self.owner.selected_preset = -1
+        self.owner.update_treeview()
+
+    def on_press(self):
+        self.owner.selected_preset = self.index
+        self.owner.export()
+
+
+class ScaleSettings(GridLayout):
+    """Widget layout for the scale settings on the export dialog."""
+    owner = ObjectProperty()
+
+
+class WatermarkSettings(GridLayout):
+    """Widget layout for the watermark settings on the export dialog."""
+    owner = ObjectProperty()
+
+
+class FolderToggleSettings(GridLayout):
+    """Widget layout for the export to folder settings on the export dialog."""
+    owner = ObjectProperty()
+
+
+class FTPToggleSettings(GridLayout):
+    """Widget layout for the export to ftp settings on the export dialog."""
+    owner = ObjectProperty()
+
+
+#Functions and classes related to the settings screen
+class PhotoManagerSettings(Settings):
+    """Expanded settings class to add new settings buttons and types."""
+
+    def __init__(self, **kwargs):
+        super(PhotoManagerSettings, self).__init__(**kwargs)
+        self.register_type('multidirectory', SettingMultiDirectory)
+        self.register_type('databaseimport', SettingDatabaseImport)
+        self.register_type('databaseclean', SettingDatabaseClean)
+        self.register_type('aboutbutton', SettingAboutButton)
+        self.register_type('databaserestore', SettingDatabaseRestore)
+        self.register_type('databasebackup', SettingDatabaseBackup)
+
+
+class SettingAboutButton(SettingItem):
+    """Widget that opens an about dialog."""
+    pass
+
+
+class SettingMultiDirectory(SettingItem):
+    """Widget for displaying and editing a multi-folder setting in the settings dialog.
+    Supports a popup widget to display an editable list of folders.
+    """
+
+    popup = ObjectProperty(None, allownone=True)
+    filepopup = ObjectProperty(None, allownone=True)
+    textinput = ObjectProperty(None)
+    folderlist = ObjectProperty(None)
+    value = StringProperty('')
+    modified = BooleanProperty(False)
+
+    def remove_empty(self, elements):
+        return_list = []
+        for element in elements:
+            if element != '':
+                return_list.append(element)
+        return return_list
+
+    def on_panel(self, instance, value):
+        del instance
+        if value is None:
+            return
+        self.bind(on_release=self._create_popup)
+        app = App.get_running_app()
+        if not app.has_database():
+            Clock.schedule_once(self._create_popup)
+
+    def _dismiss(self, rescan=True, *_):
+        if self.popup:
+            self.popup.dismiss()
+        self.popup = None
+        if rescan:
+            if self.modified:
+                app = App.get_running_app()
+                app.database_rescan()
+                app.set_single_database()
+            self.modified = False
+
+    def _create_popup(self, *_):
+        app = App.get_running_app()
+        content = BoxLayout(orientation='vertical')
+        popup_width = min(0.95 * Window.width, dp(500))
+        self.popup = popup = NormalPopup(title=self.title, content=content, size_hint=(None, 0.9), width=popup_width)
+        if not self.value:
+            content.add_widget(ShortLabel(height=app.button_scale * 3, text="You must set at least one database directory.\n\nThis is a folder where your photos are stored.\nNew photos will be imported to a database folder."))
+            content.add_widget(BoxLayout())
+        else:
+            folders = filter(None, self.value.split(';'))
+            folderdata = []
+            for folder in folders:
+                folderdata.append({'text': folder})
+            self.folderlist = folderlist = FolderSettingsList(size_hint=(1, .8), id='folderlist')
+            folderlist.data = folderdata
+            content.add_widget(folderlist)
+        buttons = BoxLayout(orientation='horizontal', size_hint=(1, None),
+                            height=app.button_scale)
+        addbutton = NormalButton(text='Add')
+        addbutton.bind(on_press=self.add_path)
+        removebutton = NormalButton(text='Remove')
+        removebutton.bind(on_press=self.remove_path)
+        okbutton = NormalButton(text='OK')
+        okbutton.bind(on_press=self._dismiss)
+        buttons.add_widget(addbutton)
+        buttons.add_widget(removebutton)
+        buttons.add_widget(okbutton)
+        content.add_widget(buttons)
+        popup.open()
+
+    def add_path(self, *_):
+        self.filechooser_popup()
+
+    def remove_path(self, *_):
+        self.modified = True
+        listed_folders = self.folderlist.data
+        all_folders = []
+        for folder in listed_folders:
+            if folder != self.folderlist.children[0].selected:
+                all_folders.append(folder['text'])
+        self.value = u';'.join(all_folders)
+        self.refresh()
+
+    def refresh(self):
+        self._dismiss(rescan=False)
+        self._create_popup(self)
+
+    def filechooser_popup(self):
+        content = FileBrowser(ok_text='Add', directory_select=True)
+        content.bind(on_cancel=self.filepopup_dismiss)
+        content.bind(on_ok=self.add_directory)
+        self.filepopup = filepopup = NormalPopup(title=self.title, content=content, size_hint=(0.9, 0.9))
+        filepopup.open()
+
+    def filepopup_dismiss(self, *_):
+        if self.filepopup:
+            self.filepopup.dismiss()
+        self.filepopup = None
+
+    def add_directory(self, *_):
+        self.modified = True
+        all_folders = self.value.split(';')
+        all_folders.append(agnostic_path(self.filepopup.content.filename))
+        all_folders = self.remove_empty(all_folders)
+        self.value = u';'.join(all_folders)
+        self.filepopup_dismiss()
+        self.refresh()
+
+
+class SettingDatabaseImport(SettingItem):
+    """Database scan/import widget for the settings screen."""
+    def database_import(self):
+        app = App.get_running_app()
+        app.database_import()
+
+
+class SettingDatabaseClean(SettingItem):
+    """Database deep-clean widget for the settings screen."""
+    def database_clean(self):
+        app = App.get_running_app()
+        app.database_clean(deep=True)
+
+
+class SettingDatabaseRestore(SettingItem):
+    """Database backup restore widget for the settings screen."""
+    def database_restore(self):
+        app = App.get_running_app()
+        app.database_restore()
+
+
+class SettingDatabaseBackup(SettingItem):
+    """Database backup restore widget for the settings screen."""
+    def database_backup(self):
+        app = App.get_running_app()
+        app.database_backup()
+
+
+class FolderSettingsItem(RecycleItem):
+    """A Folder item displayed in a folder list popup dialog."""
+    pass
+
+
+class FolderSettingsList(RecycleView):
+    pass
+
+
+class AboutPopup(Popup):
+    """Basic popup message with a message and 'ok' button."""
+
+    button_text = StringProperty('OK')
+
+    def close(self, *_):
+        app = App.get_running_app()
+        app.popup.dismiss()
 
 
 class PhotoManager(App):
@@ -10947,7 +10801,7 @@ class PhotoManager(App):
             if scancode == 285:
                 #f4 key
                 current_screen.key('f4')
-            if scancode == 27:
+            if scancode == 27:  #Escape
                 self.clear_drags()
                 if Window.keyboard_height > 0:
                     Window.release_all_keyboards()
@@ -12537,14 +12391,6 @@ class PhotoManager(App):
         else:
             self.screen_manager.current = 'album'
 
-    def show_photo(self):
-        """Switch to the fullscreen photo view screen layout."""
-
-        self.clear_drags()
-        if 'photo' not in self.screen_manager.screen_names:
-            self.screen_manager.add_widget(PhotoScreen(name='photo'))
-        self.screen_manager.current = 'photo'
-
     def show_import(self):
         """Switch to the import select screen layout."""
 
@@ -12586,8 +12432,7 @@ class PhotoManager(App):
 
         app = App.get_running_app()
         content = MessagePopup(text=text)
-        self.popup = NormalPopup(title=title, content=content, size_hint=(None, None),
-                                 size=(app.popup_x, app.button_scale * 4))
+        self.popup = NormalPopup(title=title, content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
         self.popup.open()
 
     def clear_drags(self):

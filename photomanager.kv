@@ -530,15 +530,6 @@
     height: self.minimum_height
     hide_root: True
 
-<MultiTreeView>:
-    color_selected: app.selected_color
-    odd_color: app.color_odd
-    even_color: app.color_even
-    indent_level: int(app.button_scale * .5)
-    size_hint: 1, None
-    height: self.minimum_height
-    hide_root: True
-
 <DatabaseSortDropDown>:
     canvas.before:
         Color:
@@ -1260,242 +1251,6 @@
     height: int(app.button_scale * 1.25)
     padding: int(app.button_scale / 8)
 
-<TransferScreen>:
-    id: transferScreen
-    BoxLayout:
-        orientation: 'vertical'
-        MainHeader:
-            NormalButton:
-                text: 'Back To Library'
-                on_press: app.show_database()
-            NormalToggle:
-                text: 'Quick Move' if self.state == 'normal' else 'Verify Move'
-                state: 'down' if app.config.get("Settings", "quicktransfer") == '0' else 'normal'
-                on_release: app.toggle_quicktransfer(self)
-            HeaderLabel:
-                text: 'Database Folder Transfer'
-            InfoLabel:
-            DatabaseLabel:
-            SettingsButton:
-        BoxLayout:
-            orientation: 'horizontal'
-            BoxLayout:
-                orientation: 'vertical'
-                id: leftArea
-                Header:
-                    ShortLabel:
-                        text: 'Database Folder: '
-                    MenuStarterButton:
-                        size_hint_x: 1
-                        id: leftDatabaseMenu
-                        text: root.left_database
-                        on_release: root.database_dropdown_left.open(self)
-                    LargeBufferX:
-                    ShortLabel:
-                        text: 'Sort By:'
-                    MenuStarterButton:
-                        size_hint_x: 1
-                        text: root.left_sort_method
-                        on_release: root.left_sort_dropdown.open(self)
-                    NormalToggle:
-                        text: 'Reverse'
-                        state: 'down' if root.left_sort_reverse else 'normal'
-                        on_press: root.left_resort_reverse(self.state)
-                    NormalButton:
-                        text: 'Toggle Select'
-                        on_press: leftDatabaseArea.toggle_select()
-                MainArea:
-                    PhotoListRecycleView:
-                        id: leftDatabaseHolder
-                        viewclass: 'RecycleTreeViewButton'
-                        scroll_distance: 10
-                        scroll_timeout: 200
-                        bar_width: int(app.button_scale * .5)
-                        scroll_type: ['bars', 'content']
-                        SelectableRecycleBoxLayout:
-                            multiselect: True
-                            id: leftDatabaseArea
-            MediumBufferX:
-            BoxLayout:
-                orientation: 'vertical'
-                id: rightArea
-                Header:
-                    ShortLabel:
-                        text: 'Database Folder: '
-                    MenuStarterButton:
-                        size_hint_x: 1
-                        id: rightDatabaseMenu
-                        text: root.right_database
-                        on_release: root.database_dropdown_right.open(self)
-                    LargeBufferX:
-                    ShortLabel:
-                        text: 'Sort By:'
-                    MenuStarterButton:
-                        size_hint_x: 1
-                        text: root.right_sort_method
-                        on_release: root.right_sort_dropdown.open(self)
-                    NormalToggle:
-                        text: 'Reverse'
-                        state: 'down' if root.right_sort_reverse else 'normal'
-                        on_press: root.right_resort_reverse(self.state)
-                    NormalButton:
-                        text: 'Toggle Select'
-                        on_press: rightDatabaseArea.toggle_select()
-                MainArea:
-                    PhotoListRecycleView:
-                        id: rightDatabaseHolder
-                        viewclass: 'RecycleTreeViewButton'
-                        scroll_distance: 10
-                        scroll_timeout: 200
-                        bar_width: int(app.button_scale * .5)
-                        scroll_type: ['bars', 'content']
-                        SelectableRecycleBoxLayout:
-                            multiselect: True
-                            id: rightDatabaseArea
-
-<DatabaseScreen>:
-    id: databaseScreen
-    BoxLayout:
-        focus: True
-        orientation: 'vertical'
-        MainHeader:
-            NormalButton:
-                text: 'Import'
-                on_press: app.show_import()
-            NormalButton:
-                size_hint_x: None
-                width: self.texture_size[0] + 20
-                text: 'Update Database'
-                on_press: app.database_rescan()
-            NormalButton:
-                size_hint_x: None
-                width: self.texture_size[0] + 20
-                text: 'Database Transfer'
-                on_press: app.show_transfer()
-                disabled: app.single_database
-            HeaderLabel:
-                text: 'Photo Database'
-            InfoLabel:
-            DatabaseLabel:
-            SettingsButton:
-        BoxLayout:
-            orientation: 'horizontal'
-            SplitterPanelLeft:
-                id: leftpanel
-                #width: app.leftpanel_width
-                BoxLayout:
-                    orientation: 'vertical'
-                    Header:
-                        size_hint_y: None
-                        height: app.button_scale
-                        ShortLabel:
-                            text: 'Sort By:'
-                        MenuStarterButton:
-                            size_hint_x: 1
-                            id: sortButton
-                            text: root.sort_method
-                            on_release: root.sort_dropdown.open(self)
-                        NormalToggle:
-                            id: sortReverseButton
-                            text: 'Reverse'
-                            state: root.sort_reverse_button
-                            on_press: root.resort_reverse(self.state)
-                    Header:
-                        size_hint_y: None
-                        height: app.button_scale
-                        NormalLabel:
-                            id: operationType
-                            text: ''
-                        NormalButton:
-                            id: newFolder
-                            size_hint_x: 1
-                            text: 'New'
-                            on_release: root.add_item()
-                        NormalButton:
-                            id: renameFolder
-                            disabled: True
-                            size_hint_x: 1
-                            text: 'Rename'
-                            on_release: root.rename_item()
-                        NormalButton:
-                            id: deleteFolder
-                            disabled: True
-                            size_hint_x: 1
-                            text: 'Delete'
-                            on_release: root.delete_item()
-                    PhotoListRecycleView:
-                        id: database
-                        viewclass: 'RecycleTreeViewButton'
-                        scroll_distance: 10
-                        scroll_timeout: 200
-                        bar_width: int(app.button_scale * .5)
-                        scroll_type: ['bars', 'content']
-                        SelectableRecycleBoxLayout:
-                            id: databaseInterior
-            MainArea:
-                orientation: 'vertical'
-                Header:
-                    ShortLabel:
-                        id: folderType
-                        text: ''
-                    NormalLabel:
-                        id: folderPath
-                        text: ''
-                    LargeBufferX:
-                    ShortLabel:
-                        text: 'Sort By:'
-                    MenuStarterButton:
-                        size_hint_x: None
-                        width: self.texture_size[0] + 80
-                        id: albumSortButton
-                        text: root.album_sort_method
-                        on_release: root.album_sort_dropdown.open(self)
-                    NormalToggle:
-                        id: albumSortReverseButton
-                        text: 'Reverse'
-                        state: root.album_sort_reverse_button
-                        on_press: root.album_resort_reverse(self.state)
-                GridLayout:
-                    id: folderDetails
-                    cols: 1
-                    size_hint_y: None
-                    height: self.minimum_height
-                NormalRecycleView:
-                    data: root.data
-                    id: photosContainer
-                    viewclass: 'PhotoRecycleThumb'
-                    SelectableRecycleGrid:
-                        id: photos
-                Header:
-                    Label:
-                        text: ''
-                    NormalButton:
-                        text: 'Export'
-                        disabled: not root.can_export
-                        on_press: root.export()
-                    NormalButton:
-                        text: 'Toggle Select'
-                        on_press: root.toggle_select()
-                    NormalButton:
-                        id: deleteButton
-                        text: 'Delete Selected'
-                        disabled: True
-                        on_press: root.delete_selected_confirm()
-                    MenuStarterButton:
-                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
-                        opacity: 0 if app.simple_interface else 1
-                        id: albumButton
-                        text: 'Add To Album...'
-                        disabled: True
-                        on_release: root.album_menu.open(self)
-                    MenuStarterButton:
-                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
-                        opacity: 0 if app.simple_interface else 1
-                        id: tagButton
-                        text: 'Add Tag To...'
-                        disabled: True
-                        on_release: root.tag_menu.open(self)
-
 <VideoViewer>:
     SpecialVideoPlayer:
         canvas.after:
@@ -1590,11 +1345,11 @@
                     id: image
                     mipmap: True
     BoxLayout:
-        opacity: 0 if root.set_fullscreen or app.simple_interface else 1
-        disabled: True if root.set_fullscreen or (root.edit_mode != 'main') or app.simple_interface else False
+        opacity: 0 if root.fullscreen or app.simple_interface else 1
+        disabled: True if root.fullscreen or (root.edit_mode != 'main') or app.simple_interface else False
         orientation: 'horizontal'
         size_hint_y: None
-        height: 0 if  root.set_fullscreen or app.simple_interface else app.button_scale
+        height: 0 if  root.fullscreen or app.simple_interface else app.button_scale
         Label:
             size_hint_x: .25
         ShortLabel:
@@ -1611,246 +1366,6 @@
             on_value: root.zoom = self.value
         Label:
             size_hint_x: .25
-
-<AlbumScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        MainHeader:
-            NormalButton:
-                text: 'Back To Library'
-                on_press: app.show_database()
-            HeaderLabel:
-                text: root.folder_title
-            InfoLabel:
-            DatabaseLabel:
-            SettingsButton:
-        BoxLayout:
-            orientation: 'horizontal'
-            SplitterPanelLeft:
-                id: leftpanel
-                #width: app.leftpanel_width
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_x: .25
-                    Header:
-                        size_hint_y: None
-                        height: app.button_scale
-                        ShortLabel:
-                            text: 'Sort By:'
-                        MenuStarterButton:
-                            size_hint_x: 1
-                            id: sortButton
-                            text: root.sort_method
-                            on_release: root.sort_dropdown.open(self)
-                        NormalToggle:
-                            id: sortReverseButton
-                            text: 'Reverse'
-                            state: root.sort_reverse_button
-                            on_press: root.resort_reverse(self.state)
-                    PhotoListRecycleView:
-                        size_hint: 1, 1
-                        id: albumContainer
-                        viewclass: 'PhotoRecycleViewButton'
-                        scroll_distance: 10
-                        scroll_timeout: 200
-                        bar_width: int(app.button_scale * .5)
-                        scroll_type: ['bars', 'content']
-                        SelectableRecycleBoxLayout:
-                            id: album
-                            default_size: self.width, (app.button_scale * 2)
-                    BoxLayout:
-                        size_hint_y: None
-                        disabled: app.simple_interface
-                        opacity: 0 if app.simple_interface else 1
-                        height: 0 if app.simple_interface else app.button_scale
-                        orientation: 'horizontal'
-                        WideButton:
-                            text: 'Previous'
-                            on_press: root.previous_photo()
-                        WideButton:
-                            text: 'Next'
-                            on_press: root.next_photo()
-            MainArea:
-                size_hint_x: .5
-                orientation: 'vertical'
-                RelativeLayout:
-                    id: photoViewerContainer
-                Header:
-                    id: buttonsFooter
-                    NormalButton:
-                        text: 'View Full Screen'
-                        on_press: root.fullscreen()
-                    Label:
-                        text: ''
-                    NormalToggle:
-                        text: 'Favorite'
-                        id: favoriteButton
-                        state: 'down' if root.favorite else 'normal'
-                        on_press: root.set_favorite()
-                    NormalButton:
-                        width: self.texture_size[0] + 20 if root.canprint else 0
-                        opacity: 1 if root.canprint else 0
-                        disabled: not root.canprint
-                        id: printButton
-                        text: 'Print'
-                        on_press: app.print_photo()
-                    NormalButton:
-                        id: deleteButton
-                        text: 'Delete Photo...'
-                        on_press: root.delete_selected_confirm()
-            SplitterPanelRight:
-                id: rightpanel
-                FloatLayout:
-                    BoxLayout:
-                        orientation: 'vertical'
-                        opacity: 1 if root.view_panel == 'info' else 0
-                        disabled: False if root.view_panel == 'info' else True
-                        size_hint_x: 1 if root.view_panel == 'info' else 0
-                        pos: self.parent.pos
-                        size: self.parent.size
-                        padding: app.padding
-                        Scroller:
-                            NormalTreeView:
-                                id: panelInfo
-                        WideButton:
-                            text: 'Refresh Photo Info'
-                            on_press: root.full_photo_refresh()
-                    BoxLayout:
-                        id: editPanelContainer
-                        opacity: 1 if root.view_panel == 'edit' else 0
-                        disabled: False if root.view_panel == 'edit' else True
-                        size_hint_x: 1 if root.view_panel == 'edit' else 0
-                        pos: self.parent.pos
-                        size: self.parent.size
-                        padding: app.padding
-                        ScrollerContainer:
-                            cols: 1
-                            id: editScroller
-                            do_scroll_x: False
-                            GridLayout:
-                                id: panelEdit
-                                cols: 1
-                                size_hint: 1, None
-                                height: self.minimum_height
-                    BoxLayout:
-                        opacity: 1 if root.view_panel == 'tags' else 0
-                        disabled: False if root.view_panel == 'tags' else True
-                        size_hint_x: 1 if root.view_panel == 'tags' else 0
-                        pos: self.parent.pos
-                        size: self.parent.size
-                        padding: app.padding
-                        Scroller:
-                            size_hint: 1, 1
-                            do_scroll_x: False
-                            GridLayout:
-                                size_hint: 1, None
-                                cols: 1
-                                height: self.minimum_height
-                                GridLayout:
-                                    canvas.before:
-                                        Color:
-                                            rgba: 1, 1, 1, .25
-                                        BorderImage:
-                                            pos: self.pos
-                                            size: self.size
-                                            source: 'data/buttonmenu.png'
-                                    padding: app.padding
-                                    id: displayTags
-                                    cols: 1
-                                    size_hint: 1, None
-                                    height: self.minimum_height
-                                    NormalLabel:
-                                        id: albumLabel
-                                        text:"Current Tags:"
-                                    GridLayout:
-                                        id: panelDisplayTags
-                                        size_hint: 1, None
-                                        cols: 2
-                                        height: self.minimum_height
-                                MediumBufferY:
-                                GridLayout:
-                                    canvas.before:
-                                        Color:
-                                            rgba: 1, 1, 1, .25
-                                        BorderImage:
-                                            pos: self.pos
-                                            size: self.size
-                                            source: 'data/buttonmenu.png'
-                                    padding: app.padding
-                                    id: addToTags
-                                    cols: 1
-                                    size_hint: 1, None
-                                    height: self.minimum_height
-                                    NormalLabel:
-                                        id: albumLabel
-                                        text:"Add Tags:"
-                                    GridLayout:
-                                        id: panelTags
-                                        size_hint: 1, None
-                                        cols: 2
-                                        height: self.minimum_height
-                                MediumBufferY:
-                                GridLayout:
-                                    canvas.before:
-                                        Color:
-                                            rgba: 1, 1, 1, .25
-                                        BorderImage:
-                                            pos: self.pos
-                                            size: self.size
-                                            source: 'data/buttonmenu.png'
-                                    padding: app.padding
-                                    cols: 1
-                                    size_hint: 1, None
-                                    height: self.minimum_height
-                                    NormalLabel:
-                                        text: "Create Tags:"
-                                    BoxLayout:
-                                        orientation: 'horizontal'
-                                        size_hint: 1, None
-                                        height: app.button_scale
-                                        NormalInput:
-                                            id: newTag
-                                            multiline: False
-                                            hint_text: 'Tag Name'
-                                            input_filter: app.test_tag
-                                        NormalButton:
-                                            disabled: not root.can_add_tag(newTag.text)
-                                            text: 'New'
-                                            on_press: root.add_tag()
-                                            size_hint_y: None
-                                            height: app.button_scale
-            StackLayout:
-                size_hint_x: None
-                width: app.button_scale
-                VerticalButton:
-                    state: 'down' if root.view_panel == 'info' else 'normal'
-                    text: "Photo Info"
-                    on_press: root.show_info_panel()
-                VerticalButton:
-                    state: 'down' if root.view_panel == 'edit' else 'normal'
-                    text: "Editing"
-                    on_press: root.show_edit_panel()
-                VerticalButton:
-                    state: 'down' if root.view_panel == 'tags' else 'normal'
-                    text: "Tags"
-                    on_press: root.show_tags_panel()
-
-<PhotoScreen>:
-    FloatLayout:
-        FloatLayout:
-            id: photoViewerContainer
-        NormalButton:
-            pos: (0, root.height-int(app.button_scale))
-            size_hint_y: None
-            height: app.button_scale
-            text: 'Back'
-            on_press: app.show_album(None)
-
-<TreeViewNodeSpacer>:
-    no_selection: True
-    odd_color: 0, 0, 0, 0
-    even_color: 0, 0, 0, 0
-    height: int(app.button_scale / 2)
 
 <ImportPresetArea>:
     cols: 3
@@ -2279,318 +1794,41 @@
         id: importPresetFolderRemove
         on_press: root.remove_folder()
 
-<ImportScreen>:
+<InterpolationDropDown>:
+    canvas.before:
+        Color:
+            rgba: (0, 0, 0, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    MenuButton:
+        text: 'Linear'
+        on_release: root.select('Linear')
+    MenuButton:
+        text: 'Cosine'
+        on_release: root.select('Cosine')
+    MenuButton:
+        text: 'Cubic'
+        on_release: root.select('Cubic')
+    MenuButton:
+        text: 'Catmull-Rom'
+        on_release: root.select('Catmull-Rom')
+
+<VideoEncodePreset>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: int(app.button_scale * 2.5)
     BoxLayout:
         orientation: 'vertical'
-        MainHeader:
-            NormalButton:
-                text: 'Back To Library'
-                on_press: app.show_database()
-            HeaderLabel:
-                text: 'Import Photos'
-            InfoLabel:
-            DatabaseLabel:
-            SettingsButton:
-        BoxLayout:
-            orientation: 'horizontal'
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: .75
-                Header:
-                    size_hint_y: None
-                    height: app.button_scale
-                    NormalLabel:
-                        text: 'Select An Import Preset:'
-                    NormalButton:
-                        id: newPresetButton
-                        disabled: True
-                        text: 'New Preset'
-                        on_press: root.add_preset()
-                MainArea:
-                    Scroller:
-                        id: presetsContainer
-                        do_scroll_x: False
-                        GridLayout:
-                            height: self.minimum_height
-                            size_hint_y: None
-                            cols: 1
-                            id: presets
+        ShortLabel:
+            text: 'Video Encode:'
+        MenuStarterButton:
+            text: root.preset_name
+            size_hint_x: 1
+            on_release: root.preset_drop.open(self)
+    MediumBufferY:
 
-            LargeBufferX:
-            StackLayout:
-                size_hint_x: .25
-                NormalLabel:
-                    text_size: self.width, None
-                    height: self.texture_size[1]
-                    text: 'Naming Method Details\n\nYou may type in an import folder template into this field, the folder names will be generated from the template.  The following characters are not allowed: . \\ / : * ? < > | \nEncase the title and surrounding characters in < > to hide the surrounding characters if the title is not set.  "Folder< - %t>" would result in "Folder" if Title is not set.\n\nThe following keys will be replaced in the input to create a folder name:'
-                GridLayout:
-                    cols: 3
-                    size_hint_y: None
-                    height: (app.button_scale * 11)
-                    ShortLabel:
-                        text: '%Y'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Full Year (2016)'
-
-                    ShortLabel:
-                        text: '%y'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Year Decade Digits (16)'
-
-                    ShortLabel:
-                        text: '%B'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Full Month Name (January)'
-
-                    ShortLabel:
-                        text: '%b'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Month In 3 Letters (Jan)'
-
-                    ShortLabel:
-                        text: '%M'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Month In 2 Digits (01)'
-
-                    ShortLabel:
-                        text: '%m'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Month In Digits, No Padding (1)'
-
-                    ShortLabel:
-                        text: '%D'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Day Of Month In 2 Digits (04)'
-
-                    ShortLabel:
-                        text: '%d'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Day Of Month, No Padding (4)'
-
-                    ShortLabel:
-                        text: '%T'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Folder Title (My Pictures)'
-
-                    ShortLabel:
-                        text: '%t'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Folder Title With Underscores (My_Pictures)'
-
-                    ShortLabel:
-                        text: '%%'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Percent Sign (%)'
-
-<DatabaseRestoreScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        MainHeader:
-        MainArea:
-            orientation: 'vertical'
-            Widget:
-            NormalLabel:
-                text: 'Restoring database backup, please wait...'
-            Widget:
-
-<ImportingScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        MainHeader:
-            NormalButton:
-                text: 'Back To Library'
-                on_press: app.show_database()
-            MediumBufferX:
-            NormalButton:
-                text: 'Import Photos'
-                on_press: root.finalize_import()
-            MediumBufferX:
-            ShortLabel:
-                id: totalSize
-                text: ''
-            MediumBufferX:
-            NormalToggle:
-                state: 'down' if root.delete_originals == True else 'normal'
-                text: 'Delete Original Photos' if root.delete_originals else 'Dont Delete Original Photos'
-                on_press: root.set_delete_originals(self.state)
-            HeaderLabel:
-                text: 'Import Photos'
-            InfoLabel:
-            DatabaseLabel:
-            SettingsButton:
-        MainArea:
-            orientation: 'horizontal'
-            SplitterPanelLeft:
-                id: leftpanel
-                #width: app.leftpanel_width
-                BoxLayout:
-                    orientation: 'vertical'
-                    Header:
-                        size_hint_y: None
-                        height: app.button_scale
-                        NormalLabel:
-                            text: 'Import To Folders:'
-                        NormalButton:
-                            text: 'Delete Folder'
-                            on_press: root.delete_folder()
-                        NormalButton:
-                            text: 'New Folder'
-                            on_press: root.add_folder()
-                    BoxLayout:
-                        Scroller:
-                            id: foldersContainer
-                            do_scroll_x: True
-                            NormalTreeView:
-                                id: folders
-            BoxLayout:
-                orientation: 'vertical'
-                Header:
-                    ShortLabel:
-                        text: 'Current Photos In:'
-                    NormalLabel:
-                        id: folderName
-                        text: ''
-                    LargeBufferX:
-                    NormalButton:
-                        text: 'Toggle Select'
-                        on_press: root.toggle_select()
-                    NormalButton:
-                        id: deleteButton
-                        text: 'Remove Selected'
-                        disabled: True
-                        on_press: root.delete()
-                BoxLayout:
-                    id: folderDetails
-                    size_hint_y: None
-                    height: (app.button_scale * 2)
-                    orientation: 'horizontal'
-                    BoxLayout:
-                        orientation: 'vertical'
-                        Header:
-                            ShortLabel:
-                                text: 'Title:'
-                            NormalInput:
-                                disabled: True
-                                id: folderTitle
-                                input_filter: app.test_album
-                                multiline: False
-                                text: ''
-                                on_text: root.new_title(self)
-                        Label:
-                    LargeBufferX:
-                    Header:
-                        height: (app.button_scale * 2)
-                        BoxLayout:
-                            size_hint_x: None
-                            orientation: 'vertical'
-                            ShortLabel:
-                                text: 'Description:'
-                            ShortLabel:
-                        NormalInput:
-                            disabled: True
-                            id: folderDescription
-                            height: (app.button_scale * 2)
-                            input_filter: app.test_description
-                            multiline: True
-                            text: ''
-                            on_text: root.new_description(self)
-                NormalRecycleView:
-                    id: photosContainer
-                    viewclass: 'PhotoRecycleThumbWide'
-                    SelectableRecycleGridWide:
-                        id: photos
-
-<ExportScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        MainHeader:
-            NormalButton:
-                text: 'Back To Library'
-                on_press: app.show_database()
-            MediumBufferX:
-            HeaderLabel:
-                text: 'Export Photos'
-            InfoLabel:
-            DatabaseLabel:
-            SettingsButton:
-        BoxLayout:
-            orientation: 'horizontal'
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: .5
-                Header:
-                    NormalLabel:
-                        text: 'Select An Export Preset:'
-                    NormalButton:
-                        id: newPresetButton
-                        text: 'New Preset'
-                        on_press: root.add_preset()
-                MainArea:
-                    Scroller:
-                        id: presetsContainer
-                        do_scroll_x: False
-                        GridLayout:
-                            height: self.minimum_height
-                            size_hint_y: None
-                            cols: 1
-                            id: presets
-
-            LargeBufferX:
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_x: .5
-                Header:
-                    ShortLabel:
-                        text: 'Select Photos To Export: '
-                    ShortLabel:
-                        text: root.target
-                    Label:
-                    MediumBufferX:
-                    ShortLabel:
-                        text: 'Sort By:'
-                    MenuStarterButton:
-                        size_hint_x: 1
-                        id: sortButton
-                        text: root.sort_method
-                        on_release: root.sort_dropdown.open(self)
-                    NormalToggle:
-                        id: sortReverseButton
-                        text: 'Reverse'
-                        state: root.sort_reverse_button
-                        on_press: root.resort_reverse(self.state)
-                    MediumBufferX:
-                    NormalButton:
-                        text: 'Toggle Select'
-                        on_press: root.toggle_select()
-                MainArea:
-                    NormalRecycleView:
-                        id: photosContainer
-                        viewclass: 'PhotoRecycleThumb'
-                        SelectableRecycleGrid:
-                            id: photos
-
+#Image/Video editing panels
 <EditNone>:
     padding: 0, 0, int(app.button_scale / 2), 0
     cols: 1
@@ -2681,40 +1919,6 @@
         height: self.minimum_height
         size_hint_y: None
         cols: 1
-
-<InterpolationDropDown>:
-    canvas.before:
-        Color:
-            rgba: (0, 0, 0, 1)
-        Rectangle:
-            pos: self.pos
-            size: self.size
-    MenuButton:
-        text: 'Linear'
-        on_release: root.select('Linear')
-    MenuButton:
-        text: 'Cosine'
-        on_release: root.select('Cosine')
-    MenuButton:
-        text: 'Cubic'
-        on_release: root.select('Cubic')
-    MenuButton:
-        text: 'Catmull-Rom'
-        on_release: root.select('Catmull-Rom')
-
-<VideoEncodePreset>:
-    orientation: 'vertical'
-    size_hint_y: None
-    height: int(app.button_scale * 2.5)
-    BoxLayout:
-        orientation: 'vertical'
-        ShortLabel:
-            text: 'Video Encode:'
-        MenuStarterButton:
-            text: root.preset_name
-            size_hint_x: 1
-            on_release: root.preset_drop.open(self)
-    MediumBufferY:
 
 <EditColorImage>:
     padding: 0, 0, int(app.button_scale / 2), 0
@@ -4049,3 +3253,775 @@
                 text: ' - '
             ShortLabel:
                 text: 'Single Percent Sign (%)'
+
+#Screen Layouts
+<DatabaseScreen>:
+    id: databaseScreen
+    BoxLayout:
+        focus: True
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Import'
+                on_press: app.show_import()
+            NormalButton:
+                size_hint_x: None
+                width: self.texture_size[0] + 20
+                text: 'Update Database'
+                on_press: app.database_rescan()
+            NormalButton:
+                size_hint_x: None
+                width: self.texture_size[0] + 20
+                text: 'Database Transfer'
+                on_press: app.show_transfer()
+                disabled: app.single_database
+            HeaderLabel:
+                text: 'Photo Database'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            SplitterPanelLeft:
+                id: leftpanel
+                #width: app.leftpanel_width
+                BoxLayout:
+                    orientation: 'vertical'
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        ShortLabel:
+                            text: 'Sort By:'
+                        MenuStarterButton:
+                            size_hint_x: 1
+                            id: sortButton
+                            text: root.sort_method
+                            on_release: root.sort_dropdown.open(self)
+                        NormalToggle:
+                            id: sortReverseButton
+                            text: 'Reverse'
+                            state: root.sort_reverse_button
+                            on_press: root.resort_reverse(self.state)
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        NormalLabel:
+                            id: operationType
+                            text: ''
+                        NormalButton:
+                            id: newFolder
+                            size_hint_x: 1
+                            text: 'New'
+                            on_release: root.add_item()
+                        NormalButton:
+                            id: renameFolder
+                            disabled: True
+                            size_hint_x: 1
+                            text: 'Rename'
+                            on_release: root.rename_item()
+                        NormalButton:
+                            id: deleteFolder
+                            disabled: True
+                            size_hint_x: 1
+                            text: 'Delete'
+                            on_release: root.delete_item()
+                    PhotoListRecycleView:
+                        id: database
+                        viewclass: 'RecycleTreeViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            id: databaseInterior
+            MainArea:
+                orientation: 'vertical'
+                Header:
+                    ShortLabel:
+                        id: folderType
+                        text: ''
+                    NormalLabel:
+                        id: folderPath
+                        text: ''
+                    LargeBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: None
+                        width: self.texture_size[0] + 80
+                        id: albumSortButton
+                        text: root.album_sort_method
+                        on_release: root.album_sort_dropdown.open(self)
+                    NormalToggle:
+                        id: albumSortReverseButton
+                        text: 'Reverse'
+                        state: root.album_sort_reverse_button
+                        on_press: root.album_resort_reverse(self.state)
+                GridLayout:
+                    id: folderDetails
+                    cols: 1
+                    size_hint_y: None
+                    height: self.minimum_height
+                NormalRecycleView:
+                    data: root.data
+                    id: photosContainer
+                    viewclass: 'PhotoRecycleThumb'
+                    SelectableRecycleGrid:
+                        id: photos
+                Header:
+                    Label:
+                        text: ''
+                    NormalButton:
+                        text: 'Export'
+                        disabled: not root.can_export
+                        on_press: root.export()
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: root.toggle_select()
+                    NormalButton:
+                        id: deleteButton
+                        text: 'Delete Selected'
+                        disabled: True
+                        on_press: root.delete_selected_confirm()
+                    MenuStarterButton:
+                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
+                        opacity: 0 if app.simple_interface else 1
+                        id: albumButton
+                        text: 'Add To Album...'
+                        disabled: True
+                        on_release: root.album_menu.open(self)
+                    MenuStarterButton:
+                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
+                        opacity: 0 if app.simple_interface else 1
+                        id: tagButton
+                        text: 'Add Tag To...'
+                        disabled: True
+                        on_release: root.tag_menu.open(self)
+
+<AlbumScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            HeaderLabel:
+                text: root.folder_title
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            SplitterPanelLeft:
+                id: leftpanel
+                #width: app.leftpanel_width
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_x: .25
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        ShortLabel:
+                            text: 'Sort By:'
+                        MenuStarterButton:
+                            size_hint_x: 1
+                            id: sortButton
+                            text: root.sort_method
+                            on_release: root.sort_dropdown.open(self)
+                        NormalToggle:
+                            id: sortReverseButton
+                            text: 'Reverse'
+                            state: root.sort_reverse_button
+                            on_press: root.resort_reverse(self.state)
+                    PhotoListRecycleView:
+                        size_hint: 1, 1
+                        id: albumContainer
+                        viewclass: 'PhotoRecycleViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            id: album
+                            default_size: self.width, (app.button_scale * 2)
+                    BoxLayout:
+                        size_hint_y: None
+                        disabled: app.simple_interface
+                        opacity: 0 if app.simple_interface else 1
+                        height: 0 if app.simple_interface else app.button_scale
+                        orientation: 'horizontal'
+                        WideButton:
+                            text: 'Previous'
+                            on_press: root.previous_photo()
+                        WideButton:
+                            text: 'Next'
+                            on_press: root.next_photo()
+            MainArea:
+                size_hint_x: .5
+                orientation: 'vertical'
+                RelativeLayout:
+                    id: photoViewerContainer
+                Header:
+                    id: buttonsFooter
+                    NormalButton:
+                        text: 'View Full Screen'
+                        on_press: root.fullscreen()
+                    Label:
+                        text: ''
+                    NormalToggle:
+                        text: 'Favorite'
+                        id: favoriteButton
+                        state: 'down' if root.favorite else 'normal'
+                        on_press: root.set_favorite()
+                    NormalButton:
+                        width: self.texture_size[0] + 20 if root.canprint else 0
+                        opacity: 1 if root.canprint else 0
+                        disabled: not root.canprint
+                        id: printButton
+                        text: 'Print'
+                        on_press: app.print_photo()
+                    NormalButton:
+                        id: deleteButton
+                        text: 'Delete Photo...'
+                        on_press: root.delete_selected_confirm()
+            SplitterPanelRight:
+                id: rightpanel
+                FloatLayout:
+                    BoxLayout:
+                        orientation: 'vertical'
+                        opacity: 1 if root.view_panel == 'info' else 0
+                        disabled: False if root.view_panel == 'info' else True
+                        size_hint_x: 1 if root.view_panel == 'info' else 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        Scroller:
+                            NormalTreeView:
+                                id: panelInfo
+                        WideButton:
+                            text: 'Refresh Photo Info'
+                            on_press: root.full_photo_refresh()
+                    BoxLayout:
+                        id: editPanelContainer
+                        opacity: 1 if root.view_panel == 'edit' else 0
+                        disabled: False if root.view_panel == 'edit' else True
+                        size_hint_x: 1 if root.view_panel == 'edit' else 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        ScrollerContainer:
+                            cols: 1
+                            id: editScroller
+                            do_scroll_x: False
+                            GridLayout:
+                                id: panelEdit
+                                cols: 1
+                                size_hint: 1, None
+                                height: self.minimum_height
+                    BoxLayout:
+                        opacity: 1 if root.view_panel == 'tags' else 0
+                        disabled: False if root.view_panel == 'tags' else True
+                        size_hint_x: 1 if root.view_panel == 'tags' else 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        Scroller:
+                            size_hint: 1, 1
+                            do_scroll_x: False
+                            GridLayout:
+                                size_hint: 1, None
+                                cols: 1
+                                height: self.minimum_height
+                                GridLayout:
+                                    canvas.before:
+                                        Color:
+                                            rgba: 1, 1, 1, .25
+                                        BorderImage:
+                                            pos: self.pos
+                                            size: self.size
+                                            source: 'data/buttonmenu.png'
+                                    padding: app.padding
+                                    id: displayTags
+                                    cols: 1
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    NormalLabel:
+                                        id: albumLabel
+                                        text:"Current Tags:"
+                                    GridLayout:
+                                        id: panelDisplayTags
+                                        size_hint: 1, None
+                                        cols: 2
+                                        height: self.minimum_height
+                                MediumBufferY:
+                                GridLayout:
+                                    canvas.before:
+                                        Color:
+                                            rgba: 1, 1, 1, .25
+                                        BorderImage:
+                                            pos: self.pos
+                                            size: self.size
+                                            source: 'data/buttonmenu.png'
+                                    padding: app.padding
+                                    id: addToTags
+                                    cols: 1
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    NormalLabel:
+                                        id: albumLabel
+                                        text:"Add Tags:"
+                                    GridLayout:
+                                        id: panelTags
+                                        size_hint: 1, None
+                                        cols: 2
+                                        height: self.minimum_height
+                                MediumBufferY:
+                                GridLayout:
+                                    canvas.before:
+                                        Color:
+                                            rgba: 1, 1, 1, .25
+                                        BorderImage:
+                                            pos: self.pos
+                                            size: self.size
+                                            source: 'data/buttonmenu.png'
+                                    padding: app.padding
+                                    cols: 1
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    NormalLabel:
+                                        text: "Create Tags:"
+                                    BoxLayout:
+                                        orientation: 'horizontal'
+                                        size_hint: 1, None
+                                        height: app.button_scale
+                                        NormalInput:
+                                            id: newTag
+                                            multiline: False
+                                            hint_text: 'Tag Name'
+                                            input_filter: app.test_tag
+                                        NormalButton:
+                                            disabled: not root.can_add_tag(newTag.text)
+                                            text: 'New'
+                                            on_press: root.add_tag()
+                                            size_hint_y: None
+                                            height: app.button_scale
+            StackLayout:
+                size_hint_x: None
+                width: app.button_scale
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'info' else 'normal'
+                    text: "Photo Info"
+                    on_press: root.show_info_panel()
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'edit' else 'normal'
+                    text: "Editing"
+                    on_press: root.show_edit_panel()
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'tags' else 'normal'
+                    text: "Tags"
+                    on_press: root.show_tags_panel()
+
+<ImportScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            HeaderLabel:
+                text: 'Import Photos'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: .75
+                Header:
+                    size_hint_y: None
+                    height: app.button_scale
+                    NormalLabel:
+                        text: 'Select An Import Preset:'
+                    NormalButton:
+                        id: newPresetButton
+                        disabled: True
+                        text: 'New Preset'
+                        on_press: root.add_preset()
+                MainArea:
+                    Scroller:
+                        id: presetsContainer
+                        do_scroll_x: False
+                        GridLayout:
+                            height: self.minimum_height
+                            size_hint_y: None
+                            cols: 1
+                            id: presets
+
+            LargeBufferX:
+            StackLayout:
+                size_hint_x: .25
+                NormalLabel:
+                    text_size: self.width, None
+                    height: self.texture_size[1]
+                    text: 'Naming Method Details\n\nYou may type in an import folder template into this field, the folder names will be generated from the template.  The following characters are not allowed: . \\ / : * ? < > | \nEncase the title and surrounding characters in < > to hide the surrounding characters if the title is not set.  "Folder< - %t>" would result in "Folder" if Title is not set.\n\nThe following keys will be replaced in the input to create a folder name:'
+                GridLayout:
+                    cols: 3
+                    size_hint_y: None
+                    height: (app.button_scale * 11)
+                    ShortLabel:
+                        text: '%Y'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Full Year (2016)'
+
+                    ShortLabel:
+                        text: '%y'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Year Decade Digits (16)'
+
+                    ShortLabel:
+                        text: '%B'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Full Month Name (January)'
+
+                    ShortLabel:
+                        text: '%b'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Month In 3 Letters (Jan)'
+
+                    ShortLabel:
+                        text: '%M'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Month In 2 Digits (01)'
+
+                    ShortLabel:
+                        text: '%m'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Month In Digits, No Padding (1)'
+
+                    ShortLabel:
+                        text: '%D'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Day Of Month In 2 Digits (04)'
+
+                    ShortLabel:
+                        text: '%d'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Day Of Month, No Padding (4)'
+
+                    ShortLabel:
+                        text: '%T'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Folder Title (My Pictures)'
+
+                    ShortLabel:
+                        text: '%t'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Folder Title With Underscores (My_Pictures)'
+
+                    ShortLabel:
+                        text: '%%'
+                    ShortLabel:
+                        text: ' - '
+                    ShortLabel:
+                        text: 'Percent Sign (%)'
+
+<TransferScreen>:
+    id: transferScreen
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            NormalToggle:
+                text: 'Quick Move' if self.state == 'normal' else 'Verify Move'
+                state: 'down' if app.config.get("Settings", "quicktransfer") == '0' else 'normal'
+                on_release: app.toggle_quicktransfer(self)
+            HeaderLabel:
+                text: 'Database Folder Transfer'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'vertical'
+                id: leftArea
+                Header:
+                    ShortLabel:
+                        text: 'Database Folder: '
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        id: leftDatabaseMenu
+                        text: root.left_database
+                        on_release: root.database_dropdown_left.open(self)
+                    LargeBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        text: root.left_sort_method
+                        on_release: root.left_sort_dropdown.open(self)
+                    NormalToggle:
+                        text: 'Reverse'
+                        state: 'down' if root.left_sort_reverse else 'normal'
+                        on_press: root.left_resort_reverse(self.state)
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: leftDatabaseArea.toggle_select()
+                MainArea:
+                    PhotoListRecycleView:
+                        id: leftDatabaseHolder
+                        viewclass: 'RecycleTreeViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            multiselect: True
+                            id: leftDatabaseArea
+            MediumBufferX:
+            BoxLayout:
+                orientation: 'vertical'
+                id: rightArea
+                Header:
+                    ShortLabel:
+                        text: 'Database Folder: '
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        id: rightDatabaseMenu
+                        text: root.right_database
+                        on_release: root.database_dropdown_right.open(self)
+                    LargeBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        text: root.right_sort_method
+                        on_release: root.right_sort_dropdown.open(self)
+                    NormalToggle:
+                        text: 'Reverse'
+                        state: 'down' if root.right_sort_reverse else 'normal'
+                        on_press: root.right_resort_reverse(self.state)
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: rightDatabaseArea.toggle_select()
+                MainArea:
+                    PhotoListRecycleView:
+                        id: rightDatabaseHolder
+                        viewclass: 'RecycleTreeViewButton'
+                        scroll_distance: 10
+                        scroll_timeout: 200
+                        bar_width: int(app.button_scale * .5)
+                        scroll_type: ['bars', 'content']
+                        SelectableRecycleBoxLayout:
+                            multiselect: True
+                            id: rightDatabaseArea
+
+<DatabaseRestoreScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+        MainArea:
+            orientation: 'vertical'
+            Widget:
+            NormalLabel:
+                text: 'Restoring database backup, please wait...'
+            Widget:
+
+<ImportingScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            MediumBufferX:
+            NormalButton:
+                text: 'Import Photos'
+                on_press: root.finalize_import()
+            MediumBufferX:
+            ShortLabel:
+                id: totalSize
+                text: ''
+            MediumBufferX:
+            NormalToggle:
+                state: 'down' if root.delete_originals == True else 'normal'
+                text: 'Delete Original Photos' if root.delete_originals else 'Dont Delete Original Photos'
+                on_press: root.set_delete_originals(self.state)
+            HeaderLabel:
+                text: 'Import Photos'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        MainArea:
+            orientation: 'horizontal'
+            SplitterPanelLeft:
+                id: leftpanel
+                #width: app.leftpanel_width
+                BoxLayout:
+                    orientation: 'vertical'
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        NormalLabel:
+                            text: 'Import To Folders:'
+                        NormalButton:
+                            text: 'Delete Folder'
+                            on_press: root.delete_folder()
+                        NormalButton:
+                            text: 'New Folder'
+                            on_press: root.add_folder()
+                    BoxLayout:
+                        Scroller:
+                            id: foldersContainer
+                            do_scroll_x: True
+                            NormalTreeView:
+                                id: folders
+            BoxLayout:
+                orientation: 'vertical'
+                Header:
+                    ShortLabel:
+                        text: 'Current Photos In:'
+                    NormalLabel:
+                        id: folderName
+                        text: ''
+                    LargeBufferX:
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: root.toggle_select()
+                    NormalButton:
+                        id: deleteButton
+                        text: 'Remove Selected'
+                        disabled: True
+                        on_press: root.delete()
+                BoxLayout:
+                    id: folderDetails
+                    size_hint_y: None
+                    height: (app.button_scale * 2)
+                    orientation: 'horizontal'
+                    BoxLayout:
+                        orientation: 'vertical'
+                        Header:
+                            ShortLabel:
+                                text: 'Title:'
+                            NormalInput:
+                                disabled: True
+                                id: folderTitle
+                                input_filter: app.test_album
+                                multiline: False
+                                text: ''
+                                on_text: root.new_title(self)
+                        Label:
+                    LargeBufferX:
+                    Header:
+                        height: (app.button_scale * 2)
+                        BoxLayout:
+                            size_hint_x: None
+                            orientation: 'vertical'
+                            ShortLabel:
+                                text: 'Description:'
+                            ShortLabel:
+                        NormalInput:
+                            disabled: True
+                            id: folderDescription
+                            height: (app.button_scale * 2)
+                            input_filter: app.test_description
+                            multiline: True
+                            text: ''
+                            on_text: root.new_description(self)
+                NormalRecycleView:
+                    id: photosContainer
+                    viewclass: 'PhotoRecycleThumbWide'
+                    SelectableRecycleGridWide:
+                        id: photos
+
+<ExportScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Library'
+                on_press: app.show_database()
+            MediumBufferX:
+            HeaderLabel:
+                text: 'Export Photos'
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: .5
+                Header:
+                    NormalLabel:
+                        text: 'Select An Export Preset:'
+                    NormalButton:
+                        id: newPresetButton
+                        text: 'New Preset'
+                        on_press: root.add_preset()
+                MainArea:
+                    Scroller:
+                        id: presetsContainer
+                        do_scroll_x: False
+                        GridLayout:
+                            height: self.minimum_height
+                            size_hint_y: None
+                            cols: 1
+                            id: presets
+
+            LargeBufferX:
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: .5
+                Header:
+                    ShortLabel:
+                        text: 'Select Photos To Export: '
+                    ShortLabel:
+                        text: root.target
+                    Label:
+                    MediumBufferX:
+                    ShortLabel:
+                        text: 'Sort By:'
+                    MenuStarterButton:
+                        size_hint_x: 1
+                        id: sortButton
+                        text: root.sort_method
+                        on_release: root.sort_dropdown.open(self)
+                    NormalToggle:
+                        id: sortReverseButton
+                        text: 'Reverse'
+                        state: root.sort_reverse_button
+                        on_press: root.resort_reverse(self.state)
+                    MediumBufferX:
+                    NormalButton:
+                        text: 'Toggle Select'
+                        on_press: root.toggle_select()
+                MainArea:
+                    NormalRecycleView:
+                        id: photosContainer
+                        viewclass: 'PhotoRecycleThumb'
+                        SelectableRecycleGrid:
+                            id: photos
