@@ -32,7 +32,11 @@ class CursorModalView(ModalView):
         if not self._window:
             Logger.warning('ModalView: cannot open view, no window found.')
             return
-        self._window.add_widget(self)
+        try:
+            self._window.remove_widget(self)
+            self._window.add_widget(self)
+        except:
+            pass
 
     def put_on_top(self, *args):
         self.dismiss()

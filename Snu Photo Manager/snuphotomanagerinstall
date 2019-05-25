@@ -1,5 +1,0 @@
-#!/bin/bash
-tar -xzf snuphotomanager.tar.gz
-folder="$PWD"
-sed -i "s|folder|${folder}|g" Snu\ Photo\ Manager/Snu\ Photo\ Manager.desktop
-cp "Snu Photo Manager/Snu Photo Manager.desktop" .
