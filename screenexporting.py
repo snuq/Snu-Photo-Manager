@@ -25,7 +25,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_press: app.show_database()
+                on_release: app.show_database()
             MediumBufferX:
             HeaderLabel:
                 text: 'Export Photos'
@@ -43,7 +43,7 @@ Builder.load_string("""
                     NormalButton:
                         id: newPresetButton
                         text: 'New Preset'
-                        on_press: root.add_preset()
+                        on_release: root.add_preset()
                 MainArea:
                     Scroller:
                         id: presetsContainer
@@ -59,11 +59,9 @@ Builder.load_string("""
                 orientation: 'vertical'
                 size_hint_x: .5
                 Header:
-                    ShortLabel:
-                        text: 'Select Photos To Export: '
-                    ShortLabel:
-                        text: root.target
-                    Label:
+                    MediumBufferX:
+                    LeftNormalLabel:
+                        text: 'Select Photos To Export: ' + root.target
                     MediumBufferX:
                     ShortLabel:
                         text: 'Sort By:'
@@ -72,15 +70,14 @@ Builder.load_string("""
                         id: sortButton
                         text: root.sort_method
                         on_release: root.sort_dropdown.open(self)
-                    NormalToggle:
+                    ReverseToggle:
                         id: sortReverseButton
-                        text: 'Reverse'
                         state: root.sort_reverse_button
                         on_press: root.resort_reverse(self.state)
                     MediumBufferX:
                     NormalButton:
                         text: 'Toggle Select'
-                        on_press: root.toggle_select()
+                        on_release: root.toggle_select()
                 MainArea:
                     NormalRecycleView:
                         id: photosContainer
@@ -253,7 +250,7 @@ Builder.load_string("""
         height: app.button_scale
         ShortLabel:
             text: 'Scale Size To:'
-        MenuStarterButton:
+        MenuStarterButtonWide:
             id: scaleSizeToButton
             size_hint_x: 1
             text: root.owner.scale_size_to_text
@@ -299,7 +296,7 @@ Builder.load_string("""
                 size_hint_x: 1
                 text: root.owner.watermark_image
                 #text_size: self.size
-                on_press: root.owner.select_watermark()
+                on_release: root.owner.select_watermark()
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -381,7 +378,7 @@ Builder.load_string("""
         on_focus: root.owner.set_export_folder(self)
     NormalButton:
         text: ' Browse... '
-        on_press: root.owner.select_export()
+        on_release: root.owner.select_export()
 
 <FTPToggleSettings>:
     cols: 1
@@ -530,6 +527,11 @@ class ExportScreen(Screen):
             photos.select_all()
         self.update_selected()
 
+    def select_all(self):
+        photos = self.ids['photos']
+        photos.select_all()
+        self.update_selected()
+
     def update_selected(self):
         """Checks if any viewed photos are selected."""
 
@@ -574,17 +576,17 @@ class ExportScreen(Screen):
         photos.select_all()
         self.update_selected()
 
-    def update_photolist(self):
+    def update_photolist(self, select=True):
         """Clears and refreshes the grid view of photos."""
 
         #sort photo list
-        if self.sort_method == 'Import Date':
+        if self.sort_method == 'Imported':
             sorted_photos = sorted(self.photos, key=lambda x: x[6], reverse=self.sort_reverse)
-        elif self.sort_method == 'Modified Date':
+        elif self.sort_method == 'Modified':
             sorted_photos = sorted(self.photos, key=lambda x: x[7], reverse=self.sort_reverse)
         elif self.sort_method == 'Owner':
             sorted_photos = sorted(self.photos, key=lambda x: x[11], reverse=self.sort_reverse)
-        elif self.sort_method == 'File Name':
+        elif self.sort_method == 'Name':
             sorted_photos = sorted(self.photos, key=lambda x: os.path.basename(x[0]), reverse=self.sort_reverse)
         else:
             sorted_photos = sorted(self.photos, key=lambda x: x[0], reverse=self.sort_reverse)
@@ -620,7 +622,8 @@ class ExportScreen(Screen):
             }
             datas.append(data)
         photos_container.data = datas
-        self.toggle_select()
+        if select:
+            self.select_all()
 
     def on_leave(self):
         """Called when the screen is left, write changes to export presets."""
@@ -676,7 +679,7 @@ class ExportScreen(Screen):
         self.popup = ScanningPopup(title='Exporting Files', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
         self.popup.open()
         scanning_button = self.popup.ids['scanningButton']
-        scanning_button.bind(on_press=self.cancel_export)
+        scanning_button.bind(on_release=self.cancel_export)
         self.scanningthread = threading.Thread(target=self.exporting_process)
         self.scanningthread.start()
 
@@ -916,7 +919,7 @@ class ExportScreen(Screen):
         else:
             scanning_button = self.popup.ids['scanningButton']
             scanning_button.text = 'OK'
-            scanning_button.bind(on_press=self.finish_export)
+            scanning_button.bind(on_release=self.finish_export)
 
     def finish_export(self, *_):
         """Closes the export popup and leaves this screen."""
@@ -1327,7 +1330,7 @@ class ExportPreset(ExpandableButton):
         self.owner.selected_preset = -1
         self.owner.update_treeview()
 
-    def on_press(self):
+    def on_release(self):
         self.owner.selected_preset = self.index
         self.owner.export()
 

@@ -7,10 +7,10 @@ Todo:
 
 Possible Todo (Later On):
     create collage feature
-    multi-thread video processing
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 """
+
 import time
 start = time.perf_counter()
 
@@ -76,6 +76,10 @@ if desktop:
     Window.maximize()
 else:
     Window.softinput_mode = 'below_target'
+
+if platform == 'android':
+    from android.permissions import request_permissions, Permission
+    request_permissions([Permission.WRITE_EXTERNAL_STORAGE])
 
 
 class MultiThreadOK(threading.Thread):
@@ -584,9 +588,9 @@ class PhotoManager(App):
             })
         config.setdefaults(
             'Sorting', {
-                'database_sort': 'Folder Name',
+                'database_sort': 'Name',
                 'database_sort_reverse': 0,
-                'album_sort': 'File Name',
+                'album_sort': 'Name',
                 'album_sort_reverse': 0
             })
         config.setdefaults(

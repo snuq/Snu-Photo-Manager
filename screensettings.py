@@ -9,7 +9,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.recycleview import RecycleView
 
 from generalcommands import agnostic_path
-from generalelements import NormalPopup, ShortLabel, NormalButton, RecycleItem
+from generalelements import NormalPopup, ShortLabel, NormalButton, WideButton, RecycleItem
 from filebrowser import FileBrowser
 
 from kivy.lang.builder import Builder
@@ -20,7 +20,7 @@ Builder.load_string("""
         size: root.size
         pos: root.pos
         font_size: '15sp'
-        on_press: app.about()
+        on_release: app.about()
 
 <SettingMultiDirectory>:
     id: multidirectory
@@ -37,7 +37,7 @@ Builder.load_string("""
         pos: root.pos
         font_size: '15sp'
         disabled: app.database_scanning
-        on_press: root.database_import()
+        on_release: root.database_import()
 
 <SettingDatabaseClean>:
     WideButton:
@@ -46,7 +46,7 @@ Builder.load_string("""
         pos: root.pos
         font_size: '15sp'
         disabled: app.database_scanning
-        on_press: root.database_clean()
+        on_release: root.database_clean()
 
 <SettingDatabaseRestore>:
     WideButton:
@@ -54,7 +54,7 @@ Builder.load_string("""
         size: root.size
         pos: root.pos
         font_size: '15sp'
-        on_press: root.database_restore()
+        on_release: root.database_restore()
 
 <SettingDatabaseBackup>:
     WideButton:
@@ -63,7 +63,7 @@ Builder.load_string("""
         pos: root.pos
         font_size: '15sp'
         disabled: app.database_scanning
-        on_press: root.database_backup()
+        on_release: root.database_backup()
 
 <FolderSettingsItem>:
     deselected_color: 0, 0, 0, 1
@@ -176,12 +176,12 @@ class SettingMultiDirectory(SettingItem):
             folderlist.data = folderdata
             content.add_widget(folderlist)
         buttons = BoxLayout(orientation='horizontal', size_hint=(1, None), height=app.button_scale)
-        addbutton = NormalButton(text='Add')
-        addbutton.bind(on_press=self.add_path)
-        removebutton = NormalButton(text='Remove')
-        removebutton.bind(on_press=self.remove_path)
-        okbutton = NormalButton(text='OK')
-        okbutton.bind(on_press=self._dismiss)
+        addbutton = NormalButton(text='+')
+        addbutton.bind(on_release=self.add_path)
+        removebutton = NormalButton(text='-')
+        removebutton.bind(on_release=self.remove_path)
+        okbutton = WideButton(text='OK')
+        okbutton.bind(on_release=self._dismiss)
         buttons.add_widget(addbutton)
         buttons.add_widget(removebutton)
         buttons.add_widget(okbutton)

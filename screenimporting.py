@@ -29,7 +29,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_press: app.show_database()
+                on_release: app.show_database()
             HeaderLabel:
                 text: 'Import Photos'
             InfoLabel:
@@ -49,7 +49,7 @@ Builder.load_string("""
                         id: newPresetButton
                         disabled: True
                         text: 'New Preset'
-                        on_press: root.add_preset()
+                        on_release: root.add_preset()
                 MainArea:
                     Scroller:
                         id: presetsContainer
@@ -63,90 +63,96 @@ Builder.load_string("""
             LargeBufferX:
             StackLayout:
                 size_hint_x: .25
-                NormalLabel:
-                    text_size: self.width, None
-                    height: self.texture_size[1]
-                    text: 'Naming Method Details\\n\\nYou may type in an import folder template into this field, the folder names will be generated from the template.  The following characters are not allowed: . \\ / : * ? < > | \\nEncase the title and surrounding characters in < > to hide the surrounding characters if the title is not set.  "Folder< - %t>" would result in "Folder" if Title is not set.\\n\\nThe following keys will be replaced in the input to create a folder name:'
-                GridLayout:
-                    cols: 3
-                    size_hint_y: None
-                    height: (app.button_scale * 11)
-                    ShortLabel:
-                        text: '%Y'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Full Year (2016)'
-
-                    ShortLabel:
-                        text: '%y'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Year Decade Digits (16)'
-
-                    ShortLabel:
-                        text: '%B'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Full Month Name (January)'
-
-                    ShortLabel:
-                        text: '%b'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Month In 3 Letters (Jan)'
-
-                    ShortLabel:
-                        text: '%M'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Month In 2 Digits (01)'
-
-                    ShortLabel:
-                        text: '%m'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Month In Digits, No Padding (1)'
-
-                    ShortLabel:
-                        text: '%D'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Day Of Month In 2 Digits (04)'
-
-                    ShortLabel:
-                        text: '%d'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Day Of Month, No Padding (4)'
-
-                    ShortLabel:
-                        text: '%T'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Folder Title (My Pictures)'
-
-                    ShortLabel:
-                        text: '%t'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Folder Title With Underscores (My_Pictures)'
-
-                    ShortLabel:
-                        text: '%%'
-                    ShortLabel:
-                        text: ' - '
-                    ShortLabel:
-                        text: 'Percent Sign (%)'
+                Scroller:
+                    size_hint_y: 1
+                    GridLayout:
+                        size_hint_y: None
+                        height: self.minimum_height
+                        cols: 1
+                        NormalLabel:
+                            text_size: self.width, None
+                            height: self.texture_size[1]
+                            text: 'Naming Method Details\\n\\nYou may type in an import folder template into this field, the folder names will be generated from the template.  The following characters are not allowed: . \\ / : * ? < > | \\nEncase the title and surrounding characters in < > to hide the surrounding characters if the title is not set.  "Folder< - %t>" would result in "Folder" if Title is not set.\\n\\nThe following keys will be replaced in the input to create a folder name:'
+                        GridLayout:
+                            cols: 3
+                            size_hint_y: None
+                            height: (app.button_scale * 11)
+                            ShortLabel:
+                                text: '%Y'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Full Year (2016)'
+        
+                            ShortLabel:
+                                text: '%y'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Year Decade Digits (16)'
+        
+                            ShortLabel:
+                                text: '%B'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Full Month Name (January)'
+        
+                            ShortLabel:
+                                text: '%b'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Month In 3 Letters (Jan)'
+        
+                            ShortLabel:
+                                text: '%M'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Month In 2 Digits (01)'
+        
+                            ShortLabel:
+                                text: '%m'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Month In Digits, No Padding (1)'
+        
+                            ShortLabel:
+                                text: '%D'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Day Of Month In 2 Digits (04)'
+        
+                            ShortLabel:
+                                text: '%d'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Day Of Month, No Padding (4)'
+        
+                            ShortLabel:
+                                text: '%T'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Folder Title (My Pictures)'
+        
+                            ShortLabel:
+                                text: '%t'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Folder Title With Underscores (My_Pictures)'
+        
+                            ShortLabel:
+                                text: '%%'
+                            ShortLabel:
+                                text: ' - '
+                            ShortLabel:
+                                text: 'Percent Sign (%)'
 
 <ImportingScreen>:
     BoxLayout:
@@ -154,11 +160,11 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_press: app.show_database()
+                on_release: app.show_database()
             MediumBufferX:
             NormalButton:
                 text: 'Import Photos'
-                on_press: root.finalize_import()
+                on_release: root.finalize_import()
             MediumBufferX:
             ShortLabel:
                 id: totalSize
@@ -184,13 +190,13 @@ Builder.load_string("""
                         size_hint_y: None
                         height: app.button_scale
                         NormalLabel:
-                            text: 'Import To Folders:'
+                            text: 'Folders:'
                         NormalButton:
                             text: 'Delete Folder'
-                            on_press: root.delete_folder()
+                            on_release: root.delete_folder()
                         NormalButton:
                             text: 'New Folder'
-                            on_press: root.add_folder()
+                            on_release: root.add_folder()
                     BoxLayout:
                         Scroller:
                             id: foldersContainer
@@ -208,12 +214,12 @@ Builder.load_string("""
                     LargeBufferX:
                     NormalButton:
                         text: 'Toggle Select'
-                        on_press: root.toggle_select()
+                        on_release: root.toggle_select()
                     NormalButton:
                         id: deleteButton
                         text: 'Remove Selected'
                         disabled: True
-                        on_press: root.delete()
+                        on_release: root.delete()
                 BoxLayout:
                     id: folderDetails
                     size_hint_y: None
@@ -261,8 +267,9 @@ Builder.load_string("""
     height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
     GridLayout:
         cols: 2
+        padding: 0, app.padding
         ShortLabel:
-            text: 'Preset Name: '
+            text: '   Preset Name:   '
         NormalInput:
             size_hint_x: 1
             text: root.title
@@ -270,11 +277,11 @@ Builder.load_string("""
             input_filter: app.test_album
             on_focus: root.set_title(self)
         ShortLabel:
-            text: 'Folder Name: '
+            text: '   Folder Name:  '
         NormalLabel:
             text: root.naming_example
         ShortLabel:
-            text: 'Naming Method: '
+            text: ' Naming Method:  '
         NormalInput:
             size_hint_x: 1
             text: root.naming_method
@@ -296,24 +303,29 @@ Builder.load_string("""
             text: 'Single Folder' if root.single_folder == True else 'Dated Folders'
             on_press: root.set_single_folder(self.state)
         ShortLabel:
-            text: 'Import To:'
+            text: '    Import To:    '
         NormalButton:
             id: importToButton
             size_hint_x: 1
             text: root.import_to
             on_release: root.imports_dropdown.open(self)
     MediumBufferX:
-    NormalTreeView:
-        id: importPresetFolders
-        hide_root: False
-        root_options: {'text': 'Import From Folders:', 'font_size':app.text_scale}
-
-    Label:
-    MediumBufferX:
-    NormalButton:
-        size_hint_x: .5
-        text: 'Add Folder...'
-        on_press: root.add_folder()
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 0, app.padding
+        NormalLabel:
+            text_size: self.size
+            halign: 'left'
+            valign: 'middle'
+            text: 'Import From Folders:'
+        NormalTreeView:
+            size_hint_y: 1
+            id: importPresetFolders
+            hide_root: True
+            root_options: {'text': 'Import From Folders:', 'font_size':app.text_scale}
+        WideButton:
+            text: 'Add Folder...'
+            on_release: root.add_folder()
 
 <ImportPresetFolder>:
     orientation: 'horizontal'
@@ -323,7 +335,7 @@ Builder.load_string("""
         text: root.folder
     RemoveButton:
         id: importPresetFolderRemove
-        on_press: root.remove_folder()
+        on_release: root.remove_folder()
 """)
 
 
@@ -521,7 +533,7 @@ class ImportingScreen(Screen):
         self.scanningpopup = ScanningPopup(title='Scanning Import Folders...', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
         self.scanningpopup.open()
         scanning_button = self.scanningpopup.ids['scanningButton']
-        scanning_button.bind(on_press=self.cancel_import)
+        scanning_button.bind(on_release=self.cancel_import)
 
         self.percent_completed = 0
         self.scanningthread = threading.Thread(target=self.scan_folders)
@@ -602,7 +614,7 @@ class ImportingScreen(Screen):
         self.scanningpopup = ScanningPopup(title='Importing Files', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
         self.scanningpopup.open()
         scanning_button = self.scanningpopup.ids['scanningButton']
-        scanning_button.bind(on_press=self.cancel_import)
+        scanning_button.bind(on_release=self.cancel_import)
 
         #Start importing thread
         self.percent_completed = 0
@@ -1339,7 +1351,7 @@ class ImportPreset(ExpandableButton):
         self.owner.selected_import = -1
         self.owner.update_treeview()
 
-    def on_press(self):
+    def on_release(self):
         self.owner.selected_import = self.index
         self.owner.import_preset()
 

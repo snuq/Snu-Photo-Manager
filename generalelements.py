@@ -260,7 +260,7 @@ Builder.load_string("""
     mipmap: True
     size_hint_y: None
     height: app.button_scale
-    width: self.texture_size[0] + 20
+    width: self.texture_size[0] + app.button_scale
     size_hint_x: None
     font_size: app.text_scale
     background_normal: 'data/buttonwarnup.png' if self.warn else 'data/buttonlightup.png'
@@ -293,6 +293,7 @@ Builder.load_string("""
     size_hint: None, None
     height: app.button_scale
     width: app.button_scale
+    warn: True
     text: 'X'
 
 <ExpandableButton>:
@@ -313,9 +314,10 @@ Builder.load_string("""
             on_press: root.set_expanded(self.active)
         WideButton:
             on_press: root.dispatch('on_press')
+            on_release: root.dispatch('on_release')
             text: root.text
         RemoveButton:
-            on_press: root.dispatch('on_remove')
+            on_release: root.dispatch('on_remove')
     GridLayout:
         canvas.before:
             Color:
@@ -373,7 +375,6 @@ Builder.load_string("""
     shorten_from: 'right'
     font_size: app.text_scale
     size_hint_max_x: self.texture_size[0] + (app.button_scale * 1.2)
-    #width: self.texture_size[0] + app.button_scale
     background_normal: 'data/buttonup.png'
     background_down: 'data/buttondown.png'
     background_disabled_down: 'data/buttondisabled.png'
@@ -402,7 +403,6 @@ Builder.load_string("""
     background_disabled_down: 'data/buttondisabled.png'
     background_disabled_normal: 'data/buttondisabled.png'
 
-
 <NormalToggle@ToggleButton>:
     mipmap: True
     font_size: app.text_scale
@@ -413,10 +413,26 @@ Builder.load_string("""
     background_normal: 'data/buttontoggleoff.png'
     background_down: 'data/buttontoggleon.png'
 
+<ReverseToggle@ToggleButton>:
+    canvas:
+        Rectangle:
+            pos: self.pos
+            size: self.size
+            source: 'data/arrowdown.png' if self.state == 'normal' else 'data/arrowup.png'
+    mipmap: True
+    size_hint: None, None
+    height: app.button_scale
+    width: app.button_scale
+    background_normal: 'data/buttontoggleoff.png'
+    background_down: 'data/buttontoggleoff.png'
+
 <SettingsButton@NormalButton>:
     mipmap: True
-    text: 'Settings'
-    on_press: app.open_settings()
+    text: '' if app.simple_interface else 'Settings'
+    border: (0, 0, 0, 0) if app.simple_interface else (16, 16, 16, 16)
+    background_normal: 'data/settings.png' if app.simple_interface else 'data/buttonlightup.png'
+    background_down: 'data/settings.png' if app.simple_interface else 'data/buttonlightdown.png'
+    on_release: app.open_settings()
 
 <VerticalButton@ToggleButton>:
     mipmap: True
@@ -549,16 +565,16 @@ Builder.load_string("""
 
 <AlbumSortDropDown>:
     MenuButton:
-        text: 'File Name'
+        text: 'Name'
         on_release: root.select(self.text)
     MenuButton:
-        text: 'File Path'
+        text: 'Path'
         on_release: root.select(self.text)
     MenuButton:
-        text: 'Import Date'
+        text: 'Imported'
         on_release: root.select(self.text)
     MenuButton:
-        text: 'Modified Date'
+        text: 'Modified'
         on_release: root.select(self.text)
 
 
@@ -970,6 +986,7 @@ class ExpandableButton(GridLayout):
     def __init__(self, **kwargs):
         super(ExpandableButton, self).__init__(**kwargs)
         self.register_event_type('on_press')
+        self.register_event_type('on_release')
         self.register_event_type('on_expanded')
         self.register_event_type('on_remove')
 
@@ -985,6 +1002,9 @@ class ExpandableButton(GridLayout):
                 content_container.clear_widgets()
 
     def on_press(self):
+        pass
+
+    def on_release(self):
         pass
 
     def on_remove(self):

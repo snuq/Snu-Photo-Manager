@@ -93,6 +93,7 @@ Builder.load_string("""
 
 """)
 
+
 def get_drives():
     drives = []
     if platform == 'win':
@@ -214,7 +215,7 @@ class FileBrowser(BoxLayout):
             self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
             self.popup.open()
         else:
-            app.message("Folder Is Not Empty.")
+            app.popup_message(text='Could not delete, Folder is not empty', title='Warning')
 
     def delete_folder_answer(self, instance, answer):
         """Tells the app to delete the folder if the dialog is confirmed.
@@ -257,45 +258,44 @@ class FileBrowser(BoxLayout):
         data = []
         files = []
         dirs = []
-        if os.path.isdir(self.path):
-            try:
-                for file in os.listdir(self.path):
-                    fullpath = os.path.join(self.path, file)
-                    if os.path.isfile(fullpath):
-                        files.append(file)
-                    elif os.path.isdir(fullpath):
-                        dirs.append(file)
-            except:
-                self.go_up()
-                return
-            dirs = sorted(dirs, key=lambda s: s.lower())
-            for directory in dirs:
-                fullpath = os.path.join(self.path, directory)
+        try:
+            directory_elements = os.listdir(self.path)
+        except:
+            directory_elements = []
+        for file in directory_elements:
+            fullpath = os.path.join(self.path, file)
+            if os.path.isfile(fullpath):
+                files.append(file)
+            elif os.path.isdir(fullpath):
+                dirs.append(file)
+        dirs = sorted(dirs, key=lambda s: s.lower())
+        for directory in dirs:
+            fullpath = os.path.join(self.path, directory)
+            data.append({
+                'text': directory,
+                'fullpath': fullpath,
+                'path': fullpath + os.path.sep,
+                'type': 'folder',
+                'owner': self,
+                'selected': False
+            })
+        if not self.directory_select:
+            if self.filters:
+                filtered_files = []
+                for item in self.filters:
+                    filtered_files += fnmatch.filter(files, item)
+                files = filtered_files
+            files = sorted(files, key=lambda s: s.lower())
+            for file in files:
                 data.append({
-                    'text': directory,
-                    'fullpath': fullpath,
-                    'path': fullpath + os.path.sep,
-                    'type': 'folder',
+                    'text': file,
+                    'fullpath': os.path.join(self.path, file),
+                    'path': self.path,
+                    'type': file,
+                    'file': file,
                     'owner': self,
                     'selected': False
                 })
-            if not self.directory_select:
-                if self.filters:
-                    filtered_files = []
-                    for item in self.filters:
-                        filtered_files += fnmatch.filter(files, item)
-                    files = filtered_files
-                files = sorted(files, key=lambda s: s.lower())
-                for file in files:
-                    data.append({
-                        'text': file,
-                        'fullpath': os.path.join(self.path, file),
-                        'path': self.path,
-                        'type': file,
-                        'file': file,
-                        'owner': self,
-                        'selected': False
-                    })
 
         file_list.data = data
         if not self.directory_select:

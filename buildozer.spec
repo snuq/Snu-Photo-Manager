@@ -4,7 +4,7 @@
 title = Snu Photo Manager
 
 # (str) Package name
-package.name = snuphotomanager
+package.name = SnuPhotoManager
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = com.snuq
@@ -24,19 +24,12 @@ source.include_exts = py,png,jpg,kv,atlas,txt,ini
 # (list) List of directory to exclude (let empty to not exclude anything)
 source.exclude_dirs = tests, bin
 
-# (list) List of exclusions using pattern matching
-#source.exclude_patterns = license,images/*/*.jpg
-
 # (str) Application versioning (method 1)
-version = 0.9.005
-
-# (str) Application versioning (method 2)
-# version.regex = __version__ = ['"](.*)['"]
-# version.filename = %(source.dir)s/main.py
+version = 0.9.006
 
 # (list) Application requirements
 # comma seperated e.g. requirements = sqlite3,kivy
-requirements = python3crystax,kivy==1.10.0,ffpyplayer_codecs,ffpyplayer,pil,sqlite3
+requirements = python3,kivy,ffpyplayer_codecs,ffpyplayer==4.2.0,pillow,sqlite3
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -46,7 +39,7 @@ requirements = python3crystax,kivy==1.10.0,ffpyplayer_codecs,ffpyplayer,pil,sqli
 #garden_requirements =
 
 # (str) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
+presplash.filename = %(source.dir)s/data/splash.jpg
 
 # (str) Icon of the application
 icon.filename = %(source.dir)s/data/icon.png
@@ -54,25 +47,15 @@ icon.filename = %(source.dir)s/data/icon.png
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = landscape
 
-# (list) List of service to declare
-#services = NAME:ENTRYPOINT_TO_PY,NAME2:ENTRYPOINT2_TO_PY
-
-#
-# OSX Specific
-#
-
-#
-# author = © Copyright Info
-
 #
 # Android specific
 #
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 1
+fullscreen = 0
 
 # (list) Permissions
-#android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
+android.permissions = WRITE_EXTERNAL_STORAGE
 
 # (int) Android API to use
 #android.api = 21
@@ -81,16 +64,16 @@ fullscreen = 1
 #android.minapi = 9
 
 # (int) Android SDK version to use
-#android.sdk = 20
+#android.sdk = 21
 
 # (str) Android NDK version to use
-android.ndk = 10.3.2
+#android.ndk = 10.3.2
 
 # (bool) Use --private data storage (True) or --dir public storage (False)
 #android.private_storage = True
 
 # (str) Android NDK directory (if empty, it will be automatically downloaded.)
-android.ndk_path = /home/kivy/crystax-ndk-10.3.2
+#android.ndk_path = /home/kivy/crystax-ndk-10.3.2
 
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
 #android.sdk_path =
@@ -99,7 +82,7 @@ android.ndk_path = /home/kivy/crystax-ndk-10.3.2
 #android.ant_path =
 
 # (str) python-for-android git clone directory (if empty, it will be automatically cloned from github)
-android.p4a_dir = /home/kivy/python-for-android-master
+#android.p4a_dir = /home/kivy/python-for-android-master
 
 # (list) python-for-android whitelist
 #android.p4a_whitelist =
@@ -158,6 +141,10 @@ android.p4a_dir = /home/kivy/python-for-android-master
 
 # (bool) Copy library instead of making a libpymodules.so
 #android.copy_libs = 1
+
+# (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86
+android.arch = armeabi-v7a
+
 
 #
 # iOS specific

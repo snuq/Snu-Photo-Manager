@@ -24,29 +24,29 @@ Builder.load_string("""
         orientation: 'vertical'
         MainHeader:
             NormalButton:
-                text: 'Import'
-                on_press: app.show_import()
+                text: '  Import  '
+                on_release: app.show_import()
                 disabled: app.database_scanning
             NormalButton:
                 size_hint_x: None
                 width: self.texture_size[0] + 20 if not app.database_scanning else 0
                 opacity: 0 if app.database_scanning else 1
-                text: 'Update Database'
-                on_press: app.database_rescan()
+                text: '  Update Database  '
+                on_release: app.database_rescan()
                 disabled: app.database_scanning
             NormalButton:
                 size_hint_x: None
                 width: self.texture_size[0] + 20 if app.database_scanning else 0
                 opacity: 1 if app.database_scanning else 0
-                text: 'Cancel Database Scan'
-                on_press: app.cancel_database_import()
+                text: '  Cancel Database Scan  '
+                on_release: app.cancel_database_import()
                 disabled: not app.database_scanning
                 warn: True
             NormalButton:
                 size_hint_x: None
                 width: self.texture_size[0] + 20
-                text: 'Database Transfer'
-                on_press: app.show_transfer()
+                text: '  Database Transfer  '
+                on_release: app.show_transfer()
                 disabled: app.single_database or app.database_scanning
             HeaderLabel:
                 text: 'Photo Database'
@@ -64,42 +64,15 @@ Builder.load_string("""
                         size_hint_y: None
                         height: app.button_scale
                         ShortLabel:
-                            text: 'Sort By:'
+                            text: 'Sort:'
                         MenuStarterButtonWide:
                             id: sortButton
                             text: root.sort_method
                             on_release: root.sort_dropdown.open(self)
-                        NormalToggle:
+                        ReverseToggle:
                             id: sortReverseButton
-                            text: 'Reverse'
                             state: root.sort_reverse_button
                             on_press: root.resort_reverse(self.state)
-                    Header:
-                        size_hint_y: None
-                        height: app.button_scale
-                        NormalLabel:
-                            id: operationType
-                            text: ''
-                        NormalButton:
-                            id: newFolder
-                            size_hint_x: 1
-                            text: 'New'
-                            on_release: root.add_item()
-                            disabled: not root.can_new_folder or app.database_scanning
-                        NormalButton:
-                            id: renameFolder
-                            disabled: True
-                            size_hint_x: 1
-                            text: 'Rename'
-                            on_release: root.rename_item()
-                            disabled: not root.can_rename_folder or app.database_scanning
-                        NormalButton:
-                            id: deleteFolder
-                            disabled: True
-                            size_hint_x: 1
-                            text: 'Delete'
-                            on_release: root.delete_item()
-                            disabled: not root.can_delete_folder or app.database_scanning
                     PhotoListRecycleView:
                         id: database
                         viewclass: 'RecycleTreeViewButton'
@@ -109,17 +82,67 @@ Builder.load_string("""
                         scroll_type: ['bars', 'content']
                         SelectableRecycleBoxLayout:
                             id: databaseInterior
-                    Header:
+                    BoxLayout:
+                        canvas.before:
+                            Color:
+                                rgba: (1, 1, 1, 1)
+                            Rectangle:
+                                size: self.size
+                                pos: self.pos
+                                source: 'data/buttonmenu.png' if app.simple_interface else 'data/headerbg.png'
+                        orientation: 'vertical'
+                        opacity: 1 if (databaseOptions.state == 'down' or not app.simple_interface) else 0
+                        disabled: False if (databaseOptions.state == 'down' or not app.simple_interface) else True
+                        height: (app.button_scale * 5 if databaseOptions.state == 'down' else 0) if app.simple_interface else app.button_scale * 2
                         size_hint_y: None
-                        height: app.button_scale
-                        NormalInput:
-                            multiline: False
-                            hint_text: 'Search...'
-                            text: root.search_text
-                            on_text: root.search(self.text)
-                        NormalButton:
-                            text: 'Clear'
-                            on_release: root.clear_search()
+                        BoxLayout:
+                            orientation: 'vertical' if app.simple_interface else 'horizontal'
+                            NormalLabel:
+                                size_hint_y: 1
+                                id: operationType
+                                text: ''
+                            NormalButton:
+                                size_hint_y: 1
+                                id: newFolder
+                                size_hint_x: 1
+                                text: 'New'
+                                on_release: root.add_item()
+                                disabled: not root.can_new_folder or app.database_scanning
+                            NormalButton:
+                                size_hint_y: 1
+                                id: renameFolder
+                                size_hint_x: 1
+                                text: 'Rename'
+                                on_release: root.rename_item()
+                                disabled: not root.can_rename_folder or app.database_scanning
+                            NormalButton:
+                                size_hint_y: 1
+                                id: deleteFolder
+                                size_hint_x: 1
+                                text: 'Delete'
+                                warn: True
+                                on_release: root.delete_item()
+                                disabled: not root.can_delete_folder or app.database_scanning
+                        BoxLayout:
+                            size_hint_y: None
+                            height: app.button_scale if (databaseOptions.state == 'down' or not app.simple_interface) else 0
+                            NormalInput:
+                                size_hint_y: 1
+                                multiline: False
+                                hint_text: 'Search...'
+                                text: root.search_text
+                                on_text: root.search(self.text)
+                            NormalButton:
+                                size_hint_y: 1
+                                text: 'Clear'
+                                on_release: root.clear_search()
+                    NormalToggle:
+                        id: databaseOptions
+                        size_hint_x: 1
+                        text: 'Database Options'
+                        height: app.button_scale if app.simple_interface else 0
+                        opacity: 1 if app.simple_interface else 0
+                        disabled: False if app.simple_interface else True
             MainArea:
                 orientation: 'vertical'
                 Header:
@@ -131,16 +154,15 @@ Builder.load_string("""
                         text: ''
                     LargeBufferX:
                     ShortLabel:
-                        text: 'Sort By:'
+                        text: 'Sort:'
                     MenuStarterButton:
                         size_hint_x: None
                         width: self.texture_size[0] + 80
                         id: albumSortButton
                         text: root.album_sort_method
                         on_release: root.album_sort_dropdown.open(self)
-                    NormalToggle:
+                    ReverseToggle:
                         id: albumSortReverseButton
-                        text: 'Reverse'
                         state: root.album_sort_reverse_button
                         on_press: root.album_resort_reverse(self.state)
                 GridLayout:
@@ -161,18 +183,20 @@ Builder.load_string("""
                     NormalButton:
                         text: 'Export'
                         disabled: not root.can_export
-                        on_press: root.export()
+                        on_release: root.export()
                     NormalButton:
                         text: 'Toggle Select'
-                        on_press: root.toggle_select()
+                        on_release: root.toggle_select()
                     NormalButton:
                         id: deleteButton
                         text: 'Delete Selected'
                         disabled: not root.photos_selected or app.database_scanning
-                        on_press: root.delete_selected_confirm()
+                        on_release: root.delete_selected_confirm()
+                        warn: True
                     MenuStarterButton:
                         width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
                         opacity: 0 if app.simple_interface else 1
+                        size_hint_x: 0 if app.simple_interface else 1
                         id: albumButton
                         text: 'Add To Album...'
                         disabled: not root.photos_selected or app.database_scanning
@@ -180,6 +204,7 @@ Builder.load_string("""
                     MenuStarterButton:
                         width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
                         opacity: 0 if app.simple_interface else 1
+                        size_hint_x: 0 if app.simple_interface else 1
                         id: tagButton
                         text: 'Add Tag To...'
                         disabled: not root.photos_selected or app.database_scanning
@@ -192,9 +217,9 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_press: app.show_database()
+                on_release: app.show_database()
             NormalToggle:
-                text: 'Quick Move' if self.state == 'normal' else 'Verify Move'
+                text: '  Quick Move  ' if self.state == 'normal' else '  Verify Move  '
                 state: 'down' if app.config.get("Settings", "quicktransfer") == '0' else 'normal'
                 on_release: app.toggle_quicktransfer(self)
             HeaderLabel:
@@ -209,7 +234,7 @@ Builder.load_string("""
                 id: leftArea
                 Header:
                     ShortLabel:
-                        text: 'Database Folder: '
+                        text: 'Database: '
                     MenuStarterButtonWide:
                         size_hint_x: 1
                         id: leftDatabaseMenu
@@ -217,18 +242,17 @@ Builder.load_string("""
                         on_release: root.database_dropdown_left.open(self)
                     LargeBufferX:
                     ShortLabel:
-                        text: 'Sort By:'
+                        text: 'Sort:'
                     MenuStarterButton:
                         size_hint_x: 1
                         text: root.left_sort_method
                         on_release: root.left_sort_dropdown.open(self)
-                    NormalToggle:
-                        text: 'Reverse'
+                    ReverseToggle:
                         state: 'down' if root.left_sort_reverse else 'normal'
                         on_press: root.left_resort_reverse(self.state)
                     NormalButton:
                         text: 'Toggle Select'
-                        on_press: leftDatabaseArea.toggle_select()
+                        on_release: leftDatabaseArea.toggle_select()
                 MainArea:
                     PhotoListRecycleView:
                         id: leftDatabaseHolder
@@ -246,7 +270,7 @@ Builder.load_string("""
                 id: rightArea
                 Header:
                     ShortLabel:
-                        text: 'Database Folder: '
+                        text: 'Database: '
                     MenuStarterButtonWide:
                         size_hint_x: 1
                         id: rightDatabaseMenu
@@ -254,18 +278,17 @@ Builder.load_string("""
                         on_release: root.database_dropdown_right.open(self)
                     LargeBufferX:
                     ShortLabel:
-                        text: 'Sort By:'
+                        text: 'Sort:'
                     MenuStarterButton:
                         size_hint_x: 1
                         text: root.right_sort_method
                         on_release: root.right_sort_dropdown.open(self)
-                    NormalToggle:
-                        text: 'Reverse'
+                    ReverseToggle:
                         state: 'down' if root.right_sort_reverse else 'normal'
                         on_press: root.right_resort_reverse(self.state)
                     NormalButton:
                         text: 'Toggle Select'
-                        on_press: rightDatabaseArea.toggle_select()
+                        on_release: rightDatabaseArea.toggle_select()
                 MainArea:
                     PhotoListRecycleView:
                         id: rightDatabaseHolder
@@ -333,19 +356,19 @@ Builder.load_string("""
 
 <DatabaseSortDropDown>:
     MenuButton:
-        text: 'Folder Name'
+        text: 'Name'
         on_release: root.select(self.text)
     MenuButton:
         text: 'Title'
         on_release: root.select(self.text)
     MenuButton:
-        text: 'Import Date'
+        text: 'Imported'
         on_release: root.select(self.text)
     MenuButton:
-        text: 'Modified Date'
+        text: 'Modified'
         on_release: root.select(self.text)
     MenuButton:
-        text: 'Total Photos'
+        text: 'Amount'
         on_release: root.select(self.text)
 
 """)
@@ -358,10 +381,10 @@ class DatabaseScreen(Screen):
     selected = StringProperty('')  #Currently selected album in the database, may be blank
     displayable = BooleanProperty(False)
     sort_dropdown = ObjectProperty()  #Database sorting menu
-    sort_method = StringProperty('File Name')  #Currently selected database sort mode
+    sort_method = StringProperty('Name')  #Currently selected database sort mode
     sort_reverse = BooleanProperty(False)  #Database sorting reversed or not
     album_sort_dropdown = ObjectProperty()  #Album sorting menu
-    album_sort_method = StringProperty('File Name')  #Currently selected album sort mode
+    album_sort_method = StringProperty('Name')  #Currently selected album sort mode
     album_sort_reverse = BooleanProperty(False)  #Album sorting reversed or not
     folder_details = ObjectProperty()  #Holder for the folder details widget
     album_details = ObjectProperty()  #Holder for the album details widget
@@ -1155,13 +1178,13 @@ class DatabaseScreen(Screen):
         return folders
 
     def sort_folders(self, sort_folders):
-        if self.sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
+        if self.sort_method in ['Amount', 'Title', 'Imported', 'Modified']:
             app = App.get_running_app()
             folders = []
             for folder in sort_folders:
                 sortby = 0
                 folderpath = folder['full_folder']
-                if self.sort_method == 'Total Photos':
+                if self.sort_method == 'Amount':
                     sortby = len(app.database_get_folder(folderpath))
                 elif self.sort_method == 'Title':
                     folderinfo = app.database_folder_exists(folderpath)
@@ -1169,12 +1192,12 @@ class DatabaseScreen(Screen):
                         sortby = folderinfo[1]
                     else:
                         sortby = folderpath
-                elif self.sort_method == 'Import Date':
+                elif self.sort_method == 'Imported':
                     folder_photos = app.database_get_folder(folderpath)
                     for folder_photo in folder_photos:
                         if folder_photo[6] > sortby:
                             sortby = folder_photo[6]
-                elif self.sort_method == 'Modified Date':
+                elif self.sort_method == 'Modified':
                     folder_photos = app.database_get_folder(folderpath)
                     for folder_photo in folder_photos:
                         if folder_photo[7] > sortby:
@@ -1413,13 +1436,13 @@ class DatabaseScreen(Screen):
                         app.database_folder_add(folderinfo)
                         app.update_photoinfo(folderinfo[0])
 
-                if self.album_sort_method == 'Import Date':
+                if self.album_sort_method == 'Imported':
                     sorted_photos = sorted(photos, key=lambda x: x[6], reverse=self.album_sort_reverse)
-                elif self.album_sort_method == 'Modified Date':
+                elif self.album_sort_method == 'Modified':
                     sorted_photos = sorted(photos, key=lambda x: x[7], reverse=self.album_sort_reverse)
                 elif self.album_sort_method == 'Owner':
                     sorted_photos = sorted(photos, key=lambda x: x[11], reverse=self.album_sort_reverse)
-                elif self.album_sort_method == 'File Name':
+                elif self.album_sort_method == 'Name':
                     sorted_photos = sorted(photos, key=lambda x: os.path.basename(x[0]), reverse=self.album_sort_reverse)
                 else:
                     sorted_photos = sorted(photos, key=lambda x: x[0], reverse=self.album_sort_reverse)
@@ -1732,7 +1755,7 @@ class TransferScreen(Screen):
             self.copyingpopup = ScanningPopup(title='Moving Files', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
             self.copyingpopup.open()
             scanning_button = self.copyingpopup.ids['scanningButton']
-            scanning_button.bind(on_press=self.cancel_copy)
+            scanning_button.bind(on_release=self.cancel_copy)
 
             # Start importing thread
             self.percent_completed = 0
@@ -1822,12 +1845,12 @@ class TransferScreen(Screen):
 
         #Get and sort folder list
         unsorted_folders = app.database_get_folders(database_folder=database_folder)
-        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
+        if sort_method in ['Amount', 'Title', 'Imported', 'Modified']:
             folders = []
             for folder in unsorted_folders:
                 sortby = 0
                 folderpath = folder
-                if sort_method == 'Total Photos':
+                if sort_method == 'Amount':
                     sortby = len(app.database_get_folder(folderpath, database=database_folder))
                 elif sort_method == 'Title':
                     folderinfo = app.database_folder_exists(folderpath)
@@ -1835,12 +1858,12 @@ class TransferScreen(Screen):
                         sortby = folderinfo[1]
                     else:
                         sortby = folderpath
-                elif sort_method == 'Import Date':
+                elif sort_method == 'Imported':
                     folder_photos = app.database_get_folder(folderpath, database=database_folder)
                     for folder_photo in folder_photos:
                         if folder_photo[6] > sortby:
                             sortby = folder_photo[6]
-                elif sort_method == 'Modified Date':
+                elif sort_method == 'Modified':
                     folder_photos = app.database_get_folder(folderpath, database=database_folder)
                     for folder_photo in folder_photos:
                         if folder_photo[7] > sortby:
@@ -1927,13 +1950,13 @@ class TransferScreen(Screen):
         return folders
 
     def sort_folders(self, sort_folders, sort_method, sort_reverse):
-        if sort_method in ['Total Photos', 'Title', 'Import Date', 'Modified Date']:
+        if sort_method in ['Amount', 'Title', 'Imported', 'Modified']:
             app = App.get_running_app()
             folders = []
             for folder in sort_folders:
                 sortby = 0
                 folderpath = folder['full_folder']
-                if sort_method == 'Total Photos':
+                if sort_method == 'Amount':
                     sortby = len(app.database_get_folder(folderpath))
                 elif sort_method == 'Title':
                     folderinfo = app.database_folder_exists(folderpath)
@@ -1941,12 +1964,12 @@ class TransferScreen(Screen):
                         sortby = folderinfo[1]
                     else:
                         sortby = folderpath
-                elif sort_method == 'Import Date':
+                elif sort_method == 'Imported':
                     folder_photos = app.database_get_folder(folderpath)
                     for folder_photo in folder_photos:
                         if folder_photo[6] > sortby:
                             sortby = folder_photo[6]
-                elif sort_method == 'Modified Date':
+                elif sort_method == 'Modified':
                     folder_photos = app.database_get_folder(folderpath)
                     for folder_photo in folder_photos:
                         if folder_photo[7] > sortby:

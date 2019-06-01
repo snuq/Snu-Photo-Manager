@@ -66,7 +66,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_press: app.show_database()
+                on_release: app.show_database()
             HeaderLabel:
                 text: root.folder_title
             InfoLabel:
@@ -84,16 +84,15 @@ Builder.load_string("""
                         size_hint_y: None
                         height: app.button_scale
                         ShortLabel:
-                            text: 'Sort By:'
+                            text: 'Sort:'
                         MenuStarterButtonWide:
                             id: sortButton
                             text: root.sort_method
                             on_release: root.sort_dropdown.open(self)
-                        NormalToggle:
+                        ReverseToggle:
                             id: sortReverseButton
-                            text: 'Reverse'
                             state: root.sort_reverse_button
-                            on_press: root.resort_reverse(self.state)
+                            on_release: root.resort_reverse(self.state)
                     PhotoListRecycleView:
                         size_hint: 1, 1
                         id: albumContainer
@@ -126,12 +125,12 @@ Builder.load_string("""
                 Header:
                     id: buttonsFooter
                     NormalButton:
-                        text: 'View Full Screen'
+                        text: 'Full Screen'
                         on_press: root.fullscreen()
                     Label:
                         text: ''
                     NormalToggle:
-                        text: 'Favorite'
+                        text: '  Favorite  '
                         id: favoriteButton
                         state: 'down' if root.favorite else 'normal'
                         on_press: root.set_favorite()
@@ -141,12 +140,13 @@ Builder.load_string("""
                         opacity: 1 if root.canprint else 0
                         disabled: not root.canprint
                         id: printButton
-                        text: 'Print'
-                        on_press: app.print_photo()
+                        text: '  Print  '
+                        on_release: app.print_photo()
                     NormalButton:
                         id: deleteButton
-                        text: 'Delete Photo...'
-                        on_press: root.delete_selected_confirm()
+                        warn: True
+                        text: '  Delete  '
+                        on_release: root.delete_selected_confirm()
                         disabled: app.database_scanning
             SplitterPanelRight:
                 id: rightpanel
@@ -164,7 +164,7 @@ Builder.load_string("""
                                 id: panelInfo
                         WideButton:
                             text: 'Refresh Photo Info'
-                            on_press: root.full_photo_refresh()
+                            on_release: root.full_photo_refresh()
                     BoxLayout:
                         id: editPanelContainer
                         opacity: 1 if root.view_panel == 'edit' else 0
@@ -268,7 +268,7 @@ Builder.load_string("""
                                         NormalButton:
                                             disabled: not root.can_add_tag(newTag.text)
                                             text: 'New'
-                                            on_press: root.add_tag()
+                                            on_release: root.add_tag()
                                             size_hint_y: None
                                             height: app.button_scale
             StackLayout:
@@ -297,10 +297,8 @@ Builder.load_string("""
     size_hint_y: None
     height: app.button_scale
     orientation: 'horizontal'
-    ShortLabel:
+    LeftNormalLabel:
         text: root.title
-    ShortLabel:
-        text: root.content
 
 <VideoThumbnail>:
     pos_hint: {'x': 0, 'y': 0}
@@ -443,7 +441,7 @@ Builder.load_string("""
             height: 44
 
 <ExitFullscreenButton>:
-    text: 'Exit Full Screen'
+    text: 'Back'
 
 <EditNone>:
     padding: 0, 0, int(app.button_scale / 2), 0
@@ -458,57 +456,57 @@ Builder.load_string("""
     height: self.minimum_height
     WideButton:
         text: 'Basic Color Adjustments'
-        on_press: root.owner.set_edit_panel('color')
+        on_release: root.owner.set_edit_panel('color')
         #disabled: not root.owner.view_image
     SmallBufferY:
     WideButton:
         text: 'Advanced Color Adjustments'
-        on_press: root.owner.set_edit_panel('advanced')
+        on_release: root.owner.set_edit_panel('advanced')
         #disabled: not root.owner.view_image
     SmallBufferY:
     WideButton:
         text: 'Filters'
-        on_press: root.owner.set_edit_panel('filter')
+        on_release: root.owner.set_edit_panel('filter')
         #disabled: not root.owner.view_image
     SmallBufferY:
     WideButton:
         text: 'Image Borders'
-        on_press: root.owner.set_edit_panel('border')
+        on_release: root.owner.set_edit_panel('border')
         #disabled: not root.owner.view_image
     SmallBufferY:
     WideButton:
         height: app.button_scale if root.owner.opencv else 0
         opacity: 1 if root.owner.opencv else 0
         text: 'Denoise'
-        on_press: root.owner.set_edit_panel('denoise')
+        on_release: root.owner.set_edit_panel('denoise')
         disabled: not root.owner.view_image or not root.owner.opencv
     SmallBufferY:
         height: int(app.button_scale / 4) if root.owner.opencv else 0
     WideButton:
         text: 'Rotate Image'
-        on_press: root.owner.set_edit_panel('rotate')
+        on_release: root.owner.set_edit_panel('rotate')
         disabled: not root.owner.view_image
     SmallBufferY:
     WideButton:
         text: 'Crop Image'
-        on_press: root.owner.set_edit_panel('crop')
+        on_release: root.owner.set_edit_panel('crop')
         disabled: not root.owner.view_image
     SmallBufferY:
     WideButton:
         text: 'Convert'
-        on_press: root.owner.set_edit_panel('convert')
+        on_release: root.owner.set_edit_panel('convert')
         disabled: root.owner.view_image
     LargeBufferY:
     WideButton:
         id: deleteOriginal
         text: 'Delete Unedited Original File'
         warn: True
-        on_press: root.owner.delete_original()
+        on_release: root.owner.delete_original()
     SmallBufferY:
     WideButton:
         id: undoEdits
         text: 'Restore Original Unedited File'
-        on_press: root.owner.restore_original()
+        on_release: root.owner.restore_original()
     LargeBufferY:
     GridLayout:
         cols: 2
@@ -520,7 +518,7 @@ Builder.load_string("""
         NormalButton:
             size_hint_x: None
             text: 'New'
-            on_press: root.owner.add_program()
+            on_release: root.owner.add_program()
     GridLayout:
         id: externalPrograms
         height: self.minimum_height
@@ -539,16 +537,16 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.owner.save_edit()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_color
         text: "Load Last Settings"
-        on_press: root.load_last()
+        on_release: root.load_last()
     MediumBufferY:
     GridLayout:
         id: videoPreset
@@ -563,7 +561,7 @@ Builder.load_string("""
             text: 'Color Adjustments:'
         NormalButton:
             text: 'Reset All'
-            on_press: root.reset_all()
+            on_release: root.reset_all()
     BoxLayout:
         canvas.before:
             Color:
@@ -597,7 +595,7 @@ Builder.load_string("""
             text: 'Equalize Histogram:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_equalize()
+            on_release: root.reset_equalize()
     HalfSlider:
         id: equalizeSlider
         value: root.equalize
@@ -613,7 +611,7 @@ Builder.load_string("""
             text: 'Adaptive Histogram Equalize:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_adaptive()
+            on_release: root.reset_adaptive()
     HalfSlider:
         disabled: not root.owner.opencv
         opacity: 1 if root.owner.opencv else 0
@@ -631,7 +629,7 @@ Builder.load_string("""
             text: 'Highs:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_brightness()
+            on_release: root.reset_brightness()
     NormalSlider:
         id: brightnessSlider
         value: root.brightness
@@ -645,7 +643,7 @@ Builder.load_string("""
             text: 'Mids:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_gamma()
+            on_release: root.reset_gamma()
     NormalSlider:
         id: gammaSlider
         value: root.gamma
@@ -659,7 +657,7 @@ Builder.load_string("""
             text: 'Lows:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_shadow()
+            on_release: root.reset_shadow()
     NormalSlider:
         id: shadowSlider
         value: root.shadow
@@ -673,7 +671,7 @@ Builder.load_string("""
             text: 'Saturation:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_saturation()
+            on_release: root.reset_saturation()
     NormalSlider:
         id: saturationSlider
         value: root.saturation
@@ -687,7 +685,7 @@ Builder.load_string("""
             text: 'Color Temperature:'
         NormalButton:
             text: 'Reset'
-            on_press: root.reset_temperature()
+            on_release: root.reset_temperature()
     NormalSlider:
         id: temperatureSlider
         value: root.temperature
@@ -705,16 +703,16 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.owner.save_edit()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_advanced
         text: "Load Last Settings"
-        on_press: root.load_last()
+        on_release: root.load_last()
     MediumBufferY:
     GridLayout:
         id: videoPreset
@@ -729,7 +727,7 @@ Builder.load_string("""
             text: 'Color Adjustments:'
         NormalButton:
             text: 'Reset All'
-            on_press: root.reset_all()
+            on_release: root.reset_all()
     BoxLayout:
         canvas.before:
             Color:
@@ -764,10 +762,10 @@ Builder.load_string("""
                 text: 'Curves:'
             NormalButton:
                 text: 'Remove Point'
-                on_press: root.remove_point()
+                on_release: root.remove_point()
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_curves()
+                on_release: root.reset_curves()
         BoxLayout:
             size_hint_y: None
             height: self.width * .66
@@ -804,7 +802,7 @@ Builder.load_string("""
                 text: 'Tinting:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_tint()
+                on_release: root.reset_tint()
         BoxLayout:
             size_hint_y: None
             height: sp(33)*10
@@ -824,16 +822,16 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.owner.save_edit()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_filter
         text: "Load Last Settings"
-        on_press: root.load_last()
+        on_release: root.load_last()
     MediumBufferY:
     GridLayout:
         id: videoPreset
@@ -848,7 +846,7 @@ Builder.load_string("""
             text: 'Filter Image:'
         NormalButton:
             text: 'Reset All'
-            on_press: root.reset_all()
+            on_release: root.reset_all()
     GridLayout:
         canvas.before:
             Color:
@@ -869,7 +867,7 @@ Builder.load_string("""
                 text: 'Soften/Sharpen:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_sharpen()
+                on_release: root.reset_sharpen()
         NormalSlider:
             id: sharpenSlider
             value: root.sharpen
@@ -883,7 +881,7 @@ Builder.load_string("""
                 text: 'Median Blur (Despeckle):'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_median()
+                on_release: root.reset_median()
                 disabled: not root.owner.opencv
         HalfSlider:
             height: app.button_scale if root.owner.opencv else 0
@@ -915,7 +913,7 @@ Builder.load_string("""
                 text: 'Edge-Preserve Blur:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_bilateral_amount()
+                on_release: root.reset_bilateral_amount()
         HalfSlider:
             id: bilateralAmountSlider
             value: root.bilateral_amount
@@ -928,7 +926,7 @@ Builder.load_string("""
                 text: 'Blur Size:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_bilateral()
+                on_release: root.reset_bilateral()
         HalfSlider:
             id: bilateralSlider
             value: root.bilateral
@@ -955,7 +953,7 @@ Builder.load_string("""
                 text: 'Vignette:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_vignette_amount()
+                on_release: root.reset_vignette_amount()
         HalfSlider:
             id: vignetteAmountSlider
             value: root.vignette_amount
@@ -969,7 +967,7 @@ Builder.load_string("""
                 text: 'Vignette Size:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_vignette_size()
+                on_release: root.reset_vignette_size()
         HalfSlider:
             value: .5
             id: vignetteSizeSlider
@@ -996,7 +994,7 @@ Builder.load_string("""
                 text: 'Edge Blur:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_edge_blur_amount()
+                on_release: root.reset_edge_blur_amount()
         HalfSlider:
             id: edgeBlurAmountSlider
             value: root.edge_blur_amount
@@ -1010,7 +1008,7 @@ Builder.load_string("""
                 text: 'Edge Blur Size:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_edge_blur_size()
+                on_release: root.reset_edge_blur_size()
         HalfSlider:
             value: .5
             id: edgeBlurSizeSlider
@@ -1025,7 +1023,7 @@ Builder.load_string("""
                 text: 'Edge Blur Intensity:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_edge_blur_intensity()
+                on_release: root.reset_edge_blur_intensity()
         HalfSlider:
             value: .5
             id: edgeBlurIntensitySlider
@@ -1044,16 +1042,16 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.owner.save_edit()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_border
         text: "Load Last Settings"
-        on_press: root.load_last()
+        on_release: root.load_last()
     MediumBufferY:
     GridLayout:
         id: videoPreset
@@ -1086,7 +1084,7 @@ Builder.load_string("""
                 text: 'Border Opacity:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_border_opacity()
+                on_release: root.reset_border_opacity()
         HalfSlider:
             id: opacitySlider
             value: root.border_opacity
@@ -1099,7 +1097,7 @@ Builder.load_string("""
                 text: 'X Size:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_border_x_scale()
+                on_release: root.reset_border_x_scale()
         NormalSlider:
             id: borderXScale
             value: root.border_x_scale
@@ -1112,7 +1110,7 @@ Builder.load_string("""
                 text: 'Y Size:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_border_y_scale()
+                on_release: root.reset_border_y_scale()
         NormalSlider:
             id: borderYScale
             value: root.border_y_scale
@@ -1158,7 +1156,7 @@ Builder.load_string("""
                 text: 'Border Tinting:'
             NormalButton:
                 text: 'Reset'
-                on_press: root.reset_tint()
+                on_release: root.reset_tint()
         BoxLayout:
             size_hint_y: None
             height: sp(33)*10
@@ -1178,16 +1176,16 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.save_image()
+            on_release: root.save_image()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_denoise
         text: "Load Last Settings"
-        on_press: root.load_last()
+        on_release: root.load_last()
     MediumBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -1197,7 +1195,7 @@ Builder.load_string("""
             text: 'Denoise Image:'
         NormalButton:
             text: 'Reset All'
-            on_press: root.reset_all()
+            on_release: root.reset_all()
     GridLayout:
         canvas.before:
             Color:
@@ -1213,7 +1211,7 @@ Builder.load_string("""
         #NormalButton:
         #    size_hint_x: 1
         #    text: 'Generate Full Preview'
-        #    on_press: root.denoise()
+        #    on_release: root.denoise()
         FloatLayout:
             canvas.before:
                 Color:
@@ -1305,16 +1303,16 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.owner.save_image()
+            on_release: root.owner.save_image()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     WideButton:
         id: loadLast
         disabled: not root.owner.edit_crop
         text: "Load Last Settings"
-        on_press: root.load_last()
+        on_release: root.load_last()
     MediumBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -1324,7 +1322,7 @@ Builder.load_string("""
             text: 'Image Cropping:'
         NormalButton:
             text: 'Reset All'
-            on_press: root.reset_crop()
+            on_release: root.reset_crop()
     LeftNormalLabel:
         size_hint_y: None
         height: app.button_scale
@@ -1405,7 +1403,7 @@ Builder.load_string("""
         cols: 1
         size_hint: 1, None
         height: self.minimum_height
-        MenuStarterButton:
+        MenuStarterButtonWide:
             size_hint_x: 1
             text: 'Set Aspect Ratio...'
             id: aspectRatios
@@ -1440,11 +1438,11 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_press: root.owner.save_image()
+            on_release: root.owner.save_image()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     MediumBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -1454,7 +1452,7 @@ Builder.load_string("""
             text: 'Image Rotation:'
         NormalButton:
             text: 'Reset All'
-            on_press: root.reset_all()
+            on_release: root.reset_all()
     GridLayout:
         canvas.before:
             Color:
@@ -1539,7 +1537,7 @@ Builder.load_string("""
     height: self.minimum_height
     WideButton:
         text: 'Cancel Edit'
-        on_press: root.owner.set_edit_panel('main')
+        on_release: root.owner.set_edit_panel('main')
     MediumBufferY:
     NormalLabel:
         text: 'Convert Is Not Available For Images'
@@ -1555,11 +1553,11 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Begin Conversion'
-            on_press: root.encode()
+            on_release: root.encode()
         WideButton:
             text: 'Cancel Edit'
             warn: True
-            on_press: root.owner.set_edit_panel('main')
+            on_release: root.owner.set_edit_panel('main')
     MediumBufferY:
     NormalLabel:
         text: 'Convert Video:'
@@ -1988,7 +1986,7 @@ Builder.load_string("""
             text: root.command
             text_size: (self.size[0] - app.padding*2, None)
             shorten: True
-            on_press: root.select_command()
+            on_release: root.select_command()
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
@@ -2191,7 +2189,7 @@ class AlbumScreen(Screen):
     type = StringProperty('None')  #'Folder', 'Album', 'Tag'
     target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
     photos = []  #Photoinfo of all photos in the album
-    sort_method = StringProperty('File Name')  #Current album sort method
+    sort_method = StringProperty('Name')  #Current album sort method
     sort_reverse = BooleanProperty(False)
 
     #Variables relating to the photo view
@@ -2949,9 +2947,7 @@ class AlbumScreen(Screen):
             content = ConfirmPopup(text='Delete The Selected File?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_selected_answer)
-        self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None),
-                                 size=(app.popup_x, app.button_scale * 4),
-                                 auto_dismiss=False)
+        self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
         self.popup.open()
 
     def delete_selected_answer(self, instance, answer):
@@ -3207,13 +3203,13 @@ class AlbumScreen(Screen):
             self.photos = app.database_get_folder(self.target)
 
         #Sort photos
-        if self.sort_method == 'Import Date':
+        if self.sort_method == 'Imported':
             sorted_photos = sorted(self.photos, key=lambda x: x[6], reverse=self.sort_reverse)
-        elif self.sort_method == 'Modified Date':
+        elif self.sort_method == 'Modified':
             sorted_photos = sorted(self.photos, key=lambda x: x[7], reverse=self.sort_reverse)
         elif self.sort_method == 'Owner':
             sorted_photos = sorted(self.photos, key=lambda x: x[11], reverse=self.sort_reverse)
-        elif self.sort_method == 'File Name':
+        elif self.sort_method == 'Name':
             sorted_photos = sorted(self.photos, key=lambda x: os.path.basename(x[0]), reverse=self.sort_reverse)
         else:
             sorted_photos = sorted(self.photos, key=lambda x: x[0], reverse=self.sort_reverse)
@@ -3262,20 +3258,20 @@ class AlbumScreen(Screen):
         container = self.ids['photoViewerContainer']
         full_filename = os.path.join(photoinfo[2], photoinfo[0])
         filename = os.path.basename(photoinfo[0])
-        info_panel.add_node(TreeViewInfo(title='Filename:', content=filename))
+        info_panel.add_node(TreeViewInfo(title='Filename: ' + filename))
         path = os.path.join(photoinfo[2], photoinfo[1])
-        info_panel.add_node(TreeViewInfo(title='Path:', content=path))
+        info_panel.add_node(TreeViewInfo(title='Path: ' + path))
         database_folder = photoinfo[2]
-        info_panel.add_node(TreeViewInfo(title='Database:', content=database_folder))
+        info_panel.add_node(TreeViewInfo(title='Database: ' + database_folder))
         import_date = datetime.datetime.fromtimestamp(photoinfo[6]).strftime('%Y-%m-%d, %I:%M%p')
-        info_panel.add_node(TreeViewInfo(title='Import Date:', content=import_date))
+        info_panel.add_node(TreeViewInfo(title='Import Date: ' + import_date))
         modified_date = datetime.datetime.fromtimestamp(photoinfo[7]).strftime('%Y-%m-%d, %I:%M%p')
-        info_panel.add_node(TreeViewInfo(title='Modified Date:', content=modified_date))
+        info_panel.add_node(TreeViewInfo(title='Modified Date: ' + modified_date))
         if os.path.exists(full_filename):
             file_size = format_size(int(os.path.getsize(full_filename)))
         else:
             file_size = format_size(photoinfo[4])
-        info_panel.add_node(TreeViewInfo(title='File Size:', content=file_size))
+        info_panel.add_node(TreeViewInfo(title='File Size: ' + file_size))
 
         #Add resolution info
         try:
@@ -3304,7 +3300,7 @@ class AlbumScreen(Screen):
             self.viewer.scale_max = scale_max
             resolution = str(self.image_x) + ' * ' + str(self.image_y)
             megapixels = round(((self.image_x * self.image_y) / 1000000), 2)
-            info_panel.add_node(TreeViewInfo(title='Resolution:', content=str(megapixels) + 'MP (' + resolution + ')'))
+            info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
         else:
             self.image_x = 0
             self.image_y = 0
@@ -3313,46 +3309,46 @@ class AlbumScreen(Screen):
         if exif:
             if 271 in exif:
                 camera_type = exif[271]+' '+exif[272]
-                info_panel.add_node(TreeViewInfo(title='Camera:', content=camera_type))
+                info_panel.add_node(TreeViewInfo(title='Camera: ' + camera_type))
             if 33432 in exif:
                 copyright = exif[33432]
-                info_panel.add_node(TreeViewInfo(title='Copyright:', content=copyright))
+                info_panel.add_node(TreeViewInfo(title='Copyright: ' + copyright))
             if 36867 in exif:
                 camera_date = exif[36867]
-                info_panel.add_node(TreeViewInfo(title='Date Taken:', content=camera_date))
+                info_panel.add_node(TreeViewInfo(title='Date Taken: ' + camera_date))
             if 33434 in exif:
                 exposure = exif[33434]
                 camera_exposure = str(exposure[0]/exposure[1])+'seconds'
-                info_panel.add_node(TreeViewInfo(title='Exposure Time:', content=camera_exposure))
+                info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
             if 37377 in exif:
                 camera_shutter_speed = str(exif[37377][0]/exif[37377][1])
-                info_panel.add_node(TreeViewInfo(title='Shutter Speed:', content=camera_shutter_speed))
+                info_panel.add_node(TreeViewInfo(title='Shutter Speed: ' + camera_shutter_speed))
             if 33437 in exif:
                 f_stop = exif[33437]
                 camera_f = str(f_stop[0]/f_stop[1])
-                info_panel.add_node(TreeViewInfo(title='F Stop:', content=camera_f))
+                info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
             if 37378 in exif:
                 camera_aperture = str(exif[37378][0]/exif[37378][0])
-                info_panel.add_node(TreeViewInfo(title='Aperture:', content=camera_aperture))
+                info_panel.add_node(TreeViewInfo(title='Aperture: ' + camera_aperture))
             if 34855 in exif:
                 camera_iso = str(exif[34855])
-                info_panel.add_node(TreeViewInfo(title='ISO Level:', content=camera_iso))
+                info_panel.add_node(TreeViewInfo(title='ISO Level: ' + camera_iso))
             if 37385 in exif:
                 flash = bin(exif[37385])[2:].zfill(8)
                 camera_flash = 'Not Used' if flash[1] == '0' else 'Used'
-                info_panel.add_node(TreeViewInfo(title='Flash:', content=str(camera_flash)))
+                info_panel.add_node(TreeViewInfo(title='Flash: ' + str(camera_flash)))
             if 37386 in exif:
                 focal_length = str(exif[37386][0]/exif[37386][1])+'mm'
                 if 41989 in exif:
                     film_focal = exif[41989]
                     if film_focal != 0:
                         focal_length = focal_length+' ('+str(film_focal)+' 35mm equiv.)'
-                info_panel.add_node(TreeViewInfo(title='Focal Length:', content=focal_length))
+                info_panel.add_node(TreeViewInfo(title='Focal Length: ' + focal_length))
             if 41988 in exif:
                 digital_zoom = exif[41988]
                 if digital_zoom[0] != 0:
-                    digital_zoom_amount = str(round(digital_zoom[0]/digital_zoom[1],2))+'X'
-                    info_panel.add_node(TreeViewInfo(title='Digital Zoom:', content=digital_zoom_amount))
+                    digital_zoom_amount = str(round(digital_zoom[0]/digital_zoom[1], 2))+'X'
+                    info_panel.add_node(TreeViewInfo(title='Digital Zoom: ' + digital_zoom_amount))
             if 34850 in exif:
                 exposure_program = exif[34850]
                 if exposure_program > 0:
@@ -3372,7 +3368,7 @@ class AlbumScreen(Screen):
                         program_name = 'Portrait'
                     else:
                         program_name = 'Landscape'
-                    info_panel.add_node(TreeViewInfo(title='Exposure Mode:', content=program_name))
+                    info_panel.add_node(TreeViewInfo(title='Exposure Mode: ' + program_name))
 
     def resort_method(self, method):
         """Sets the album sort method.
@@ -3576,8 +3572,7 @@ class AlbumScreen(Screen):
 
         # Create popup to show progress
         self.cancel_encoding = False
-        self.popup = ScanningPopup(title='Processing Video', auto_dismiss=False, size_hint=(None, None),
-                                   size=(app.popup_x, app.button_scale * 4))
+        self.popup = ScanningPopup(title='Processing Video', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
         self.popup.scanning_text = ''
         self.popup.open()
         encoding_button = self.popup.ids['scanningButton']
@@ -4762,7 +4757,6 @@ class TreeViewInfo(BoxLayout, TreeViewNode):
     Has two elements, they will be shown as: 'title: content'"""
 
     title = StringProperty()
-    content = StringProperty()
 
 
 class VideoThumbnail(FloatLayout):
@@ -5197,7 +5191,7 @@ class EditMain(GridLayout):
         for index, preset in enumerate(app.programs):
             name, command, argument = preset
             program_button = ExpandableButton(text=name, index=index)
-            program_button.bind(on_press=lambda button: app.program_run(button.index, button))
+            program_button.bind(on_release=lambda button: app.program_run(button.index, button))
             program_button.bind(on_remove=lambda button: self.remove_program(button.index))
             program_button.content = ExternalProgramEditor(index=index, name=name, command=command, argument=argument,
                                                            owner=self)
@@ -6670,8 +6664,7 @@ class ExternalProgramEditor(GridLayout):
         content = FileBrowser(ok_text='Select', filters=['*'])
         content.bind(on_cancel=lambda x: self.owner.owner.dismiss_popup())
         content.bind(on_ok=self.select_command_confirm)
-        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content,
-                                                         size_hint=(0.9, 0.9))
+        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content, size_hint=(0.9, 0.9))
         filepopup.open()
 
     def select_command_confirm(self, *_):
@@ -6739,7 +6732,7 @@ class PhotoRecycleViewButton(RecycleItem):
 class RemoveFromTagButton(RemoveButton):
     """Button to remove a tag from the current photo."""
 
-    def on_press(self):
+    def on_release(self):
         app = App.get_running_app()
         app.database_remove_tag(self.remove_from, self.to_remove, message=True)
         self.owner.update_treeview()
@@ -6748,7 +6741,7 @@ class RemoveFromTagButton(RemoveButton):
 class RemoveTagButton(RemoveButton):
     """Button to remove a tag from the tags list.  Will popup a confirm dialog before removing."""
 
-    def on_press(self):
+    def on_release(self):
         app = App.get_running_app()
         content = ConfirmPopup(text='Delete The Tag "'+self.to_remove+'"?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         content.bind(on_answer=self.on_answer)
