@@ -123,19 +123,25 @@ Builder.load_string("""
                 RelativeLayout:
                     id: photoViewerContainer
                 Header:
+                    height: app.button_scale if root.edit_panel == 'main' else 0
+                    disabled: False if root.edit_panel == 'main' else True
+                    opacity: 1 if root.edit_panel == 'main' else 0
                     id: buttonsFooter
                     NormalButton:
+                        size_hint_y: 1
                         text: 'Full Screen'
                         on_press: root.fullscreen()
                     Label:
                         text: ''
                     NormalToggle:
+                        size_hint_y: 1
                         text: '  Favorite  '
                         id: favoriteButton
                         state: 'down' if root.favorite else 'normal'
                         on_press: root.set_favorite()
                         disabled: app.database_scanning
                     NormalButton:
+                        size_hint_y: 1
                         width: self.texture_size[0] + 20 if root.canprint else 0
                         opacity: 1 if root.canprint else 0
                         disabled: not root.canprint
@@ -143,6 +149,7 @@ Builder.load_string("""
                         text: '  Print  '
                         on_release: app.print_photo()
                     NormalButton:
+                        size_hint_y: 1
                         id: deleteButton
                         warn: True
                         text: '  Delete  '
@@ -359,11 +366,11 @@ Builder.load_string("""
                     id: image
                     mipmap: True
     BoxLayout:
-        opacity: 0 if root.fullscreen or app.simple_interface else 1
+        opacity: 0 if root.fullscreen or app.simple_interface or root.edit_mode != 'main' else 1
         disabled: True if root.fullscreen or (root.edit_mode != 'main') or app.simple_interface else False
         orientation: 'horizontal'
         size_hint_y: None
-        height: 0 if  root.fullscreen or app.simple_interface else app.button_scale
+        height: 0 if  root.fullscreen or app.simple_interface or root.edit_mode != 'main' else app.button_scale
         Label:
             size_hint_x: .25
         ShortLabel:
@@ -438,7 +445,7 @@ Builder.load_string("""
             start: root.start_point
             end: root.end_point
             on_value: root.position = self.value
-            height: 44
+            height: app.button_scale
 
 <ExitFullscreenButton>:
     text: 'Back'
@@ -480,17 +487,20 @@ Builder.load_string("""
         text: 'Denoise'
         on_release: root.owner.set_edit_panel('denoise')
         disabled: not root.owner.view_image or not root.owner.opencv
+        #disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
     SmallBufferY:
         height: int(app.button_scale / 4) if root.owner.opencv else 0
     WideButton:
         text: 'Rotate Image'
         on_release: root.owner.set_edit_panel('rotate')
         disabled: not root.owner.view_image
+        #disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
     SmallBufferY:
     WideButton:
         text: 'Crop Image'
         on_release: root.owner.set_edit_panel('crop')
         disabled: not root.owner.view_image
+        #disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
     SmallBufferY:
     WideButton:
         text: 'Convert'
@@ -964,7 +974,7 @@ Builder.load_string("""
             size_hint_y: None
             height: app.button_scale
             LeftNormalLabel:
-                text: 'Vignette Size:'
+                text: 'Size:'
             NormalButton:
                 text: 'Reset'
                 on_release: root.reset_vignette_size()
@@ -1005,7 +1015,7 @@ Builder.load_string("""
             size_hint_y: None
             height: app.button_scale
             LeftNormalLabel:
-                text: 'Edge Blur Size:'
+                text: 'Size:'
             NormalButton:
                 text: 'Reset'
                 on_release: root.reset_edge_blur_size()
@@ -1020,7 +1030,7 @@ Builder.load_string("""
             size_hint_y: None
             height: app.button_scale
             LeftNormalLabel:
-                text: 'Edge Blur Intensity:'
+                text: 'Intensity:'
             NormalButton:
                 text: 'Reset'
                 on_release: root.reset_edge_blur_intensity()
@@ -1261,7 +1271,7 @@ Builder.load_string("""
             size_hint_y: None
             height: app.button_scale
             NormalLabel:
-                text: 'Luminance Denoise: '
+                text: 'Luminance: '
             IntegerInput:
                 text: root.luminance_denoise
                 on_text: root.luminance_denoise = self.text
@@ -1270,7 +1280,7 @@ Builder.load_string("""
             size_hint_y: None
             height: app.button_scale
             NormalLabel:
-                text: 'Color Denoise: '
+                text: 'Color: '
             IntegerInput:
                 text: root.color_denoise
                 on_text: root.color_denoise = self.text
@@ -1279,7 +1289,7 @@ Builder.load_string("""
             size_hint_y: None
             height: app.button_scale
             NormalLabel:
-                text: 'Noise Search Size: '
+                text: 'Search Size: '
             IntegerInput:
                 text: root.search_window
                 on_text: root.search_window = self.text
@@ -1501,14 +1511,20 @@ Builder.load_string("""
             height: app.button_scale
             orientation: 'horizontal'
             NormalToggle:
+                text_size: self.size
+                halign: 'center'
+                valign: 'middle'
                 id: flip_horizontal
                 size_hint_x: 1
-                text: 'Flip Horizontally'
+                text: 'Horizontal Flip'
                 on_press: root.update_flip_horizontal(self.state)
             NormalToggle:
+                text_size: self.size
+                halign: 'center'
+                valign: 'middle'
                 id: flip_vertical
                 size_hint_x: 1
-                text: 'Flip Vertically'
+                text: 'Vertical Flip'
                 on_press: root.update_flip_vertical(self.state)
 
     MediumBufferY:
@@ -1525,7 +1541,7 @@ Builder.load_string("""
         size_hint: 1, None
         height: self.minimum_height
         NormalLabel:
-            text: 'Fine Tune Rotation:'
+            text: 'Fine Rotation:'
         NormalSlider:
             id: fine_angle
             value: root.fine_angle
@@ -1552,7 +1568,7 @@ Builder.load_string("""
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'Begin Conversion'
+            text: 'Convert'
             on_release: root.encode()
         WideButton:
             text: 'Cancel Edit'
@@ -1588,18 +1604,12 @@ Builder.load_string("""
                 text: root.file_format
                 on_release: root.container_drop.open(self)
         SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Resize:'
-            NormalToggle:
-                id: resize
-                size_hint_x: 1
-                state: 'down' if root.resize else 'normal'
-                text: 'Enabled' if self.state == 'down' else 'Disabled'
-                on_release: root.update_resize(self.state)
+        NormalToggle:
+            id: resize
+            size_hint_x: 1
+            state: 'down' if root.resize else 'normal'
+            text: 'Resize' if self.state == 'down' else 'No Resize'
+            on_release: root.update_resize(self.state)
         BoxLayout:
             disabled: not root.resize
             orientation: 'horizontal'
@@ -1622,18 +1632,12 @@ Builder.load_string("""
                 text: root.resize_height
                 on_text: root.set_resize_height(self)
         SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Deinterlacing:'
-            NormalToggle:
-                id: deinterlace
-                size_hint_x: 1
-                state: 'down' if root.deinterlace else 'normal'
-                text: 'Enabled' if self.state == 'down' else 'Disabled'
-                on_release: root.update_deinterlace(self.state)
+        NormalToggle:
+            id: deinterlace
+            size_hint_x: 1
+            state: 'down' if root.deinterlace else 'normal'
+            text: 'Deinterlace' if self.state == 'down' else 'No Deinterlace'
+            on_release: root.update_deinterlace(self.state)
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1746,7 +1750,7 @@ Builder.load_string("""
         GridLayout:
             cols: 3
             size_hint: 1, None
-            height: int(app.button_scale * 8)
+            height: int(app.button_scale * 9)
 
             ShortLabel:
                 text: '%i'
@@ -2062,6 +2066,34 @@ Builder.load_string("""
         halign: 'left'
         valign: 'center'
 
+<ColorPickerCustom_Label@Label>:
+    mroot: None
+    size_hint_x: None
+    width: '30sp'
+    text_size: self.size
+    halign: "center"
+    valign: "middle"
+
+<ColorPickerCustom_Selector@BoxLayout>:
+    foreground_color: None
+    text: ''
+    mroot: None
+    mode: 'rgb'
+    color: 0
+    spacing: '2sp'
+    ColorPickerCustom_Label:
+        text: root.text
+        mroot: root.mroot
+        color: root.foreground_color or (1, 1, 1, 1)
+    Slider:
+        id: sldr
+        size_hint: 1, .25
+        pos_hint: {'center_y':.5}
+        range: 0, 255
+        value: root.color * 255
+        on_value:
+            root.mroot._trigger_update_clr(root.mode, root.clr_idx, args[1])
+
 <ColorPickerCustom>:
     canvas.before:
         Color:
@@ -2081,10 +2113,10 @@ Builder.load_string("""
             id: wheel
             color: root.color
             on_color: root.color[:3] = args[1][:3]
-        StackLayout:
-            orientation: 'tb-lr'
+        GridLayout:
+            cols: 1
             size_hint_y: None
-            height: sp(33) * 3
+            height: self.minimum_height
             canvas:
                 Color:
                     rgba: root.color
@@ -2092,37 +2124,18 @@ Builder.load_string("""
                     size: self.size
                     pos: self.pos
 
-            ColorPicker_Selector:
+            ColorPickerCustom_Selector:
                 mroot: root
                 text: 'R'
                 clr_idx: 0
                 color: wheel.r
                 foreground_color: root.foreground_color
                 size_hint_y: None
-                size_hint_x: .5
-                height: '33sp'
+                height: 0
+                disabled: True
+                opacity: 0
 
-            ColorPicker_Selector:
-                mroot: root
-                text: 'G'
-                clr_idx: 1
-                color: wheel.g
-                foreground_color: root.foreground_color
-                size_hint_y: None
-                size_hint_x: .5
-                height: '33sp'
-
-            ColorPicker_Selector:
-                mroot: root
-                text: 'B'
-                clr_idx: 2
-                color: wheel.b
-                foreground_color: root.foreground_color
-                size_hint_y: None
-                size_hint_x: .5
-                height: '33sp'
-                
-            ColorPicker_Selector:
+            ColorPickerCustom_Selector:
                 mroot: root
                 mode: 'hsv'
                 text: 'H'
@@ -2130,10 +2143,9 @@ Builder.load_string("""
                 color: root.hsv[0]
                 foreground_color: root.foreground_color
                 size_hint_y: None
-                size_hint_x: .5
-                height: '33sp'
-                
-            ColorPicker_Selector:
+                height: app.button_scale
+
+            ColorPickerCustom_Selector:
                 mroot: root
                 mode: 'hsv'
                 text: 'S'
@@ -2141,10 +2153,9 @@ Builder.load_string("""
                 color: root.hsv[1]
                 foreground_color: root.foreground_color
                 size_hint_y: None
-                size_hint_x: .5
-                height: '33sp'
-                
-            ColorPicker_Selector:
+                height: app.button_scale
+
+            ColorPickerCustom_Selector:
                 mroot: root
                 mode: 'hsv'
                 text: 'V'
@@ -2152,8 +2163,7 @@ Builder.load_string("""
                 color: root.hsv[2]
                 foreground_color: root.foreground_color
                 size_hint_y: None
-                size_hint_x: .5
-                height: '33sp'
+                height: app.button_scale
 
 """)
 
@@ -3524,19 +3534,16 @@ class AlbumScreen(Screen):
                     self.edit_panel_object = EditBorderImage(owner=self)
                 elif self.edit_panel == 'denoise':
                     if opencv:
-                        if self.view_image:
-                            self.edit_panel_object = EditDenoiseImage(owner=self, imagefile=self.photo, image_x=self.image_x, image_y=self.image_y)
+                        self.edit_panel_object = EditDenoiseImage(owner=self, imagefile=self.photo, image_x=self.viewer.edit_image.original_width, image_y=self.viewer.edit_image.original_height)
                     else:
                         self.edit_panel = 'main'
                         app = App.get_running_app()
                         app.message("Could Not Denoise, OpenCV Not Found")
                 elif self.edit_panel == 'crop':
-                    if self.view_image:
-                        self.edit_panel_object = EditCropImage(owner=self, image_x=self.image_x, image_y=self.image_y)
-                        self.viewer.edit_image.crop_controls = self.edit_panel_object
+                    self.edit_panel_object = EditCropImage(owner=self, image_x=self.viewer.edit_image.original_width, image_y=self.viewer.edit_image.original_height)
+                    self.viewer.edit_image.crop_controls = self.edit_panel_object
                 elif self.edit_panel == 'rotate':
-                    if self.view_image:
-                        self.edit_panel_object = EditRotateImage(owner=self)
+                    self.edit_panel_object = EditRotateImage(owner=self)
                 elif self.edit_panel == 'convert':
                     if self.view_image:
                         self.edit_panel_object = EditConvertImage(owner=self)
@@ -4411,6 +4418,7 @@ class CustomImage(KivyImage):
             original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
             self.original_width = original_image.size[0]
             self.original_height = original_image.size[1]
+            self.original_image = original_image
             image = original_image.copy()
 
         else:
@@ -4425,8 +4433,8 @@ class CustomImage(KivyImage):
             self.original_width = original_image.size[0]
             self.original_height = original_image.size[1]
             image = original_image.copy()
-            self.original_image = original_image.copy()
-            original_image.close()
+            self.original_image = original_image
+            #original_image.close()
         width = int(self.width)
         height = int(self.width*(image.size[1]/image.size[0]))
         if width < 10:

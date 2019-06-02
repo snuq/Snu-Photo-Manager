@@ -181,6 +181,12 @@ Builder.load_string("""
                     Label:
                         text: ''
                     NormalButton:
+                        text: 'Browse Folder'
+                        disabled: not root.can_browse
+                        opacity: 1 if root.can_browse else 0
+                        width: (self.texture_size[0] + app.button_scale) if root.can_browse else 0
+                        on_release: root.open_browser()
+                    NormalButton:
                         text: 'Export'
                         disabled: not root.can_export
                         on_release: root.export()
@@ -405,6 +411,27 @@ class DatabaseScreen(Screen):
     can_delete_folder = BooleanProperty(False)
     can_rename_folder = BooleanProperty(False)
     can_new_folder = BooleanProperty(False)
+    can_browse = BooleanProperty(False)
+
+    def open_browser(self):
+        if self.can_browse:
+            try:
+                import webbrowser
+                folders = []
+                for photo in self.photos:
+                    path = os.path.join(photo[2], photo[1])
+                    folders.append(path)
+                if folders:
+                    folder = max(set(folders), key=folders.count)
+                    webbrowser.open(folder)
+            except:
+                pass
+
+    def update_can_browse(self):
+        if platform in ['win', 'linux', 'macosx'] and self.type.lower() == 'folder' and self.displayable:
+            self.can_browse = True
+        else:
+            self.can_browse = False
 
     def clear_search(self, *_):
         self.search_text = ''
@@ -1471,6 +1498,7 @@ class DatabaseScreen(Screen):
                     datas.append(data)
                 self.data = datas
                 app.thumbnails.commit()
+            self.update_can_browse()
             self.update_selected()
 
     def resort_method(self, method):

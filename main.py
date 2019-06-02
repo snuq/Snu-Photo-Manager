@@ -1,6 +1,7 @@
 """
-Bugs:
-    android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
+Todo:
+    Rework cropping editor
+    Allow video Denoise/Rotate/Crop
 
 Possible Todo (Later On):
     create collage feature
