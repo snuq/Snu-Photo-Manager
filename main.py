@@ -3,6 +3,7 @@ Bugs:
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
 
 Todo:
+    Improve database transfer screen - allow shift-click selections
     android: need to include ffmpeg executable
 
 Possible Todo (Later On):
@@ -155,7 +156,7 @@ class PhotoManager(App):
     selected_color = (0.5098, 0.8745, 0.6588, .5)
     color_odd = (0, 0, 0, 0)
     color_even = (1, 1, 1, .1)
-    padding = 10
+    padding = NumericProperty(10)
     popup_x = 640
 
     interpolation = StringProperty('Catmull-Rom')  #Interpolation mode of the curves dialog.
@@ -730,7 +731,7 @@ class PhotoManager(App):
             "section": "Settings",
             "key": "backupdatabase"
         })
-        settings.add_json_panel('Settings', self.config, data=json.dumps(settingspanel))
+        settings.add_json_panel('App', self.config, data=json.dumps(settingspanel))
 
     def has_database(self, *_):
         databases = self.get_database_directories()
@@ -1506,6 +1507,7 @@ class PhotoManager(App):
             else:
                 button_multiplier = 2
             self.button_scale = int((Window.height / interface_multiplier) * int(self.config.get("Settings", "buttonsize")) / 100) * button_multiplier
+            self.padding = self.button_scale / 4
             self.text_scale = int((self.button_scale / 3) * int(self.config.get("Settings", "textsize")) / 100)
             Clock.schedule_once(self.show_database)
 

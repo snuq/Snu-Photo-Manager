@@ -1,5 +1,5 @@
 Snu Photo Manager
-Version 0.9.005, Released May 2019
+Version 0.9.006, Released June 2019
 
 Programmed in Python
 Artwork created in Blender, Gimp and Inkscape

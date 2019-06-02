@@ -1,6 +1,6 @@
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.uix.settings import Settings, SettingItem
+from kivy.uix.settings import SettingsWithTabbedPanel, SettingItem
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.core.window import Window
@@ -97,10 +97,16 @@ Builder.load_string("""
             text: root.button_text
             on_release: root.close()
 
+<-SettingsPanel>:
+    spacing: 5
+    padding: 5
+    size_hint_y: None
+    height: self.minimum_height
+
 """)
 
 
-class PhotoManagerSettings(Settings):
+class PhotoManagerSettings(SettingsWithTabbedPanel):
     """Expanded settings class to add new settings buttons and types."""
 
     def __init__(self, **kwargs):

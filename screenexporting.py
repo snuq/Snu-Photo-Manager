@@ -105,7 +105,7 @@ Builder.load_string("""
                 multiline: False
                 text: root.name
                 on_focus: root.set_title(self)
-        LargeBufferX:
+        MediumBufferX:
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -230,9 +230,10 @@ Builder.load_string("""
             pos: self.pos
             source: 'data/tabbg.png'
     padding: app.padding
-    cols: 3
+    spacing: app.padding, app.padding
+    cols: 1 if app.simple_interface else 2
+    height: self.minimum_height
     size_hint_y: None
-    height: (app.button_scale * 2) + (app.padding * 2)
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
@@ -243,7 +244,6 @@ Builder.load_string("""
             input_filter: 'int'
             text: str(root.owner.scale_size)
             on_focus: root.owner.set_scale_size(self)
-    LargeBufferX:
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
@@ -261,7 +261,7 @@ Builder.load_string("""
         height: app.button_scale
         ShortLabel:
             id: jpegQualityValue
-            text: 'JPEG Quality: '+str(root.owner.jpeg_quality)+'%'
+            text: 'Quality: '+str(root.owner.jpeg_quality)+'%'
         NormalSlider:
             size_hint_x: 1
             min: 1
@@ -278,98 +278,92 @@ Builder.load_string("""
             pos: self.pos
             source: 'data/tabbg.png'
     padding: app.padding
+    spacing: app.padding, 0
     cols: 3
     size_hint_y: None
-    height: (app.button_scale * 5) + (app.padding * 2)
+    height: self.minimum_height
     GridLayout:
         cols: 1
-        size_hint_x: .67
-        size_hint_y: None
-        height: (app.button_scale * 5)
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                text: 'Watermark Image:'
-            NormalButton:
-                size_hint_x: 1
-                text: root.owner.watermark_image
-                #text_size: self.size
-                on_release: root.owner.select_watermark()
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                size_hint_x: .5
-                id: watermarkOpacityValue
-                text: 'Watermark Opacity:'+str(root.owner.watermark_opacity)+'%'
-            NormalSlider:
-                size_hint_x: .5
-                min: 0
-                max: 100
-                value: root.owner.watermark_opacity
-                on_value: root.owner.set_watermark_opacity(self)
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                size_hint_x: .5
-                id: watermarkHorizontalValue
-                text: 'Horizontal Position:'+str(root.owner.watermark_horizontal)+'%'
-            NormalSlider:
-                size_hint_x: .5
-                min: 0
-                max: 100
-                value: root.owner.watermark_horizontal
-                on_value: root.owner.set_watermark_horizontal(self)
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                size_hint_x: .5
-                id: watermarkVerticalValue
-                text: 'Vertical Position:'+str(root.owner.watermark_vertical)+'%'
-            NormalSlider:
-                size_hint_x: .5
-                min: 0
-                max: 100
-                value: root.owner.watermark_vertical
-                on_value: root.owner.set_watermark_vertical(self)
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                size_hint_x: .5
-                id: watermarkSizeValue
-                text: 'Watermark Size:'+str(root.owner.watermark_size)+'%'
-            NormalSlider:
-                size_hint_x: .5
-                min: 1
-                max: 100
-                value: root.owner.watermark_size
-                on_value: root.owner.set_watermark_size(self)
-    LargeBufferX:
-    FloatLayout:
-        canvas.before:
-            Rectangle:
-                size: self.size
-                pos: self.pos
-                source: 'data/test.png'
-        id: testImage
         size_hint_x: None
         size_hint_y: None
-        height: (app.button_scale * 5)
-        width: int(app.button_scale * 6.67)
+        width: self.minimum_width
+        height: app.button_scale * 5
+        NormalLabel:
+            size_hint_x: None
+            width: self.texture_size[0]
+            text: 'Image: '
+        NormalLabel:
+            size_hint_x: None
+            width: self.texture_size[0]
+            id: watermarkOpacityValue
+            text: 'Opacity: '
+        NormalLabel:
+            size_hint_x: None
+            width: self.texture_size[0]
+            id: watermarkHorizontalValue
+            text: 'Horizontal:'
+        NormalLabel:
+            size_hint_x: None
+            width: self.texture_size[0]
+            id: watermarkVerticalValue
+            text: 'Vertical: '
+        NormalLabel:
+            size_hint_x: None
+            width: self.texture_size[0]
+            id: watermarkSizeValue
+            text: 'Size: '
+
+    GridLayout:
+        cols: 1
+        size_hint_y: None
+        height: app.button_scale * 5
+        NormalButton:
+            size_hint_x: 1
+            text: root.owner.watermark_image
+            on_release: root.owner.select_watermark()
+        NormalSlider:
+            size_hint_x: .5
+            min: 0
+            max: 100
+            value: root.owner.watermark_opacity
+            on_value: root.owner.set_watermark_opacity(self)
+        NormalSlider:
+            size_hint_x: .5
+            min: 0
+            max: 100
+            value: root.owner.watermark_horizontal
+            on_value: root.owner.set_watermark_horizontal(self)
+        NormalSlider:
+            size_hint_x: .5
+            min: 0
+            max: 100
+            value: root.owner.watermark_vertical
+            on_value: root.owner.set_watermark_vertical(self)
+        NormalSlider:
+            size_hint_x: .5
+            min: 1
+            max: 100
+            value: root.owner.watermark_size
+            on_value: root.owner.set_watermark_size(self)
+
+    StackLayout:
+        orientation: 'tb-lr'
+        size_hint_x: 0.5
+        FloatLayout:
+            canvas.before:
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+                    source: 'data/test.png'
+            id: testImage
+            size_hint_x: 1
+            size_hint_y: None
+            height: int(self.width * .75)
 
 <FolderToggleSettings>:
     cols: 2
     size_hint_y: None
-    height: app.button_scale
+    height: self.minimum_height
     NormalInput:
         id: exportTo
         input_filter: root.owner.filename_filter
@@ -381,66 +375,61 @@ Builder.load_string("""
         on_release: root.owner.select_export()
 
 <FTPToggleSettings>:
-    cols: 1
     size_hint_y: None
-    height: (app.button_scale * 2)
-    GridLayout:
-        size_hint_y: None
+    spacing: app.padding, app.padding
+    cols: 1 if app.simple_interface else 2
+    height: self.minimum_height
+    BoxLayout:
         height: app.button_scale
-        cols: 3
-        BoxLayout:
-            orientation: 'horizontal'
-            ShortLabel:
-                text: 'FTP Server And Folder: '
-            NormalInput:
-                multiline: False
-                text: root.owner.ftp_address
-                input_filter: root.owner.ftp_filter
-                on_focus: root.owner.set_ftp_address(self)
-        MediumBufferX:
-        BoxLayout:
-            orientation: 'horizontal'
-            BoxLayout:
-                orientation: 'horizontal'
-                size_hint_x: .5
-                NormalToggle:
-                    size_hint_x: 1
-                    text: 'Passive Mode' if root.owner.ftp_passive else 'Active Mode'
-                    state: 'down' if root.owner.ftp_passive else 'normal'
-                    on_press: root.owner.set_ftp_passive(self)
-            MediumBufferX:
-            BoxLayout:
-                orientation: 'horizontal'
-                size_hint_x: .5
-                ShortLabel:
-                    text: 'Port: '
-                NormalInput:
-                    multiline: False
-                    text: str(root.owner.ftp_port)
-                    input_filter: 'int'
-                    on_focus: root.owner.set_ftp_port(self)
-    GridLayout:
         size_hint_y: None
+        orientation: 'horizontal'
+        ShortLabel:
+            text: 'Server And Folder: '
+        NormalInput:
+            multiline: False
+            text: root.owner.ftp_address
+            input_filter: root.owner.ftp_filter
+            on_focus: root.owner.set_ftp_address(self)
+    BoxLayout:
         height: app.button_scale
-        cols: 3
+        size_hint_y: None
+        orientation: 'horizontal'
+        NormalToggle:
+            size_hint_x: 1
+            text: 'Passive Mode' if root.owner.ftp_passive else 'Active Mode'
+            state: 'down' if root.owner.ftp_passive else 'normal'
+            on_press: root.owner.set_ftp_passive(self)
         BoxLayout:
             orientation: 'horizontal'
+            size_hint_x: 1
             ShortLabel:
-                text: 'User Name: '
+                text: 'Port: '
             NormalInput:
                 multiline: False
-                text: root.owner.ftp_user
-                on_focus: root.owner.set_ftp_user(self)
-        MediumBufferX:
-        BoxLayout:
-            orientation: 'horizontal'
-            ShortLabel:
-                text: 'Password: '
-            NormalInput:
-                password: True
-                multiline: False
-                text: root.owner.ftp_password
-                on_focus: root.owner.set_ftp_password(self)
+                text: str(root.owner.ftp_port)
+                input_filter: 'int'
+                on_focus: root.owner.set_ftp_port(self)
+    BoxLayout:
+        height: app.button_scale
+        size_hint_y: None
+        orientation: 'horizontal'
+        ShortLabel:
+            text: 'Login: '
+        NormalInput:
+            multiline: False
+            text: root.owner.ftp_user
+            on_focus: root.owner.set_ftp_user(self)
+    BoxLayout:
+        height: app.button_scale
+        size_hint_y: None
+        orientation: 'horizontal'
+        ShortLabel:
+            text: 'Password: '
+        NormalInput:
+            password: True
+            multiline: False
+            text: root.owner.ftp_password
+            on_focus: root.owner.set_ftp_password(self)
 """)
 
 
@@ -1151,36 +1140,26 @@ class ExportPresetArea(GridLayout):
 
     def set_watermark_opacity(self, instance):
         self.watermark_opacity = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkOpacityValue']
-        value_display.text = 'Watermark Opacity:'+str(self.watermark_opacity)+'%'
         self.update_preset()
         self.update_test_image()
 
     def set_watermark_horizontal(self, instance):
         self.watermark_horizontal = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkHorizontalValue']
-        value_display.text = 'Horizontal Position:'+str(self.watermark_horizontal)+'%'
         self.update_preset()
         self.update_test_image()
 
     def set_watermark_vertical(self, instance):
         self.watermark_vertical = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkVerticalValue']
-        value_display.text = 'Vertical Position:'+str(self.watermark_vertical)+'%'
         self.update_preset()
         self.update_test_image()
 
     def set_watermark_size(self, instance):
         self.watermark_size = int(instance.value)
-        value_display = self.watermark_settings.ids['watermarkSizeValue']
-        value_display.text = 'Watermark Size:'+str(self.watermark_size)+'%'
         self.update_preset()
         self.update_test_image()
 
     def set_jpeg_quality(self, instance):
         self.jpeg_quality = int(instance.value)
-        value_display = self.scale_settings.ids['jpegQualityValue']
-        value_display.text = 'JPEG Quality: '+str(self.jpeg_quality)+'%'
         self.update_preset()
 
     def change_scale_to(self, instance):

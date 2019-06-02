@@ -2522,7 +2522,7 @@ class AlbumScreen(Screen):
         if not command_valid:
             self.cancel_encode()
             self.dismiss_popup()
-            app.popup_message(text=command, title='Warning')
+            app.popup_message(text="Invalid FFMPEG command: " + command, title='Warning')
         print(command)
 
         output_file = output_file_folder+os.path.sep+output_filename

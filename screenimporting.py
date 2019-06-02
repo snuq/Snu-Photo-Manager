@@ -262,67 +262,99 @@ Builder.load_string("""
                         id: photos
 
 <ImportPresetArea>:
-    cols: 3
+    cols: 1 if app.simple_interface else 2
     size_hint_y: None
-    height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
+    padding: app.padding
+    spacing: app.padding, 0
+    height: self.minimum_height
+    #height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
     GridLayout:
         cols: 2
-        padding: 0, app.padding
-        ShortLabel:
-            text: '   Preset Name:   '
-        NormalInput:
-            size_hint_x: 1
-            text: root.title
-            multiline: False
-            input_filter: app.test_album
-            on_focus: root.set_title(self)
-        ShortLabel:
-            text: '   Folder Name:  '
-        NormalLabel:
-            text: root.naming_example
-        ShortLabel:
-            text: ' Naming Method:  '
-        NormalInput:
-            size_hint_x: 1
-            text: root.naming_method
-            multiline: False
-            input_filter: root.test_naming_method
-            on_focus: root.new_naming_method(self)
-        ShortLabel:
-            text: 'Delete Originals: '
-        NormalToggle:
-            size_hint_x: 1
-            state: 'down' if root.delete_originals == True else 'normal'
-            text: str(root.delete_originals)
-            on_press: root.set_delete_originals(self.state)
-        ShortLabel:
-            text: 'Import To Folders: '
-        NormalToggle:
-            size_hint_x: 1
-            state: 'down' if root.single_folder == True else 'normal'
-            text: 'Single Folder' if root.single_folder == True else 'Dated Folders'
-            on_press: root.set_single_folder(self.state)
-        ShortLabel:
-            text: '    Import To:    '
-        NormalButton:
-            id: importToButton
-            size_hint_x: 1
-            text: root.import_to
-            on_release: root.imports_dropdown.open(self)
-    MediumBufferX:
+        spacing: app.padding, 0
+        size_hint_y: None
+        height: app.button_scale * 6
+        GridLayout:
+            cols: 1
+            size_hint_x: None
+            size_hint_y: None
+            width: self.minimum_width
+            height: app.button_scale * 6
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Preset Name: '
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Folder Name: '
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Naming Method:  '
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Delete Originals: '
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Import To: '
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Database: '
+
+        GridLayout:
+            cols: 1
+            size_hint_y: None
+            height: app.button_scale * 6
+            NormalInput:
+                size_hint_x: 1
+                text: root.title
+                multiline: False
+                input_filter: app.test_album
+                on_focus: root.set_title(self)
+            NormalLabel:
+                text: root.naming_example
+            NormalInput:
+                size_hint_x: 1
+                text: root.naming_method
+                multiline: False
+                input_filter: root.test_naming_method
+                on_focus: root.new_naming_method(self)
+            NormalToggle:
+                size_hint_x: 1
+                state: 'down' if root.delete_originals == True else 'normal'
+                text: str(root.delete_originals)
+                on_press: root.set_delete_originals(self.state)
+            NormalToggle:
+                size_hint_x: 1
+                state: 'down' if root.single_folder == True else 'normal'
+                text: 'Single Folder' if root.single_folder == True else 'Dated Folders'
+                on_press: root.set_single_folder(self.state)
+            NormalButton:
+                id: importToButton
+                size_hint_x: 1
+                text: root.import_to
+                on_release: root.imports_dropdown.open(self)
     BoxLayout:
+        size_hint_y: None
+        height: app.button_scale * 6
         orientation: 'vertical'
-        padding: 0, app.padding
         NormalLabel:
             text_size: self.size
             halign: 'left'
             valign: 'middle'
             text: 'Import From Folders:'
-        NormalTreeView:
-            size_hint_y: 1
-            id: importPresetFolders
-            hide_root: True
-            root_options: {'text': 'Import From Folders:', 'font_size':app.text_scale}
+        Scroller:
+            size_hint_y: None
+            height: app.button_scale * 4
+            NormalTreeView:
+                size_hint_y: None
+                height: app.button_scale * 4
+                id: importPresetFolders
+                hide_root: True
+                root_options: {'text': 'Import From Folders:', 'font_size':app.text_scale}
         WideButton:
             text: 'Add Folder...'
             on_release: root.add_folder()

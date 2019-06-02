@@ -233,14 +233,12 @@ Builder.load_string("""
                 orientation: 'vertical'
                 id: leftArea
                 Header:
-                    ShortLabel:
-                        text: 'Database: '
                     MenuStarterButtonWide:
                         size_hint_x: 1
                         id: leftDatabaseMenu
                         text: root.left_database
                         on_release: root.database_dropdown_left.open(self)
-                    LargeBufferX:
+                    MediumBufferX:
                     ShortLabel:
                         text: 'Sort:'
                     MenuStarterButton:
@@ -251,7 +249,8 @@ Builder.load_string("""
                         state: 'down' if root.left_sort_reverse else 'normal'
                         on_press: root.left_resort_reverse(self.state)
                     NormalButton:
-                        text: 'Toggle Select'
+                        text: '  Toggle Select  '
+                        width: self.texture_size[0]
                         on_release: leftDatabaseArea.toggle_select()
                 MainArea:
                     PhotoListRecycleView:
@@ -269,14 +268,12 @@ Builder.load_string("""
                 orientation: 'vertical'
                 id: rightArea
                 Header:
-                    ShortLabel:
-                        text: 'Database: '
                     MenuStarterButtonWide:
                         size_hint_x: 1
                         id: rightDatabaseMenu
                         text: root.right_database
                         on_release: root.database_dropdown_right.open(self)
-                    LargeBufferX:
+                    MediumBufferX:
                     ShortLabel:
                         text: 'Sort:'
                     MenuStarterButton:
@@ -287,7 +284,8 @@ Builder.load_string("""
                         state: 'down' if root.right_sort_reverse else 'normal'
                         on_press: root.right_resort_reverse(self.state)
                     NormalButton:
-                        text: 'Toggle Select'
+                        text: '  Toggle Select  '
+                        width: self.texture_size[0]
                         on_release: rightDatabaseArea.toggle_select()
                 MainArea:
                     PhotoListRecycleView:
