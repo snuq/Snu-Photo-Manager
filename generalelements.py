@@ -1370,13 +1370,12 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
         return super(RecycleTreeViewButton, self).refresh_view_attrs(rv, index, data)
 
     def on_touch_down(self, touch):
+        app = App.get_running_app()
         if self.collide_point(*touch.pos):
-            if touch.is_double_tap:
+            if touch.is_double_tap and not app.shift_pressed:
                 if self.displayable:
                     if self.total_photos_numeric > 0:
-                        app = App.get_running_app()
-                        if not app.shift_pressed:
-                            app.show_album(self)
+                        app.show_album(self)
             else:
                 self.parent.selected = {}
                 self.parent.selected = self.data
@@ -1432,11 +1431,27 @@ class TreenodeDrag(BoxLayout):
     subtext = StringProperty()
 
 
-class SelectableRecycleBoxLayout(RecycleBoxLayout):
+class SelectableRecycleBoxLayout(RecycleBoxLayout, LayoutSelectionBehavior):
     """Adds selection and focus behavior to the view."""
     selected = DictProperty()
     selects = ListProperty()
     multiselect = BooleanProperty(False)
+
+    def select_range(self):
+        select_index = self.parent.data.index(self.selected)
+        selected_nodes = []
+        if self.selects:
+            for select in self.selects:
+                selected_nodes.append(self.parent.data.index(select))
+        else:
+            selected_nodes = [0, len(self.parent.data)]
+        closest_node = min(selected_nodes, key=lambda x: abs(x-select_index))
+
+        for index in range(min(select_index, closest_node), max(select_index, closest_node)):
+            selected = self.parent.data[index]
+            if selected not in self.selects:
+                self.selects.append(selected)
+        self.selects.append(self.selected)
 
     def toggle_select(self, *_):
         if self.multiselect:
@@ -1451,13 +1466,25 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout):
                 self.selected = {}
         self.update_selected()
 
+    def check_selected(self):
+        temp_selects = []
+        for select in self.selects:
+            if select in self.parent.data:
+                temp_selects.append(select)
+        self.selects = temp_selects
+
     def on_selected(self, *_):
+        app = App.get_running_app()
         if self.selected:
             if self.multiselect:
+                self.check_selected()
                 if self.selected in self.selects:
                     self.selects.remove(self.selected)
                 else:
-                    self.selects.append(self.selected)
+                    if app.shift_pressed:
+                        self.select_range()
+                    else:
+                        self.selects.append(self.selected)
             self.update_selected()
 
     def on_children(self, *_):
@@ -1477,26 +1504,38 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout):
                     child.selected = False
 
 
-class SelectableRecycleGrid(LayoutSelectionBehavior, RecycleGridLayout):
+class SelectableRecycleLayout(LayoutSelectionBehavior):
     """Custom selectable grid layout widget."""
+    multiselect = BooleanProperty(True)
 
     def __init__(self, **kwargs):
         """ Use the initialize method to bind to the keyboard to enable
         keyboard interaction e.g. using shift and control for multi-select.
         """
 
-        super(SelectableRecycleGrid, self).__init__(**kwargs)
+        super(SelectableRecycleLayout, self).__init__(**kwargs)
         if str(platform) in ('linux', 'win', 'macosx'):
             keyboard = Window.request_keyboard(None, self)
             keyboard.bind(on_key_down=self.select_with_key_down, on_key_up=self.select_with_key_up)
+
+    def toggle_select(self):
+        if self.selected_nodes:
+            selected = True
+        else:
+            selected = False
+        self.clear_selection()
+        if not selected:
+            self.select_all()
 
     def select_all(self):
         for node in range(0, len(self.parent.data)):
             self.select_node(node)
 
     def select_with_touch(self, node, touch=None):
+        if not self.multiselect:
+            self.clear_selection()
         self._shift_down = False
-        super(SelectableRecycleGrid, self).select_with_touch(node, touch)
+        super(SelectableRecycleLayout, self).select_with_touch(node, touch)
 
     def _select_range(self, multiselect, keep_anchor, node, idx):
         pass
@@ -1512,6 +1551,10 @@ class SelectableRecycleGrid(LayoutSelectionBehavior, RecycleGridLayout):
 
         for index in range(min(select_index, closest_node), max(select_index, closest_node)+1):
             self.select_node(index)
+
+
+class SelectableRecycleGrid(SelectableRecycleLayout, RecycleGridLayout):
+    pass
 
 
 class NormalRecycleView(RecycleView):

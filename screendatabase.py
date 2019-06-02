@@ -762,13 +762,7 @@ class DatabaseScreen(Screen):
         """Toggles the selection of photos in the current album."""
 
         photos = self.ids['photos']
-        if photos.selected_nodes:
-            selected = True
-        else:
-            selected = False
-        photos.clear_selection()
-        if not selected:
-            photos.select_all()
+        photos.toggle_select()
         self.update_selected()
 
     def select_none(self):

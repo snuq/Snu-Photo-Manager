@@ -507,13 +507,7 @@ class ExportScreen(Screen):
         """Select all files, or unselect all selected files."""
 
         photos = self.ids['photos']
-        if photos.selected_nodes:
-            selected = True
-        else:
-            selected = False
-        photos.clear_selection()
-        if not selected:
-            photos.select_all()
+        photos.toggle_select()
         self.update_selected()
 
     def select_all(self):

@@ -2,9 +2,6 @@
 Bugs:
     android: issues with input with minnuum keyboard - due to kivy not using all input methods... have to wait for fix
 
-Todo:
-    Improve database transfer screen - allow shift-click selections
-
 Possible Todo (Later On):
     create collage feature
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
