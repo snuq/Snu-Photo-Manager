@@ -12,6 +12,14 @@ if platform in ['win', 'linux', 'macosx', 'unknown']:
     desktop = True
 else:
     desktop = False
+import distutils.spawn
+ffmpeg_command = distutils.spawn.find_executable("ffmpeg")
+if ffmpeg_command is None:
+    print('FFMPEG not found, please install it for video conversion features.')
+    ffmpeg = False
+else:
+    print('Using FFMPEG from: '+str(ffmpeg_command))
+    ffmpeg = True
 
 kivy_version = kivy.__version__.split('.')
 kivy_version_primary = int(kivy_version[0])

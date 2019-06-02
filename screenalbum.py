@@ -457,22 +457,22 @@ Builder.load_string("""
     WideButton:
         text: 'Basic Color Adjustments'
         on_release: root.owner.set_edit_panel('color')
-        #disabled: not root.owner.view_image
+        disabled: not root.owner.view_image and not root.owner.ffmpeg
     SmallBufferY:
     WideButton:
         text: 'Advanced Color Adjustments'
         on_release: root.owner.set_edit_panel('advanced')
-        #disabled: not root.owner.view_image
+        disabled: not root.owner.view_image and not root.owner.ffmpeg
     SmallBufferY:
     WideButton:
         text: 'Filters'
         on_release: root.owner.set_edit_panel('filter')
-        #disabled: not root.owner.view_image
+        disabled: not root.owner.view_image and not root.owner.ffmpeg
     SmallBufferY:
     WideButton:
         text: 'Image Borders'
         on_release: root.owner.set_edit_panel('border')
-        #disabled: not root.owner.view_image
+        disabled: not root.owner.view_image and not root.owner.ffmpeg
     SmallBufferY:
     WideButton:
         height: app.button_scale if root.owner.opencv else 0
@@ -495,7 +495,7 @@ Builder.load_string("""
     WideButton:
         text: 'Convert'
         on_release: root.owner.set_edit_panel('convert')
-        disabled: root.owner.view_image
+        disabled: root.owner.view_image or not root.owner.ffmpeg
     LargeBufferY:
     WideButton:
         id: deleteOriginal
@@ -2166,6 +2166,7 @@ class AlbumScreen(Screen):
     opencv = BooleanProperty()
     folder_title = StringProperty('Album Viewer')
     canprint = BooleanProperty(True)
+    ffmpeg = BooleanProperty(False)
 
     #Video reencode settings
     encoding = BooleanProperty(False)
@@ -3439,6 +3440,7 @@ class AlbumScreen(Screen):
     def on_enter(self):
         """Called when the screen is entered.  Set up variables and widgets, and prepare to view images."""
 
+        self.ffmpeg = ffmpeg
         self.opencv = opencv
         app = App.get_running_app()
         self.ids['leftpanel'].width = app.left_panel_width()

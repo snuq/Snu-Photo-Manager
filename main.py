@@ -4,7 +4,6 @@ Bugs:
 
 Todo:
     Improve database transfer screen - allow shift-click selections
-    android: need to include ffmpeg executable
 
 Possible Todo (Later On):
     create collage feature
