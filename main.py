@@ -1,9 +1,6 @@
 """
-Todo:
+Future Todo (lower priority or a lot of work):
     Rework cropping editor
-    Allow video Denoise/Rotate/Crop
-
-Possible Todo (Later On):
     create collage feature
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working

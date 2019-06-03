@@ -486,21 +486,18 @@ Builder.load_string("""
         opacity: 1 if root.owner.opencv else 0
         text: 'Denoise'
         on_release: root.owner.set_edit_panel('denoise')
-        disabled: not root.owner.view_image or not root.owner.opencv
-        #disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
+        disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
     SmallBufferY:
         height: int(app.button_scale / 4) if root.owner.opencv else 0
     WideButton:
-        text: 'Rotate Image'
+        text: 'Rotate'
         on_release: root.owner.set_edit_panel('rotate')
-        disabled: not root.owner.view_image
-        #disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
+        disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
     SmallBufferY:
     WideButton:
-        text: 'Crop Image'
+        text: 'Crop'
         on_release: root.owner.set_edit_panel('crop')
-        disabled: not root.owner.view_image
-        #disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
+        disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
     SmallBufferY:
     WideButton:
         text: 'Convert'
@@ -1255,11 +1252,12 @@ Builder.load_string("""
                     size_hint: None, None
                     size: root.image_x, root.image_y
                     Image:
+                        allow_stretch: True
                         size: root.image_x, root.image_y
                         size_hint: None, None
                         id: noisePreview
                         mipmap: True
-                        source: root.imagefile
+                        #source: root.imagefile
                     Image:
                         id: denoiseOverlay
                         size: self.parent.parent.size
@@ -1313,7 +1311,7 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_release: root.owner.save_image()
+            on_release: root.save_image()
         WideButton:
             text: 'Cancel Edit'
             warn: True
@@ -1448,7 +1446,7 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_release: root.owner.save_image()
+            on_release: root.save_image()
         WideButton:
             text: 'Cancel Edit'
             warn: True
@@ -3834,6 +3832,13 @@ class AlbumScreen(Screen):
                     pass
         if self.encoding_process_thread:
             self.encoding_process_thread.kill()
+
+        #regenerate thumbnail
+        app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
+
+        #reload photo image in ui
+        Clock.schedule_once(lambda x: self.clear_cache())
+
         self.encoding = False
         self.set_edit_panel('main')
 
@@ -3893,8 +3898,7 @@ class AlbumScreen(Screen):
         update_photoinfo[1] = agnostic_path(update_photoinfo[1])
         update_photoinfo[2] = agnostic_path(update_photoinfo[2])
         app.database_item_update(update_photoinfo)
-        app.save_photoinfo(target=self.photoinfo[1],
-                           save_location=os.path.join(self.photoinfo[2], self.photoinfo[1]))
+        app.save_photoinfo(target=self.photoinfo[1], save_location=os.path.join(self.photoinfo[2], self.photoinfo[1]))
 
         #regenerate thumbnail
         app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
@@ -4061,6 +4065,8 @@ class CustomImage(KivyImage):
         new_frame = frame_converter.scale(frame_image)
         image_data = bytes(new_frame.to_bytearray()[0])
         image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+        #for some reason, video frames are read upside-down? fix it here...
+        image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
         if image.mode != 'RGB':
             image = image.convert('RGB')
         image = self.adjust_image(image, preview=False)
@@ -4416,6 +4422,8 @@ class CustomImage(KivyImage):
             image_data = bytes(new_frame.to_bytearray()[0])
 
             original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+            #for some reason, video frames are read upside-down? fix it here...
+            original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
             self.original_width = original_image.size[0]
             self.original_height = original_image.size[1]
             self.original_image = original_image
@@ -4459,7 +4467,12 @@ class CustomImage(KivyImage):
         right = pos_x + width
         lower = pos_y + width
         upper = pos_y
-        preview = self.original_image.crop(box=(left, upper, right, lower))
+        #if self.video:
+        #    #for... some reason the preview is upside-down if the image is a video???
+        #    original_image = self.original_image.transpose(PIL.Image.ROTATE_180)
+        #else:
+        original_image = self.original_image
+        preview = original_image.crop(box=(left, upper, right, lower))
         if preview.mode != 'RGB':
             preview = preview.convert('RGB')
         preview_cv = cv2.cvtColor(numpy.array(preview), cv2.COLOR_RGB2BGR)
@@ -4507,9 +4520,6 @@ class CustomImage(KivyImage):
             size_multiple = self.size_multiple
         else:
             size_multiple = 1
-        #for some reason, video frames are read upside-down? fix it here...
-        if self.video:
-            image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
 
         if self.sharpen != 0:
             enhancer = ImageEnhance.Sharpness(image)
@@ -4573,20 +4583,34 @@ class CustomImage(KivyImage):
                 if self.crop_left >= image.size[0]:
                     crop_left = 0
                 else:
-                    crop_left = self.crop_left
+                    crop_left = int(self.crop_left)
                 if self.crop_top >= image.size[1]:
                     crop_top = 0
                 else:
-                    crop_top = self.crop_top
+                    crop_top = int(self.crop_top)
                 if self.crop_right >= image.size[0]:
                     crop_right = image.size[0]
                 else:
-                    crop_right = image.size[0] - self.crop_right
+                    crop_right = int(image.size[0] - self.crop_right)
                 if self.crop_bottom >= image.size[1]:
                     crop_bottom = image.size[1]
                 else:
-                    crop_bottom = image.size[1] - self.crop_bottom
-                image = image.crop((int(crop_left), int(crop_top), int(crop_right), int(crop_bottom)))
+                    crop_bottom = int(image.size[1] - self.crop_bottom)
+                if self.video:
+                    #ensure that image size is divisible by 2
+                    new_width = crop_right - crop_left
+                    new_height = crop_bottom - crop_top
+                    if new_width % 2 == 1:
+                        if crop_right < image.size[0]:
+                            crop_right = crop_right + 1
+                        else:
+                            crop_right = crop_right - 1
+                    if new_height % 2 == 1:
+                        if crop_bottom < image.size[1]:
+                            crop_bottom = crop_bottom + 1
+                        else:
+                            crop_bottom = crop_bottom - 1
+                image = image.crop((crop_left, crop_top, crop_right, crop_bottom))
         if self.flip_horizontal:
             image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
         if self.flip_vertical:
@@ -4969,6 +4993,7 @@ class VideoViewer(FloatLayout):
     start_point = NumericProperty(0.0)
     end_point = NumericProperty(1.0)
     fullscreen = BooleanProperty(False)
+    overlay = ObjectProperty(allownone=True)
 
     def reset_start_point(self, *_):
         self.start_point = 0.0
@@ -5004,25 +5029,37 @@ class VideoViewer(FloatLayout):
         """Called when the user enters or exits edit mode.
         Adds the edit image widget, and overlay if need be, and sets them up."""
 
-        overlay = self.ids['overlay']
+        overlay_container = self.ids['overlay']
         player = self.ids['player']
         self.position = 0
         self.reset_start_point()
         self.reset_end_point()
         if self.edit_mode == 'main':
             player.opacity = 1
-            overlay.opacity = 0
+            overlay_container.opacity = 0
             viewer = self.ids['photoShow']
             if self.edit_image:
                 self.edit_image.close_video()
+                if self.overlay:
+                    viewer.remove_widget(self.overlay)
                 viewer.remove_widget(self.edit_image)
                 self.edit_image = None
         else:
-            overlay.opacity = 1
+            overlay_container.opacity = 1
             player.opacity = 0
             viewer = self.ids['photoShow']
             self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo)
             viewer.add_widget(self.edit_image)
+            if self.edit_mode == 'rotate':
+                #add rotation grid overlay
+                self.overlay = RotationGrid()
+                viewer.add_widget(self.overlay)
+            if self.edit_mode == 'crop':
+                #add cropper overlay and set image to crop mode
+                self.overlay = CropOverlay(owner=self.edit_image)
+                viewer.add_widget(self.overlay)
+                self.edit_image.cropping = True
+                self.edit_image.cropper = self.overlay
 
     def on_fullscreen(self, instance, value):
         player = self.ids['player']
@@ -5759,7 +5796,10 @@ class EditDenoiseImage(GridLayout):
 
     def save_image(self):
         self.owner.viewer.edit_image.denoise = True
-        self.owner.save_image()
+        if self.owner.viewer.edit_image.video:
+            self.owner.save_video()
+        else:
+            self.owner.save_image()
 
     def reset_all(self):
         """Reset all edit values to defaults."""
@@ -5805,6 +5845,24 @@ class EditDenoiseImage(GridLayout):
         self.update_preview()
 
     def update_preview(self, *_):
+        #Gets the denoised preview image and updates it in the ui
+
+        #convert pil image to bytes and display background image
+        app = App.get_running_app()
+        if to_bool(app.config.get("Settings", "lowmem")):
+            image = self.owner.viewer.edit_image.edit_image
+        else:
+            image = self.owner.viewer.edit_image.original_image
+        noise_preview = self.ids['noisePreview']
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image_bytes = BytesIO()
+        image.save(image_bytes, 'jpeg')
+        image_bytes.seek(0)
+        noise_preview._coreimage = CoreImage(image_bytes, ext='jpg')
+        noise_preview._on_tex_change()
+
+        #update overlay image
         scroll_area = self.ids['wrapper']
         width = scroll_area.size[0]
         height = scroll_area.size[1]
@@ -5852,6 +5910,12 @@ class EditCropImage(GridLayout):
         else:
             self.orientation = 'vertical'
             self.ids['verticalToggle'].state = 'down'
+
+    def save_image(self, *_):
+        if self.owner.viewer.edit_image.video:
+            self.owner.save_video()
+        else:
+            self.owner.save_image()
 
     def update_crop_size_text(self):
         edit_image = self.owner.viewer.edit_image
@@ -5986,8 +6050,13 @@ class EditRotateImage(GridLayout):
     """Panel to expose rotation editing options."""
 
     fine_angle = NumericProperty(0)
-
     owner = ObjectProperty()
+
+    def save_image(self, *_):
+        if self.owner.viewer.edit_image.video:
+            self.owner.save_video()
+        else:
+            self.owner.save_image()
 
     def save_last(self):
         pass
