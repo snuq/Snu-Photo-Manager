@@ -760,11 +760,12 @@ class PhotoManager(App):
         Saves all settings and data.
         """
 
-        self.config.write()
-        self.thumbnails.commit()
-        self.photos.commit()
-        self.folders.commit()
-        self.imported.commit()
+        if self.main_layout:
+            self.config.write()
+            self.thumbnails.commit()
+            self.photos.commit()
+            self.folders.commit()
+            self.imported.commit()
         return True
 
     def on_resume(self):
