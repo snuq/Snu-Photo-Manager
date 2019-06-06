@@ -37,6 +37,14 @@ Builder.load_string("""
             id: fileList
             viewclass: 'FileBrowserItem'
             SelectableRecycleBoxLayout:
+        NormalInput:
+            id: filename
+            height: app.button_scale if not root.directory_select else 0
+            opacity: 1 if not root.directory_select else 0
+            disabled: not root.file_editable
+            size_hint_x: 1
+            text: root.file
+            on_text: root.file = self.text
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -62,15 +70,9 @@ Builder.load_string("""
             id: locationsList
             viewclass: 'FileBrowserItem'
             SelectableRecycleBoxLayout:
-        NormalInput:
-            height: app.button_scale if not root.directory_select else 0
-            opacity: 1 if not root.directory_select else 0
-            disabled: not root.file_editable
-            size_hint_x: 1
-            text: root.file
         NormalButton:
             text: root.ok_text
-            disabled: not root.target_selected
+            disabled: not root.target_selected or not (root.export_mode and len(root.file) > 0)
             size_hint_x: 1
             on_release: root.dispatch('on_ok')
         NormalButton:
@@ -150,6 +152,7 @@ class FileBrowser(BoxLayout):
     file_editable = BooleanProperty(False)
     filters = ListProperty()
     target_selected = BooleanProperty(False)
+    export_mode = BooleanProperty(False)
 
     header_text = StringProperty('Select A File')
     cancel_text = StringProperty('Cancel')
@@ -299,8 +302,14 @@ class FileBrowser(BoxLayout):
 
         file_list.data = data
         if not self.directory_select:
-            self.file = ''
-            self.target_selected = False
+            if self.export_mode:
+                if not self.file:
+                    self.target_selected = False
+                else:
+                    self.target_selected = True
+            else:
+                self.file = ''
+                self.target_selected = False
         else:
             self.filename = self.path
             self.target_selected = True

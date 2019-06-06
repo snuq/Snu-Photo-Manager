@@ -1,8 +1,6 @@
 import os
 from shutil import move
 import threading
-from kivy.config import Config
-Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.cache import Cache
@@ -186,6 +184,10 @@ Builder.load_string("""
                         opacity: 1 if root.can_browse else 0
                         width: (self.texture_size[0] + app.button_scale) if root.can_browse else 0
                         on_release: root.open_browser()
+                    NormalButton:
+                        text: 'Create Collage'
+                        on_release: app.show_collage()
+                        disabled: not root.can_export
                     NormalButton:
                         text: 'Export'
                         disabled: not root.can_export

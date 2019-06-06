@@ -609,7 +609,7 @@ class ExportScreen(Screen):
             self.select_all()
 
     def on_leave(self):
-        """Called when the screen is left, write changes to export presets."""
+        """Called when the screen is left, clean up data."""
 
         presets = self.ids['presets']
         presets.clear_widgets()

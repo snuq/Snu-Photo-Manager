@@ -285,8 +285,10 @@ Builder.load_string("""
     font_size: app.text_scale
     size_hint_y: None
     height: app.button_scale
-    background_normal: 'data/buttonup.png'
-    background_down: 'data/buttondown.png'
+    background_normal: 'data/buttonwarnup.png' if self.warn else 'data/buttonup.png'
+    background_down: 'data/buttonwarndown.png' if self.warn else 'data/buttondown.png'
+    background_disabled_down: 'data/buttondisabled.png'
+    background_disabled_normal: 'data/buttondisabled.png'
 
 <RemoveButton>:
     mipmap: True
@@ -455,6 +457,43 @@ Builder.load_string("""
         canvas.after:
             PopMatrix
         text: self.parent.text
+
+<PhotoRecycleViewButton>:
+    canvas.after:
+        Color:
+            rgba: (1, 1, 1, 0) if self.found else(1, 0, 0, .33)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: 1, 1, 1, .5 if self.favorite else 0
+        Rectangle:
+            source: 'data/star.png'
+            pos: (self.pos[0]+(self.width-(self.height*.5)), self.pos[1]+(self.height*.5)-(self.height*.167))
+            size: (self.height*.33, self.height*.33)
+        Color:
+            rgba: 1, 1, 1, .5 if self.video else 0
+        Rectangle:
+            source: 'data/play_overlay.png'
+            pos: (self.pos[0]+(self.height*.25)), (self.pos[1]+(self.height*.25))
+            size: (self.height*.5), (self.height*.5)
+    size_hint_x: 1
+    height: (app.button_scale * 2)
+    AsyncThumbnail:
+        id: thumbnail
+        #photoinfo: root.photoinfo
+        #source: root.source
+        size_hint: None, None
+        width: (app.button_scale * 2)
+        height: (app.button_scale * 2)
+    NormalLabel:
+        mipmap: True
+        size_hint_y: None
+        height: (app.button_scale * 2)
+        text_size: (self.width - 20, None)
+        text: root.text
+        halign: 'left'
+        valign: 'center'
 
 
 <NormalPopup>:
@@ -812,6 +851,105 @@ Builder.load_string("""
     bar_width: int(app.button_scale * .5)
     scroll_type: ['bars', 'content']
 
+<ColorPickerCustom_Label@Label>:
+    mroot: None
+    size_hint_x: None
+    width: '30sp'
+    text_size: self.size
+    halign: "center"
+    valign: "middle"
+
+<ColorPickerCustom_Selector@BoxLayout>:
+    foreground_color: None
+    text: ''
+    mroot: None
+    mode: 'rgb'
+    color: 0
+    spacing: '2sp'
+    ColorPickerCustom_Label:
+        text: root.text
+        mroot: root.mroot
+        color: root.foreground_color or (1, 1, 1, 1)
+    Slider:
+        id: sldr
+        size_hint: 1, .25
+        pos_hint: {'center_y':.5}
+        range: 0, 255
+        value: root.color * 255
+        on_value:
+            root.mroot._trigger_update_clr(root.mode, root.clr_idx, args[1])
+
+<ColorPickerCustom>:
+    canvas.before:
+        Color:
+            rgba: self.color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    size_hint_y: None
+    height: sp(33)*10
+    foreground_color: (1, 1, 1, 1) if self.hsv[2] * wheel.a < .5 else (0, 0, 0, 1)
+    wheel: wheel
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: '5sp'
+        ColorWheel:
+            id: wheel
+            color: root.color
+            on_color: root.color[:3] = args[1][:3]
+        GridLayout:
+            cols: 1
+            size_hint_y: None
+            height: self.minimum_height
+            canvas:
+                Color:
+                    rgba: root.color
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+
+            ColorPickerCustom_Selector:
+                mroot: root
+                text: 'R'
+                clr_idx: 0
+                color: wheel.r
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                height: 0
+                disabled: True
+                opacity: 0
+
+            ColorPickerCustom_Selector:
+                mroot: root
+                mode: 'hsv'
+                text: 'H'
+                clr_idx: 0
+                color: root.hsv[0]
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                height: app.button_scale
+
+            ColorPickerCustom_Selector:
+                mroot: root
+                mode: 'hsv'
+                text: 'S'
+                clr_idx: 1
+                color: root.hsv[1]
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                height: app.button_scale
+
+            ColorPickerCustom_Selector:
+                mroot: root
+                mode: 'hsv'
+                text: 'V'
+                clr_idx: 2
+                color: root.hsv[2]
+                foreground_color: root.foreground_color
+                size_hint_y: None
+                height: app.button_scale
+
 """)
 
 
@@ -947,228 +1085,6 @@ class IntegerInput(TextInput):
         return super(IntegerInput, self).insert_text(s, from_undo=from_undo)
 
 
-#Buttons
-class NormalButton(Button):
-    """Basic button widget."""
-
-    warn = BooleanProperty(False)
-
-
-class WideButton(Button):
-    """Full width button widget"""
-
-    warn = BooleanProperty(False)
-
-
-class MenuButton(Button):
-    """Basic class for a drop-down menu button item."""
-    pass
-
-
-class RemoveButton(NormalButton):
-    """Base class for a button to remove an item from a list."""
-
-    remove = True
-    to_remove = StringProperty()
-    remove_from = StringProperty()
-    owner = ObjectProperty()
-
-
-class ExpandableButton(GridLayout):
-    """Base class for a button with a checkbox to enable/disable an extra area.
-    It also features an 'x' remove button that calls 'on_remove' when clicked."""
-
-    text = StringProperty()  #Text shown in the main button area
-    expanded = BooleanProperty(False)  #Determines if the expanded area is displayed
-    content = ObjectProperty()  #Widget to be displayed when expanded is enabled
-    index = NumericProperty()  #The button's index in the list - useful for the remove function
-
-    def __init__(self, **kwargs):
-        super(ExpandableButton, self).__init__(**kwargs)
-        self.register_event_type('on_press')
-        self.register_event_type('on_release')
-        self.register_event_type('on_expanded')
-        self.register_event_type('on_remove')
-
-    def set_expanded(self, expanded):
-        self.expanded = expanded
-
-    def on_expanded(self, *_):
-        if self.content:
-            content_container = self.ids['contentContainer']
-            if self.expanded:
-                content_container.add_widget(self.content)
-            else:
-                content_container.clear_widgets()
-
-    def on_press(self):
-        pass
-
-    def on_release(self):
-        pass
-
-    def on_remove(self):
-        pass
-
-
-class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
-    """Widget that displays a specific folder, album, or tag in the database treeview.
-    Responds to clicks and double-clicks.
-    """
-
-    displayable = BooleanProperty(True)
-    target = StringProperty()  #Folder, Album, or Tag
-    fullpath = StringProperty()  #Folder name, used only on folder type targets
-    folder = StringProperty()
-    database_folder = StringProperty()
-    type = StringProperty()  #The type the target is: folder, album, tag, extra
-    total_photos = StringProperty()
-    folder_name = StringProperty()
-    subtext = StringProperty()
-    total_photos_numeric = NumericProperty(0)
-    view_album = BooleanProperty(True)
-    drag = False
-    dragable = BooleanProperty(False)
-    owner = ObjectProperty()
-    droptype = StringProperty('folder')
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            if touch.is_double_tap:
-                if self.view_album:
-                    if self.total_photos_numeric > 0:
-                        app = App.get_running_app()
-                        if not app.shift_pressed:
-                            app.show_album(self)
-            else:
-                self.on_press()
-            if self.dragable:
-                self.drag = True
-                app = App.get_running_app()
-                temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
-                widget_coords = (temp_coords[0]-self.pos[0], temp_coords[1]-self.pos[1])
-                window_coords = self.to_window(touch.opos[0], touch.opos[1])
-                app.drag_treeview(self, 'start', window_coords, offset=widget_coords)
-
-    def on_press(self):
-        self.owner.type = self.type
-        self.owner.displayable = self.displayable
-        self.owner.selected = ''
-        self.owner.selected = self.target
-
-    def on_release(self):
-        if self.dragable:
-            try:
-                self.parent.toggle_node(self)
-            except:
-                pass
-
-    def on_touch_move(self, touch):
-        if self.drag:
-            delay = time.time() - touch.time_start
-            if delay >= drag_delay:
-                app = App.get_running_app()
-                window_coords = self.to_window(touch.pos[0], touch.pos[1])
-                app.drag_treeview(self, 'move', window_coords)
-
-    def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos):
-            self.on_release()
-        if self.drag:
-            app = App.get_running_app()
-            window_coords = self.to_window(touch.pos[0], touch.pos[1])
-            app.drag_treeview(self, 'end', window_coords)
-            self.drag = False
-
-
-#Popups
-class NormalPopup(Popup):
-    """Basic popup widget."""
-    pass
-
-
-class MessagePopup(GridLayout):
-    """Basic popup message with a message and 'ok' button."""
-
-    button_text = StringProperty('OK')
-    text = StringProperty()
-
-    def close(self, *_):
-        app = App.get_running_app()
-        app.popup.dismiss()
-
-
-class InputPopup(GridLayout):
-    """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
-
-    input_text = StringProperty()
-    text = StringProperty()  #Text that the user has input
-    hint = StringProperty()  #Grayed-out hint text in the input field
-
-    def __init__(self, **kwargs):
-        self.register_event_type('on_answer')
-        super(InputPopup, self).__init__(**kwargs)
-
-    def on_answer(self, *args):
-        pass
-
-
-class InputPopupTag(GridLayout):
-    """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
-
-    input_text = StringProperty()
-    text = StringProperty()  #Text that the user has input
-    hint = StringProperty()  #Grayed-out hint text in the input field
-
-    def __init__(self, **kwargs):
-        self.register_event_type('on_answer')
-        super(InputPopupTag, self).__init__(**kwargs)
-
-    def on_answer(self, *args):
-        pass
-
-
-class MoveConfirmPopup(NormalPopup):
-    """Popup that asks to confirm a file or folder move."""
-    target = StringProperty()
-    photos = ListProperty()
-    origin = StringProperty()
-
-
-class ScanningPopup(NormalPopup):
-    """Popup for displaying database scanning progress."""
-    scanning_percentage = NumericProperty(0)
-    scanning_text = StringProperty('Building File List...')
-
-
-class ConfirmPopup(GridLayout):
-    """Basic Yes/No popup message.  Calls 'on_answer' when either button is clicked."""
-
-    text = StringProperty()
-    yes_text = StringProperty('Yes')
-    no_text = StringProperty('No')
-    warn_yes = BooleanProperty(False)
-    warn_no = BooleanProperty(False)
-
-    def __init__(self, **kwargs):
-        self.register_event_type('on_answer')
-        super(ConfirmPopup, self).__init__(**kwargs)
-
-    def on_answer(self, *args):
-        pass
-
-
-#Menus
-class NormalDropDown(DropDown):
-    """Base dropdown menu class."""
-    pass
-
-
-class AlbumSortDropDown(NormalDropDown):
-    """Drop-down menu for sorting album elements"""
-    pass
-
-
 #RecycleView and Lists
 class RecycleItem(RecycleDataViewBehavior, BoxLayout):
     bgcolor = ListProperty([0, 0, 0, 0])
@@ -1289,10 +1205,11 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
             self.parent.select_with_touch(self.index, touch)
             self.owner.update_selected()
             if self.dragable:
+                thumbnail = self.ids['thumbnail']
                 self.drag = True
                 app = App.get_running_app()
                 temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
-                widget_coords = (temp_coords[0] - self.pos[0], temp_coords[1] - self.pos[1])
+                widget_coords = (temp_coords[0] - thumbnail.pos[0], temp_coords[1] - thumbnail.pos[1])
                 window_coords = self.to_window(touch.pos[0], touch.pos[1])
                 app.drag(self, 'start', window_coords, image=self.image, offset=widget_coords, fullpath=self.fullpath)
 
@@ -1606,6 +1523,259 @@ class PhotoListRecycleView(RecycleView):
         return sx, sy
 
 
+#Buttons
+class NormalButton(Button):
+    """Basic button widget."""
+
+    warn = BooleanProperty(False)
+
+
+class WideButton(Button):
+    """Full width button widget"""
+
+    warn = BooleanProperty(False)
+
+
+class MenuButton(Button):
+    """Basic class for a drop-down menu button item."""
+
+    warn = BooleanProperty(False)
+
+
+class RemoveButton(NormalButton):
+    """Base class for a button to remove an item from a list."""
+
+    remove = True
+    to_remove = StringProperty()
+    remove_from = StringProperty()
+    owner = ObjectProperty()
+
+
+class ExpandableButton(GridLayout):
+    """Base class for a button with a checkbox to enable/disable an extra area.
+    It also features an 'x' remove button that calls 'on_remove' when clicked."""
+
+    text = StringProperty()  #Text shown in the main button area
+    expanded = BooleanProperty(False)  #Determines if the expanded area is displayed
+    content = ObjectProperty()  #Widget to be displayed when expanded is enabled
+    index = NumericProperty()  #The button's index in the list - useful for the remove function
+
+    def __init__(self, **kwargs):
+        super(ExpandableButton, self).__init__(**kwargs)
+        self.register_event_type('on_press')
+        self.register_event_type('on_release')
+        self.register_event_type('on_expanded')
+        self.register_event_type('on_remove')
+
+    def set_expanded(self, expanded):
+        self.expanded = expanded
+
+    def on_expanded(self, *_):
+        if self.content:
+            content_container = self.ids['contentContainer']
+            if self.expanded:
+                content_container.add_widget(self.content)
+            else:
+                content_container.clear_widgets()
+
+    def on_press(self):
+        pass
+
+    def on_release(self):
+        pass
+
+    def on_remove(self):
+        pass
+
+
+class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
+    """Widget that displays a specific folder, album, or tag in the database treeview.
+    Responds to clicks and double-clicks.
+    """
+
+    displayable = BooleanProperty(True)
+    target = StringProperty()  #Folder, Album, or Tag
+    fullpath = StringProperty()  #Folder name, used only on folder type targets
+    folder = StringProperty()
+    database_folder = StringProperty()
+    type = StringProperty()  #The type the target is: folder, album, tag, extra
+    total_photos = StringProperty()
+    folder_name = StringProperty()
+    subtext = StringProperty()
+    total_photos_numeric = NumericProperty(0)
+    view_album = BooleanProperty(True)
+    drag = False
+    dragable = BooleanProperty(False)
+    owner = ObjectProperty()
+    droptype = StringProperty('folder')
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if touch.is_double_tap:
+                if self.view_album:
+                    if self.total_photos_numeric > 0:
+                        app = App.get_running_app()
+                        if not app.shift_pressed:
+                            app.show_album(self)
+            else:
+                self.on_press()
+            if self.dragable:
+                self.drag = True
+                app = App.get_running_app()
+                temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
+                widget_coords = (temp_coords[0]-self.pos[0], temp_coords[1]-self.pos[1])
+                window_coords = self.to_window(touch.opos[0], touch.opos[1])
+                app.drag_treeview(self, 'start', window_coords, offset=widget_coords)
+
+    def on_press(self):
+        self.owner.type = self.type
+        self.owner.displayable = self.displayable
+        self.owner.selected = ''
+        self.owner.selected = self.target
+
+    def on_release(self):
+        if self.dragable:
+            try:
+                self.parent.toggle_node(self)
+            except:
+                pass
+
+    def on_touch_move(self, touch):
+        if self.drag:
+            delay = time.time() - touch.time_start
+            if delay >= drag_delay:
+                app = App.get_running_app()
+                window_coords = self.to_window(touch.pos[0], touch.pos[1])
+                app.drag_treeview(self, 'move', window_coords)
+
+    def on_touch_up(self, touch):
+        if self.collide_point(*touch.pos):
+            self.on_release()
+        if self.drag:
+            app = App.get_running_app()
+            window_coords = self.to_window(touch.pos[0], touch.pos[1])
+            app.drag_treeview(self, 'end', window_coords)
+            self.drag = False
+
+
+class PhotoRecycleViewButton(RecycleItem):
+    video = BooleanProperty(False)
+    favorite = BooleanProperty(False)
+    fullpath = StringProperty()
+    photoinfo = ListProperty()
+    source = StringProperty()
+    selectable = BooleanProperty(True)
+    found = BooleanProperty(True)
+
+    def on_source(self, *_):
+        """Sets up the display image when first loaded."""
+
+        found = isfile2(self.source)
+        self.found = found
+
+    def refresh_view_attrs(self, rv, index, data):
+        super(PhotoRecycleViewButton, self).refresh_view_attrs(rv, index, data)
+        thumbnail = self.ids['thumbnail']
+        thumbnail.photoinfo = self.data['photoinfo']
+        thumbnail.source = self.data['source']
+
+    def on_touch_down(self, touch):
+        super(PhotoRecycleViewButton, self).on_touch_down(touch)
+        if self.collide_point(*touch.pos) and self.selectable:
+            self.owner.fullpath = self.fullpath
+            self.owner.photo = self.source
+            self.parent.selected = self.data
+            return True
+
+
+#Popups
+class NormalPopup(Popup):
+    """Basic popup widget."""
+    pass
+
+
+class MessagePopup(GridLayout):
+    """Basic popup message with a message and 'ok' button."""
+
+    button_text = StringProperty('OK')
+    text = StringProperty()
+
+    def close(self, *_):
+        app = App.get_running_app()
+        app.popup.dismiss()
+
+
+class InputPopup(GridLayout):
+    """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
+
+    input_text = StringProperty()
+    text = StringProperty()  #Text that the user has input
+    hint = StringProperty()  #Grayed-out hint text in the input field
+
+    def __init__(self, **kwargs):
+        self.register_event_type('on_answer')
+        super(InputPopup, self).__init__(**kwargs)
+
+    def on_answer(self, *args):
+        pass
+
+
+class InputPopupTag(GridLayout):
+    """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
+
+    input_text = StringProperty()
+    text = StringProperty()  #Text that the user has input
+    hint = StringProperty()  #Grayed-out hint text in the input field
+
+    def __init__(self, **kwargs):
+        self.register_event_type('on_answer')
+        super(InputPopupTag, self).__init__(**kwargs)
+
+    def on_answer(self, *args):
+        pass
+
+
+class MoveConfirmPopup(NormalPopup):
+    """Popup that asks to confirm a file or folder move."""
+    target = StringProperty()
+    photos = ListProperty()
+    origin = StringProperty()
+
+
+class ScanningPopup(NormalPopup):
+    """Popup for displaying database scanning progress."""
+    scanning_percentage = NumericProperty(0)
+    scanning_text = StringProperty('Building File List...')
+
+
+class ConfirmPopup(GridLayout):
+    """Basic Yes/No popup message.  Calls 'on_answer' when either button is clicked."""
+
+    text = StringProperty()
+    yes_text = StringProperty('Yes')
+    no_text = StringProperty('No')
+    warn_yes = BooleanProperty(False)
+    warn_no = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        self.register_event_type('on_answer')
+        super(ConfirmPopup, self).__init__(**kwargs)
+
+    def on_answer(self, *args):
+        pass
+
+
+#Menus
+class NormalDropDown(DropDown):
+    """Base dropdown menu class."""
+    pass
+
+
+class AlbumSortDropDown(NormalDropDown):
+    """Drop-down menu for sorting album elements"""
+    pass
+
+
 #Splitter Panels
 class SplitterPanel(Splitter):
     """Base class for the left and right adjustable panels"""
@@ -1685,6 +1855,10 @@ class AsyncThumbnail(KivyImage):
     loadanyway = BooleanProperty(False)  #Force generating thumbnail even if this widget isnt added to a parent widget
     thumbsize = None
     angle = NumericProperty(0)
+    aspect = NumericProperty(1)
+    lowmem = BooleanProperty(False)
+    thumbnail = ObjectProperty()
+    is_full_size = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         self._coreimage = None
@@ -1772,18 +1946,23 @@ class AsyncThumbnail(KivyImage):
             ThumbLoader.max_upload_per_frame = 50
             ThumbLoader.num_workers = 4
             ThumbLoader.loading_image = 'data/loadingthumbnail.png'
-            self._coreimage = image = ThumbLoader.image(source, load_callback=self.load_thumbnail, nocache=self.nocache,
-                                                        mipmap=self.mipmap, anim_delay=self.anim_delay)
+            self._coreimage = image = ThumbLoader.image(source, load_callback=self.load_thumbnail, nocache=self.nocache, mipmap=self.mipmap, anim_delay=self.anim_delay)
             image.bind(on_load=self._on_source_load)
             image.bind(on_texture=self._on_tex_change)
             self.texture = image.texture
+
+    def on_loadfullsize(self, *_):
+        if self.thumbnail and not self.is_full_size and self.loadfullsize:
+            self._on_source_load()
 
     def _on_source_load(self, *_):
         image = self._coreimage.image
         if not image:
             return
+        self.thumbnail = image
         self.thumbsize = image.size
         self.texture = image.texture
+        self.aspect = image.size[1] / image.size[0]
 
         if self.loadfullsize:
             Cache.remove('kv.image', self.source)
@@ -1796,8 +1975,12 @@ class AsyncThumbnail(KivyImage):
 
     def _load_fullsize(self):
         app = App.get_running_app()
-        low_memory = to_bool(app.config.get("Settings", "lowmem"))
+        if not self.lowmem:
+            low_memory = to_bool(app.config.get("Settings", "lowmem"))
+        else:
+            low_memory = True
         if not low_memory:
+            #load a screen-sized image instead of full-sized to save memory
             if os.path.splitext(self.source)[1].lower() == '.bmp':
                 #default image loader messes up bmp files, use pil instead
                 self._coreimage = ImageLoaderPIL(self.source)
@@ -1831,6 +2014,10 @@ class AsyncThumbnail(KivyImage):
     def _on_tex_change(self, *largs):
         if self._coreimage:
             self.texture = self._coreimage.texture
+
+    def on_texture(self, *_):
+        if self.loadfullsize:
+            self.is_full_size = True
 
     def texture_update(self, *largs):
         pass

@@ -1,7 +1,7 @@
 """
-Future Todo (lower priority or a lot of work):
+Future Todo (lower priority, need to figure out how to do it, or a lot of work):
+    Collage editor - add more collage modes (grids)
     Rework cropping editor
-    create collage feature
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 """
@@ -544,6 +544,7 @@ class PhotoManager(App):
 
     def on_config_change(self, config, section, key, value):
         self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
+        self.thumbsize = int(self.config.get("Settings", "thumbsize"))
         if key == 'buttonsize' or key == 'textsize':
             self.rescale_interface(force=True)
             Clock.schedule_once(self.database_screen.on_enter)
@@ -560,7 +561,7 @@ class PhotoManager(App):
                 'photoinfo': 1,
                 'buttonsize': 100,
                 'textsize': 100,
-                'thumbsize': 160,
+                'thumbsize': 256,
                 'leftpanel': 0.2,
                 'rightpanel': 0.2,
                 'videoautoplay': 0,
@@ -1516,6 +1517,7 @@ class PhotoManager(App):
         if int(self.config.get("Settings", "thumbsize")) < 100:
             self.config.set("Settings", "thumbsize", 100)
 
+        self.thumbsize = int(self.config.get("Settings", "thumbsize"))
         self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
         #Load data
         self.tag_directory = os.path.join(self.data_directory, 'Tags')
@@ -2449,6 +2451,18 @@ class PhotoManager(App):
             self.screen_manager.add_widget(self.database_screen)
         self.screen_manager.current = 'database'
 
+    def show_collage(self):
+        """Switch to the create collage screen layout.
+        """
+
+        self.clear_drags()
+        if 'collage' not in self.screen_manager.screen_names:
+            from screencollage import CollageScreen
+            self.screen_manager.add_widget(CollageScreen(name='collage'))
+        self.type = self.database_screen.type
+        self.target = self.database_screen.selected
+        self.screen_manager.current = 'collage'
+
     def show_album(self, button=None):
         """Switch to the album screen layout.
         Argument:
@@ -2556,7 +2570,11 @@ class PhotoManager(App):
                 angle = 90
             else:
                 angle = 0
-
+            if len(drag_object.children) > 1:
+                self.drag_image.width = int(drag_object.width / 2)
+            else:
+                self.drag_image.width = drag_object.width
+            self.drag_image.height = drag_object.height
             self.drag_image.angle = angle
             self.drag_image.offset = offset
             self.main_layout.remove_widget(self.drag_image)

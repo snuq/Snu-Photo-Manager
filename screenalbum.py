@@ -55,7 +55,7 @@ from colorpickercustom import ColorPickerCustom
 
 from generalcommands import rotated_rect_with_max_area, interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
 from filebrowser import FileBrowser
-from generalelements import NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem
+from generalelements import NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton
 from generalconstants import *
 
 from kivy.lang.builder import Builder
@@ -2026,142 +2026,6 @@ Builder.load_string("""
 <AlbumSelectButton>:
     mipmap: True
     size_hint_x: 1
-
-<PhotoRecycleViewButton>:
-    canvas.after:
-        Color:
-            rgba: (1, 1, 1, 0) if self.found else(1, 0, 0, .33)
-        Rectangle:
-            pos: self.pos
-            size: self.size
-        Color:
-            rgba: 1, 1, 1, .5 if self.favorite else 0
-        Rectangle:
-            source: 'data/star.png'
-            pos: (self.pos[0]+(self.width-(self.height*.5)), self.pos[1]+(self.height*.5)-(self.height*.167))
-            size: (self.height*.33, self.height*.33)
-        Color:
-            rgba: 1, 1, 1, .5 if self.video else 0
-        Rectangle:
-            source: 'data/play_overlay.png'
-            pos: (self.pos[0]+(self.height*.25)), (self.pos[1]+(self.height*.25))
-            size: (self.height*.5), (self.height*.5)
-    size_hint_x: 1
-    height: (app.button_scale * 2)
-    AsyncThumbnail:
-        id: thumbnail
-        #photoinfo: root.photoinfo
-        #source: root.source
-        size_hint: None, None
-        width: (app.button_scale * 2)
-        height: (app.button_scale * 2)
-    NormalLabel:
-        mipmap: True
-        size_hint_y: None
-        height: (app.button_scale * 2)
-        text_size: (self.width - 20, None)
-        text: root.text
-        halign: 'left'
-        valign: 'center'
-
-<ColorPickerCustom_Label@Label>:
-    mroot: None
-    size_hint_x: None
-    width: '30sp'
-    text_size: self.size
-    halign: "center"
-    valign: "middle"
-
-<ColorPickerCustom_Selector@BoxLayout>:
-    foreground_color: None
-    text: ''
-    mroot: None
-    mode: 'rgb'
-    color: 0
-    spacing: '2sp'
-    ColorPickerCustom_Label:
-        text: root.text
-        mroot: root.mroot
-        color: root.foreground_color or (1, 1, 1, 1)
-    Slider:
-        id: sldr
-        size_hint: 1, .25
-        pos_hint: {'center_y':.5}
-        range: 0, 255
-        value: root.color * 255
-        on_value:
-            root.mroot._trigger_update_clr(root.mode, root.clr_idx, args[1])
-
-<ColorPickerCustom>:
-    canvas.before:
-        Color:
-            rgba: self.color
-        Rectangle:
-            pos: self.pos
-            size: self.size
-
-    size_hint_y: None
-    height: sp(33)*10
-    foreground_color: (1, 1, 1, 1) if self.hsv[2] * wheel.a < .5 else (0, 0, 0, 1)
-    wheel: wheel
-    BoxLayout:
-        orientation: 'vertical'
-        spacing: '5sp'
-        ColorWheel:
-            id: wheel
-            color: root.color
-            on_color: root.color[:3] = args[1][:3]
-        GridLayout:
-            cols: 1
-            size_hint_y: None
-            height: self.minimum_height
-            canvas:
-                Color:
-                    rgba: root.color
-                Rectangle:
-                    size: self.size
-                    pos: self.pos
-
-            ColorPickerCustom_Selector:
-                mroot: root
-                text: 'R'
-                clr_idx: 0
-                color: wheel.r
-                foreground_color: root.foreground_color
-                size_hint_y: None
-                height: 0
-                disabled: True
-                opacity: 0
-
-            ColorPickerCustom_Selector:
-                mroot: root
-                mode: 'hsv'
-                text: 'H'
-                clr_idx: 0
-                color: root.hsv[0]
-                foreground_color: root.foreground_color
-                size_hint_y: None
-                height: app.button_scale
-
-            ColorPickerCustom_Selector:
-                mroot: root
-                mode: 'hsv'
-                text: 'S'
-                clr_idx: 1
-                color: root.hsv[1]
-                foreground_color: root.foreground_color
-                size_hint_y: None
-                height: app.button_scale
-
-            ColorPickerCustom_Selector:
-                mroot: root
-                mode: 'hsv'
-                text: 'V'
-                clr_idx: 2
-                color: root.hsv[2]
-                foreground_color: root.foreground_color
-                size_hint_y: None
-                height: app.button_scale
 
 """)
 
@@ -6776,36 +6640,6 @@ class AlbumSelectButton(WideButton):
 
     def on_press(self):
         self.owner.add_to_album(self.target)
-
-
-class PhotoRecycleViewButton(RecycleItem):
-    video = BooleanProperty(False)
-    favorite = BooleanProperty(False)
-    fullpath = StringProperty()
-    photoinfo = ListProperty()
-    source = StringProperty()
-    selectable = BooleanProperty(True)
-    found = BooleanProperty(True)
-
-    def on_source(self, *_):
-        """Sets up the display image when first loaded."""
-
-        found = isfile2(self.source)
-        self.found = found
-
-    def refresh_view_attrs(self, rv, index, data):
-        super(PhotoRecycleViewButton, self).refresh_view_attrs(rv, index, data)
-        thumbnail = self.ids['thumbnail']
-        thumbnail.photoinfo = self.data['photoinfo']
-        thumbnail.source = self.data['source']
-
-    def on_touch_down(self, touch):
-        super(PhotoRecycleViewButton, self).on_touch_down(touch)
-        if self.collide_point(*touch.pos) and self.selectable:
-            self.owner.fullpath = self.fullpath
-            self.owner.photo = self.source
-            self.parent.selected = self.data
-            return True
 
 
 class RemoveFromTagButton(RemoveButton):
