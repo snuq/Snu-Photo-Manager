@@ -23,6 +23,7 @@ Watch the demo video:
 * Image edits: rotate (and straighten), crop, image border overlays (frames).  
 * All editing features apply to videos as well.  
 * Video conversions (reencoding using presets).  
+* Collage creation from any number of photos.
 * Exporting with watermarks and resizing, export to a folder or FTP.  
 
 
