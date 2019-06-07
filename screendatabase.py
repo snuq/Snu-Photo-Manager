@@ -717,7 +717,7 @@ class DatabaseScreen(Screen):
         self.dismiss_popup()
         self.update_treeview()
 
-    def drop_widget(self, fullpath, position, dropped_type='file'):
+    def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
         """Called when a widget is dropped after being dragged.
         Determines what to do with the widget based on where it is dropped.
         Arguments:
@@ -1713,7 +1713,7 @@ class TransferScreen(Screen):
         database_area = self.ids['rightDatabaseHolder']
         self.refresh_database_area(database_area, self.right_database, self.right_sort_method, self.right_sort_reverse)
 
-    def drop_widget(self, fullpath, position, dropped_type):
+    def drop_widget(self, fullpath, position, dropped_type, aspect=1):
         """Called when a widget is dropped after being dragged.
         Determines what to do with the widget based on where it is dropped.
         Arguments:

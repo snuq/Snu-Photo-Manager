@@ -2665,7 +2665,7 @@ class AlbumScreen(Screen):
             app.export_type = self.type
             app.show_export()
 
-    def drop_widget(self, fullpath, position, dropped_type='file'):
+    def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
         """Dummy function.  Here because the app can possibly call this function for any screen."""
         pass
 

@@ -1,4 +1,7 @@
 """
+Todo:
+    Android - filebrowser picks /mnt/sdcard/, which can be displayed, but not written to?
+
 Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     Collage editor - add more collage modes (grids)
     Rework cropping editor
@@ -2558,7 +2561,7 @@ class PhotoManager(App):
 
         if mode == 'end':
             self.main_layout.remove_widget(self.drag_image)
-            self.screen_manager.current_screen.drop_widget(self.drag_image.fullpath, position, dropped_type='file')
+            self.screen_manager.current_screen.drop_widget(self.drag_image.fullpath, position, dropped_type='file', aspect=self.drag_image.image_ratio)
 
         elif mode == 'start':
             orientation = drag_object.photo_orientation
@@ -2570,10 +2573,7 @@ class PhotoManager(App):
                 angle = 90
             else:
                 angle = 0
-            if len(drag_object.children) > 1:
-                self.drag_image.width = int(drag_object.width / 2)
-            else:
-                self.drag_image.width = drag_object.width
+            self.drag_image.width = drag_object.children[0].width
             self.drag_image.height = drag_object.height
             self.drag_image.angle = angle
             self.drag_image.offset = offset
@@ -2598,7 +2598,7 @@ class PhotoManager(App):
 
         if mode == 'end':
             self.main_layout.remove_widget(self.drag_treenode)
-            self.screen_manager.current_screen.drop_widget(drag_object.fullpath, position, dropped_type=drag_object.droptype)
+            self.screen_manager.current_screen.drop_widget(drag_object.fullpath, position, dropped_type=drag_object.droptype, aspect=1)
 
         elif mode == 'start':
             self.drag_treenode.offset = offset

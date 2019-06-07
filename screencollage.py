@@ -133,9 +133,12 @@ Builder.load_string("""
                         scroll_timeout: 200
                         bar_width: int(app.button_scale * .5)
                         scroll_type: ['bars', 'content']
-                        SelectableRecycleBoxLayout:
+                        SelectableRecycleGrid:
+                            cols: int((self.width - app.button_scale) / (app.button_scale * 3))
+                            multiselect: False
+                            spacing: 10
                             id: album
-                            default_size: self.width, (app.button_scale * 3)
+                            default_size: (app.button_scale * 3), (app.button_scale * 3)
             MainArea:
                 size_hint: .75, 1
                 orientation: 'vertical'
@@ -171,7 +174,7 @@ Builder.load_string("""
                         group: 'transform'
                         state: 'down'
                         size_hint_y: None
-                        height: 0 if app.simple_interface else app.button_scale
+                        width: 0 if app.simple_interface else self.texture_size[0] + 20
                         opacity: 0 if app.simple_interface else 1
                         disabled: True if app.simple_interface else False
                     NormalToggle:
@@ -179,20 +182,22 @@ Builder.load_string("""
                         text: '  Rotate/Scale  '
                         on_press: root.change_transform('rotscale')
                         group: 'transform'
-                        height: 0 if app.simple_interface else app.button_scale
+                        width: 0 if app.simple_interface else self.texture_size[0] + 20
                         opacity: 0 if app.simple_interface else 1
                         disabled: True if app.simple_interface else False
                     Label:
-                    MenuStarterButton:
+                        size_hint_x: None
+                        width: 0 if app.simple_interface else app.button_scale * 2
+                    MenuStarterButtonWide:
                         text: '  Add/Remove  '
                         on_release: root.add_remove.open(self)
-                    MenuStarterButton:
+                    MenuStarterButtonWide:
                         text: '  Background Color  '
                         on_release: root.color_select.open(self)
-                    MenuStarterButton:
+                    MenuStarterButtonWide:
                         text: '  Shape: '+str(root.aspect_text)+'  '
                         on_release: root.aspect_select.open(self)
-                    MenuStarterButton:
+                    MenuStarterButtonWide:
                         text: '  Export Size: '+root.resolution+'  '
                         on_release: root.resolution_select.open(self)
                     NormalButton:
@@ -200,7 +205,6 @@ Builder.load_string("""
                         on_release: root.export()
 
 <ScatterImage>:
-    height: self.width * image.aspect
     AsyncThumbnail:
         canvas.after:
             Color:
@@ -209,11 +213,11 @@ Builder.load_string("""
                 size: self.size
                 pos: self.pos
         id: image
-        size_hint_x: 1
-        size_hint_y: 1
+        size_hint: 1, 1
         photoinfo: root.photoinfo
         mirror: root.mirror
-        angle: root.image_angle
+        disable_rotate: True
+        #angle: root.image_angle
         loadfullsize: root.loadfullsize
         lowmem: root.lowmem
         source: root.source
@@ -231,6 +235,7 @@ class ScatterImage(ScatterLayout):
     owner = ObjectProperty()
     selected = BooleanProperty(False)
     lowmem = BooleanProperty(False)
+    aspect = NumericProperty(1)
 
     def on_scale(self, *_):
         app = App.get_running_app()
@@ -522,14 +527,14 @@ class CollageScreen(Screen):
         app = App.get_running_app()
         self.sort_reverse_button = 'down' if to_bool(app.config.get('Sorting', 'album_sort_reverse')) else 'normal'
 
-    def drop_widget(self, fullpath, position, dropped_type='file'):
+    def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
         """Called when a widget is dropped.  Determine photo dragged, and where it needs to go."""
 
         collage = self.ids['collageHolder']
         position = collage.to_widget(*position)
-        self.add_collage_image(collage, fullpath, position)
+        self.add_collage_image(collage, fullpath, position, aspect=aspect)
 
-    def add_collage_image(self, collage, fullpath, position, size=0.5, angle=0, lowmem=False):
+    def add_collage_image(self, collage, fullpath, position, size=0.5, angle=0, lowmem=False, aspect=1):
         if not lowmem:
             if len(self.images) > 8:
                 lowmem = True
@@ -552,10 +557,15 @@ class CollageScreen(Screen):
             else:
                 mirror = False
             width = collage.width
-            image_holder = ScatterImage(owner=self, source=file, rotation=angle, mirror=mirror, image_angle=angle_offset, photoinfo=photoinfo, lowmem=lowmem)
+            image_holder = ScatterImage(owner=self, source=file, rotation=angle+angle_offset, mirror=mirror, image_angle=0, photoinfo=photoinfo, lowmem=lowmem, aspect=aspect)
             image_holder.scale = size
             image_holder.selected = True
-            image_holder.width = width
+            if aspect < 1:
+                image_holder.width = width * aspect
+                image_holder.height = width
+            else:
+                image_holder.width = width
+                image_holder.height = width / aspect
             self.images.append(image_holder)
             image_holder.pos = (position[0] - (width * size / 2), position[1] - (width * size / 2))
             collage.add_widget(image_holder)

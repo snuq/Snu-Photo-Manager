@@ -672,6 +672,8 @@ Builder.load_string("""
     orientation: 'horizontal'
     AsyncThumbnail:
         id: thumbnail
+        width: self.height
+        size_hint_x: None
 
 <PhotoRecycleThumbWide>:
     PhotoThumbLabel:
@@ -1354,21 +1356,22 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout, LayoutSelectionBehavior):
     selects = ListProperty()
     multiselect = BooleanProperty(False)
 
-    def select_range(self):
-        select_index = self.parent.data.index(self.selected)
-        selected_nodes = []
-        if self.selects:
-            for select in self.selects:
-                selected_nodes.append(self.parent.data.index(select))
-        else:
-            selected_nodes = [0, len(self.parent.data)]
-        closest_node = min(selected_nodes, key=lambda x: abs(x-select_index))
+    def select_range(self, *_):
+        if self.multiselect:
+            select_index = self.parent.data.index(self.selected)
+            selected_nodes = []
+            if self.selects:
+                for select in self.selects:
+                    selected_nodes.append(self.parent.data.index(select))
+            else:
+                selected_nodes = [0, len(self.parent.data)]
+            closest_node = min(selected_nodes, key=lambda x: abs(x-select_index))
 
-        for index in range(min(select_index, closest_node), max(select_index, closest_node)):
-            selected = self.parent.data[index]
-            if selected not in self.selects:
-                self.selects.append(selected)
-        self.selects.append(self.selected)
+            for index in range(min(select_index, closest_node), max(select_index, closest_node)):
+                selected = self.parent.data[index]
+                if selected not in self.selects:
+                    self.selects.append(selected)
+            self.selects.append(self.selected)
 
     def toggle_select(self, *_):
         if self.multiselect:
@@ -1859,6 +1862,7 @@ class AsyncThumbnail(KivyImage):
     lowmem = BooleanProperty(False)
     thumbnail = ObjectProperty()
     is_full_size = BooleanProperty(False)
+    disable_rotate = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         self._coreimage = None
@@ -1874,8 +1878,6 @@ class AsyncThumbnail(KivyImage):
             filename: Image filename.
         Returns: A Kivy image"""
 
-        #i dont think this is needed anymore, i hope...
-        #root_widget = self.parent.parent.parent.parent
         root_widget = True
         if root_widget or self.loadanyway:
             app = App.get_running_app()
@@ -1913,22 +1915,23 @@ class AsyncThumbnail(KivyImage):
             return ImageLoader.load('data/null.jpg')
 
     def set_angle(self):
-        orientation = self.photoinfo[13]
-        if orientation in [2, 4, 5, 7]:
-            self.mirror = True
-        else:
-            self.mirror = False
-        if self.mirror:
-            self.texture.flip_horizontal()
+        if not self.disable_rotate:
+            orientation = self.photoinfo[13]
+            if orientation in [2, 4, 5, 7]:
+                self.mirror = True
+            else:
+                self.mirror = False
+            if self.mirror:
+                self.texture.flip_horizontal()
 
-        if orientation == 3 or orientation == 4:
-            self.angle = 180
-        elif orientation == 5 or orientation == 6:
-            self.angle = 270
-        elif orientation == 7 or orientation == 8:
-            self.angle = 90
-        else:
-            self.angle = 0
+            if orientation == 3 or orientation == 4:
+                self.angle = 180
+            elif orientation == 5 or orientation == 6:
+                self.angle = 270
+            elif orientation == 7 or orientation == 8:
+                self.angle = 90
+            else:
+                self.angle = 0
 
     def _load_source(self, *_):
         self.set_angle()

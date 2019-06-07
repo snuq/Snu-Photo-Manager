@@ -1099,7 +1099,7 @@ class ImportingScreen(Screen):
                 return photo
         return False
 
-    def drop_widget(self, fullpath, position, dropped_type='file'):
+    def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
         """Called when a widget is dropped after being dragged.
         Determines what to do with the widget based on where it is dropped.
         Arguments:
