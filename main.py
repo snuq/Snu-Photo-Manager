@@ -1,7 +1,4 @@
 """
-Todo:
-    Android - filebrowser picks /mnt/sdcard/, which can be displayed, but not written to?
-
 Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     Collage editor - add more collage modes (grids)
     Rework cropping editor

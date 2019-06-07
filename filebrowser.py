@@ -129,9 +129,16 @@ def get_drives():
             for drive in next(os.walk(vol))[1]:
                 drives.append((vol + os.path.sep + drive + os.path.sep, drive))
     elif platform == 'android':
-        drives.append((os.path.sep, os.path.sep))
-        drives.append((os.path.sep + u'mnt' + os.path.sep, '/mnt'))
-        drives.append((os.path.sep + u'mnt' + os.path.sep + 'sdcard' + os.path.sep, 'Internal Memory'))
+        paths = [
+            ('/', 'Root'),
+            ('/storage', 'Mounted Storage'),
+            ('/mnt/sdcard', 'Internal Storage'),
+            ('/storage/extSdCard', 'External Storage')
+        ]
+        for path in paths:
+            realpath = os.path.realpath(path[0]) + os.path.sep
+            if os.path.exists(realpath):
+                drives.append((realpath, path[1]))
     return drives
 
 
