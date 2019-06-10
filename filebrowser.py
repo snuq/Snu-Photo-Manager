@@ -337,6 +337,8 @@ class FileBrowser(BoxLayout):
             if self.directory_select:
                 self.filename = button.fullpath
                 self.target_selected = True
+            elif self.export_mode:
+                self.target_selected = True
             else:
                 self.filename = ''
                 self.target_selected = False
