@@ -72,7 +72,7 @@ Builder.load_string("""
             SelectableRecycleBoxLayout:
         NormalButton:
             text: root.ok_text
-            disabled: not root.target_selected or not (root.export_mode and len(root.file) > 0)
+            disabled: not (root.target_selected or (root.export_mode and len(root.file) > 0))
             size_hint_x: 1
             on_release: root.dispatch('on_ok')
         NormalButton:

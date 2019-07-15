@@ -4331,10 +4331,6 @@ class CustomImage(KivyImage):
         right = pos_x + width
         lower = pos_y + width
         upper = pos_y
-        #if self.video:
-        #    #for... some reason the preview is upside-down if the image is a video???
-        #    original_image = self.original_image.transpose(PIL.Image.ROTATE_180)
-        #else:
         original_image = self.original_image
         preview = original_image.crop(box=(left, upper, right, lower))
         if preview.mode != 'RGB':
