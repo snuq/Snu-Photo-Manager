@@ -16,6 +16,7 @@ from shutil import copy2
 import subprocess
 import time
 from operator import itemgetter
+from functools import partial
 
 #all these are needed to get ffpyplayer working on linux
 import ffpyplayer.threading
@@ -34,6 +35,7 @@ Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.cache import Cache
+from kivy.animation import Animation
 from kivy.graphics.transformation import Matrix
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.screenmanager import Screen
@@ -157,12 +159,14 @@ Builder.load_string("""
                         disabled: app.database_scanning
             SplitterPanelRight:
                 id: rightpanel
-                FloatLayout:
+                width: 0
+                opacity: 0
+                PanelTabs:
+                    tab: root.view_panel
                     BoxLayout:
+                        tab: 'info'
+                        opacity: 0
                         orientation: 'vertical'
-                        opacity: 1 if root.view_panel == 'info' else 0
-                        disabled: False if root.view_panel == 'info' else True
-                        size_hint_x: 1 if root.view_panel == 'info' else 0
                         pos: self.parent.pos
                         size: self.parent.size
                         padding: app.padding
@@ -173,10 +177,9 @@ Builder.load_string("""
                             text: 'Refresh Photo Info'
                             on_release: root.full_photo_refresh()
                     BoxLayout:
+                        tab: 'edit'
+                        opacity: 0
                         id: editPanelContainer
-                        opacity: 1 if root.view_panel == 'edit' else 0
-                        disabled: False if root.view_panel == 'edit' else True
-                        size_hint_x: 1 if root.view_panel == 'edit' else 0
                         pos: self.parent.pos
                         size: self.parent.size
                         padding: app.padding
@@ -184,16 +187,15 @@ Builder.load_string("""
                             cols: 1
                             id: editScroller
                             do_scroll_x: False
-                            GridLayout:
+                            EditPanelContainer:
                                 disabled: app.database_scanning
                                 id: panelEdit
                                 cols: 1
                                 size_hint: 1, None
                                 height: self.minimum_height
                     BoxLayout:
-                        opacity: 1 if root.view_panel == 'tags' else 0
-                        disabled: False if root.view_panel == 'tags' else True
-                        size_hint_x: 1 if root.view_panel == 'tags' else 0
+                        tab: 'tags'
+                        opacity: 0
                         pos: self.parent.pos
                         size: self.parent.size
                         padding: app.padding
@@ -2052,8 +2054,8 @@ class AlbumScreen(Screen):
     #Widget holder variables
     sort_dropdown = ObjectProperty()  #Holder for the sort method dropdown menu
     popup = None  #Holder for the screen's popup dialog
-    edit_panel = StringProperty('main')  #The type of edit panel currently loaded
-    edit_panel_object = ObjectProperty()  #Holder for the edit panel widget
+    edit_panel = StringProperty('')  #The type of edit panel currently loaded
+    edit_panel_object = ObjectProperty(allownone=True)  #Holder for the edit panel widget
     viewer = ObjectProperty()  #Holder for the photo viewer widget
     imagecache = None  #Holder for the image cacher thread
 
@@ -2118,47 +2120,29 @@ class AlbumScreen(Screen):
     crop_bottom = NumericProperty(0)
     crop_left = NumericProperty(0)
 
-    def show_tags_panel(self, *_):
-        self.set_edit_panel('main')
+    def show_panel(self, panel_name):
         right_panel = self.ids['rightpanel']
-        if self.view_panel == 'tags':
+        if self.view_panel == panel_name:
+            self.set_edit_panel('main')
             right_panel.hidden = True
             self.view_panel = ''
             self.show_left_panel()
         else:
-            self.view_panel = 'tags'
+            self.set_edit_panel('main')
+            self.view_panel = panel_name
             right_panel.hidden = False
             app = App.get_running_app()
             if app.simple_interface:
                 self.hide_left_panel()
+
+    def show_tags_panel(self, *_):
+        self.show_panel('tags')
 
     def show_info_panel(self, *_):
-        self.set_edit_panel('main')
-        right_panel = self.ids['rightpanel']
-        if self.view_panel == 'info':
-            right_panel.hidden = True
-            self.view_panel = ''
-            self.show_left_panel()
-        else:
-            self.view_panel = 'info'
-            right_panel.hidden = False
-            app = App.get_running_app()
-            if app.simple_interface:
-                self.hide_left_panel()
+        self.show_panel('info')
 
     def show_edit_panel(self, *_):
-        self.set_edit_panel('main')
-        right_panel = self.ids['rightpanel']
-        if self.view_panel == 'edit':
-            right_panel.hidden = True
-            self.view_panel = ''
-            self.show_left_panel()
-        else:
-            self.view_panel = 'edit'
-            right_panel.hidden = False
-            app = App.get_running_app()
-            if app.simple_interface:
-                self.hide_left_panel()
+        self.show_panel('edit')
 
     def show_left_panel(self, *_):
         left_panel = self.ids['leftpanel']
@@ -2653,8 +2637,9 @@ class AlbumScreen(Screen):
             panelname: String, the name of the panel.
         """
 
-        self.edit_panel = panelname
-        Clock.schedule_once(lambda *dt: self.update_edit_panel())
+        if self.edit_panel != panelname:
+            self.edit_panel = panelname
+            Clock.schedule_once(lambda *dt: self.update_edit_panel())
 
     def export(self):
         """Switches to export screen."""
@@ -2744,27 +2729,6 @@ class AlbumScreen(Screen):
             elif self.popup and self.popup.open:
                 if key == 'enter':
                     self.popup.content.dispatch('on_answer', 'yes')
-
-    def first_panel(self):
-        """Switches the right panel area to the first tab."""
-
-        tab_panel = self.ids['tabPanel']
-        tabs = tab_panel.tab_list
-        tab_panel.switch_to(tabs[2])
-
-    def second_panel(self):
-        """Switches the right panel area to the second tab."""
-
-        tab_panel = self.ids['tabPanel']
-        tabs = tab_panel.tab_list
-        tab_panel.switch_to(tabs[1])
-
-    def third_panel(self):
-        """Switches the right panel area to the third tab."""
-
-        tab_panel = self.ids['tabPanel']
-        tabs = tab_panel.tab_list
-        tab_panel.switch_to(tabs[0])
 
     def next_photo(self):
         """Changes the viewed photo to the next photo in the album index."""
@@ -3282,7 +3246,7 @@ class AlbumScreen(Screen):
             self.viewer.stop()
         app = App.get_running_app()
         right_panel = self.ids['rightpanel']
-        right_panel.width = app.right_panel_width()
+        #right_panel.width = app.right_panel_width()
         right_panel.hidden = True
         self.view_panel = ''
         self.show_left_panel()
@@ -3317,7 +3281,6 @@ class AlbumScreen(Screen):
         app = App.get_running_app()
         self.ids['leftpanel'].width = app.left_panel_width()
         right_panel = self.ids['rightpanel']
-        right_panel.width = app.right_panel_width()
         right_panel.hidden = True
         self.view_panel = ''
         self.show_left_panel()
@@ -3372,12 +3335,12 @@ class AlbumScreen(Screen):
 
     def update_edit_panel(self):
         """Set up the edit panel with the current preset."""
+
         if self.viewer and isfile2(self.photo):
             if self.edit_panel_object:
                 self.edit_panel_object.save_last()
             self.viewer.edit_mode = self.edit_panel
             edit_panel_container = self.ids['panelEdit']
-            edit_panel_container.clear_widgets()
             if self.edit_panel == 'main':
                 self.edit_panel_object = EditMain(owner=self)
                 self.viewer.bypass = False
@@ -3411,13 +3374,13 @@ class AlbumScreen(Screen):
                         self.edit_panel_object = EditConvertImage(owner=self)
                     else:
                         self.edit_panel_object = EditConvertVideo(owner=self)
-            edit_panel_container.add_widget(self.edit_panel_object)
+            edit_panel_container.change_panel(self.edit_panel_object)
         else:
             if self.edit_panel_object:
                 self.edit_panel_object.save_last()
             self.viewer.edit_mode = self.edit_panel
             edit_panel_container = self.ids['panelEdit']
-            edit_panel_container.clear_widgets()
+            edit_panel_container.change_panel(None)
             self.edit_panel_object = EditNone(owner=self)
 
     def save_edit(self):
@@ -3773,6 +3736,43 @@ class AlbumScreen(Screen):
         #close edit panel
         self.set_edit_panel('main')
         app.message("Saved edits to image")
+
+
+class PanelTabs(FloatLayout):
+    tab = StringProperty('')
+    animate_in = None
+    animate_out = None
+
+    def disable_tab(self, tab, *_):
+        tab.disabled = True
+        tab.size_hint_x = 0
+
+    def on_tab(self, *_):
+        app = App.get_running_app()
+        animate_in = Animation(opacity=1, duration=app.animation_length)
+        animate_out = Animation(opacity=0, duration=app.animation_length)
+        for child in self.children:
+            if self.animate_in:
+                self.animate_in.cancel(child)
+            if self.animate_out:
+                self.animate_out.cancel(child)
+            if child.tab == self.tab:
+                child.size_hint_x = 1
+                child.disabled = False
+                if app.animations:
+                    animate_in.start(child)
+                else:
+                    child.opacity = 1
+            else:
+                if app.animations:
+                    animate_out.start(child)
+                    animate_out.bind(on_complete=partial(self.disable_tab, child))
+                else:
+                    child.opacity = 0
+                    child.disabled = True
+                    child.size_hint_x = 0
+        self.animate_in = animate_in
+        self.animate_out = animate_out
 
 
 class CustomImage(KivyImage):
@@ -5014,6 +5014,34 @@ class PauseableVideo(Video):
             return True
 
 
+class EditPanelContainer(GridLayout):
+    panel = None
+    animating = None
+
+    def animation_complete(self, *_):
+        app = App.get_running_app()
+        self.animating = None
+        if self.panel:
+            self.clear_widgets()
+            self.opacity = 0
+            self.add_widget(self.panel)
+            self.animating = anim = Animation(opacity=1, duration=app.animation_length)
+            anim.start(self)
+
+    def change_panel(self, panel):
+        app = App.get_running_app()
+        self.panel = panel
+        if app.animations:
+            self.animating = anim = Animation(opacity=0, duration=app.animation_length)
+            anim.start(self)
+            anim.bind(on_complete=self.animation_complete)
+        else:
+            self.clear_widgets()
+            self.opacity = 1
+            if panel:
+                self.add_widget(panel)
+
+
 class EditNone(GridLayout):
     owner = ObjectProperty()
 
@@ -5100,8 +5128,7 @@ class EditMain(GridLayout):
             program_button = ExpandableButton(text=name, index=index)
             program_button.bind(on_release=lambda button: app.program_run(button.index, button))
             program_button.bind(on_remove=lambda button: self.remove_program(button.index))
-            program_button.content = ExternalProgramEditor(index=index, name=name, command=command, argument=argument,
-                                                           owner=self)
+            program_button.content = ExternalProgramEditor(index=index, name=name, command=command, argument=argument, owner=self)
             external_programs.add_widget(program_button)
             if index == expand_index and expand:
                 program_button.expanded = True

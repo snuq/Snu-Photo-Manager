@@ -1292,10 +1292,8 @@ class ExportPreset(ExpandableButton):
         if self.content:
             content_container = self.ids['contentContainer']
             if self.expanded:
-                content_container.add_widget(self.content)
                 Clock.schedule_once(self.content.update_test_image)
-            else:
-                content_container.clear_widgets()
+        super(ExportPreset, self).on_expanded()
 
     def on_remove(self):
         app = App.get_running_app()

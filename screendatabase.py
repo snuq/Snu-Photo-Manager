@@ -4,6 +4,7 @@ import threading
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.cache import Cache
+from kivy.animation import Animation
 from kivy.uix.screenmanager import Screen
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
@@ -80,67 +81,72 @@ Builder.load_string("""
                         scroll_type: ['bars', 'content']
                         SelectableRecycleBoxLayout:
                             id: databaseInterior
-                    BoxLayout:
-                        canvas.before:
-                            Color:
-                                rgba: (1, 1, 1, 1)
-                            Rectangle:
-                                size: self.size
-                                pos: self.pos
-                                source: 'data/buttonmenu.png' if app.simple_interface else 'data/headerbg.png'
+                    DatabaseOptions:
+                        id: databaseOptionsArea
                         orientation: 'vertical'
-                        opacity: 1 if (databaseOptions.state == 'down' or not app.simple_interface) else 0
-                        disabled: False if (databaseOptions.state == 'down' or not app.simple_interface) else True
-                        height: (app.button_scale * 5 if databaseOptions.state == 'down' else 0) if app.simple_interface else app.button_scale * 2
+                        height: app.button_scale * (1 + (5*self.height_scale)) if app.simple_interface else app.button_scale * 2
                         size_hint_y: None
                         BoxLayout:
-                            orientation: 'vertical' if app.simple_interface else 'horizontal'
-                            NormalLabel:
-                                size_hint_y: 1
-                                id: operationType
-                                text: ''
-                            NormalButton:
-                                size_hint_y: 1
-                                id: newFolder
-                                size_hint_x: 1
-                                text: 'New'
-                                on_release: root.add_item()
-                                disabled: not root.can_new_folder or app.database_scanning
-                            NormalButton:
-                                size_hint_y: 1
-                                id: renameFolder
-                                size_hint_x: 1
-                                text: 'Rename'
-                                on_release: root.rename_item()
-                                disabled: not root.can_rename_folder or app.database_scanning
-                            NormalButton:
-                                size_hint_y: 1
-                                id: deleteFolder
-                                size_hint_x: 1
-                                text: 'Delete'
-                                warn: True
-                                on_release: root.delete_item()
-                                disabled: not root.can_delete_folder or app.database_scanning
-                        BoxLayout:
-                            size_hint_y: None
-                            height: app.button_scale if (databaseOptions.state == 'down' or not app.simple_interface) else 0
-                            NormalInput:
-                                size_hint_y: 1
-                                multiline: False
-                                hint_text: 'Search...'
-                                text: root.search_text
-                                on_text: root.search(self.text)
-                            NormalButton:
-                                size_hint_y: 1
-                                text: 'Clear'
-                                on_release: root.clear_search()
-                    NormalToggle:
-                        id: databaseOptions
-                        size_hint_x: 1
-                        text: 'Database Options'
-                        height: app.button_scale if app.simple_interface else 0
-                        opacity: 1 if app.simple_interface else 0
-                        disabled: False if app.simple_interface else True
+                            canvas.before:
+                                Color:
+                                    rgba: (1, 1, 1, 1)
+                                Rectangle:
+                                    size: self.size
+                                    pos: self.pos
+                                    source: 'data/buttonmenu.png' if app.simple_interface else 'data/headerbg.png'
+                            orientation: 'vertical'
+                            size_hint_y: 1
+                            opacity: databaseOptionsArea.height_scale if app.simple_interface else 1
+                            disabled: False if (databaseOptions.state == 'down' or not app.simple_interface) else True
+                            BoxLayout:
+                                orientation: 'vertical' if app.simple_interface else 'horizontal'
+                                NormalLabel:
+                                    size_hint_y: 1
+                                    id: operationType
+                                    text: ''
+                                NormalButton:
+                                    size_hint_y: 1
+                                    id: newFolder
+                                    size_hint_x: 1
+                                    text: 'New'
+                                    on_release: root.add_item()
+                                    disabled: not root.can_new_folder or app.database_scanning
+                                NormalButton:
+                                    size_hint_y: 1
+                                    id: renameFolder
+                                    size_hint_x: 1
+                                    text: 'Rename'
+                                    on_release: root.rename_item()
+                                    disabled: not root.can_rename_folder or app.database_scanning
+                                NormalButton:
+                                    size_hint_y: 1
+                                    id: deleteFolder
+                                    size_hint_x: 1
+                                    text: 'Delete'
+                                    warn: True
+                                    on_release: root.delete_item()
+                                    disabled: not root.can_delete_folder or app.database_scanning
+                            BoxLayout:
+                                size_hint_y: None
+                                height: app.button_scale
+                                NormalInput:
+                                    size_hint_y: 1
+                                    multiline: False
+                                    hint_text: 'Search...'
+                                    text: root.search_text
+                                    on_text: root.search(self.text)
+                                NormalButton:
+                                    size_hint_y: 1
+                                    text: 'Clear'
+                                    on_release: root.clear_search()
+                        NormalToggle:
+                            id: databaseOptions
+                            size_hint_x: 1
+                            text: 'Database Options'
+                            height: app.button_scale if app.simple_interface else 0
+                            opacity: 1 if app.simple_interface else 0
+                            disabled: False if app.simple_interface else True
+                            on_press: databaseOptionsArea.set_hidden(self.state)
             MainArea:
                 orientation: 'vertical'
                 Header:
@@ -1388,6 +1394,9 @@ class DatabaseScreen(Screen):
             app.config.set("Settings", "viewtarget", self.selected)
             app.config.set("Settings", "viewdisplayable", self.displayable)
 
+            if self.selected:
+                self.can_new_folder = True
+
             if not self.displayable or not self.selected:  #Nothing is selected, fill with dummy data.
                 operation_label.text = ''
                 self.can_rename_folder = False
@@ -1405,7 +1414,6 @@ class DatabaseScreen(Screen):
                     operation_label.text = 'Folder:'
             else:
                 #Something is selected
-                self.can_new_folder = True
                 self.can_delete_folder = True
                 if self.type == 'Album':
                     operation_label.text = 'Album:'
@@ -2024,6 +2032,30 @@ class DatabaseRestoreScreen(Screen):
             app.message("Error: "+completed)
         app.setup_database(restore=True)
         Clock.schedule_once(app.show_database, 1)
+
+
+class DatabaseOptions(BoxLayout):
+    height_scale = NumericProperty(0)
+    can_new_folder = BooleanProperty(False)
+    can_rename_folder = BooleanProperty(False)
+    can_delete_folder = BooleanProperty(False)
+    search_text = StringProperty('')
+    database = ObjectProperty()
+
+    def set_hidden(self, state):
+        app = App.get_running_app()
+        if state == 'down':
+            if app.animations:
+                anim = Animation(height_scale=1, duration=app.animation_length)
+                anim.start(self)
+            else:
+                self.height_scale = 1
+        else:
+            if app.animations:
+                anim = Animation(height_scale=0, duration=app.animation_length)
+                anim.start(self)
+            else:
+                self.height_scale = 0
 
 
 class AlbumDetails(BoxLayout):

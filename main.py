@@ -40,7 +40,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.base import EventLoop
 from kivy.uix.screenmanager import ScreenManager
-from kivy.uix.screenmanager import SlideTransition
+from kivy.uix.screenmanager import SlideTransition, NoTransition
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.uix.floatlayout import FloatLayout
 from kivy.core.window import Window
@@ -152,6 +152,8 @@ class PhotoManager(App):
     color_even = (1, 1, 1, .1)
     padding = NumericProperty(10)
     popup_x = 640
+    animations = True
+    animation_length = .2
 
     interpolation = StringProperty('Catmull-Rom')  #Interpolation mode of the curves dialog.
     fullpath = StringProperty()
@@ -543,6 +545,8 @@ class PhotoManager(App):
         return False
 
     def on_config_change(self, config, section, key, value):
+        self.animations = to_bool(self.config.get("Settings", "animations"))
+        self.set_transition()
         self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
         self.thumbsize = int(self.config.get("Settings", "thumbsize"))
         if key == 'buttonsize' or key == 'textsize':
@@ -575,7 +579,8 @@ class PhotoManager(App):
                 'lowmem': 0,
                 'simpleinterface': simple_interface,
                 'backupdatabase': 1,
-                'rescanstartup': 0
+                'rescanstartup': 0,
+                'animations': 1
             })
         config.setdefaults(
             'Database Directories', {
@@ -697,6 +702,13 @@ class PhotoManager(App):
             "desc": "Removes some components of the interface.  Intended for phones or touch screen devices.",
             "section": "Settings",
             "key": "simpleinterface"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Animate Interface",
+            "desc": "Animate various elements of the interface.  Disable this on slow computers.",
+            "section": "Settings",
+            "key": "animations"
         })
         settingspanel.append({
             "type": "bool",
@@ -1507,6 +1519,12 @@ class PhotoManager(App):
             self.text_scale = int((self.button_scale / 3) * int(self.config.get("Settings", "textsize")) / 100)
             Clock.schedule_once(self.show_database)
 
+    def set_transition(self):
+        if self.animations:
+            self.screen_manager.transition = SlideTransition()
+        else:
+            self.screen_manager.transition = NoTransition()
+
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
 
@@ -1541,7 +1559,8 @@ class PhotoManager(App):
 
         #Set up screens
         self.screen_manager = ScreenManager()
-        self.screen_manager.transition = SlideTransition()
+        self.animations = to_bool(self.config.get("Settings", "animations"))
+        self.set_transition()
         self.main_layout.add_widget(self.screen_manager)
         viewtype = 'None'
         viewtarget = ''
@@ -2449,6 +2468,8 @@ class PhotoManager(App):
         self.clear_drags()
         if 'database' not in self.screen_manager.screen_names:
             self.screen_manager.add_widget(self.database_screen)
+        if self.animations:
+            self.screen_manager.transition.direction = 'right'
         self.screen_manager.current = 'database'
 
     def show_collage(self):
@@ -2461,6 +2482,8 @@ class PhotoManager(App):
             self.screen_manager.add_widget(CollageScreen(name='collage'))
         self.type = self.database_screen.type
         self.target = self.database_screen.selected
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'collage'
 
     def show_album(self, button=None):
@@ -2473,6 +2496,8 @@ class PhotoManager(App):
         if 'album' not in self.screen_manager.screen_names:
             from screenalbum import AlbumScreen
             self.screen_manager.add_widget(AlbumScreen(name='album'))
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
         if button:
             if button.type != 'None':
                 if not button.folder:
@@ -2498,6 +2523,8 @@ class PhotoManager(App):
             from screenimporting import ImportScreen, ImportingScreen
             self.importing_screen = ImportingScreen(name='importing')
             self.screen_manager.add_widget(ImportScreen(name='import'))
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'import'
 
     def show_importing(self):
@@ -2506,6 +2533,8 @@ class PhotoManager(App):
         self.clear_drags()
         if 'importing' not in self.screen_manager.screen_names:
             self.screen_manager.add_widget(self.importing_screen)
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'importing'
 
     def show_export(self):
@@ -2515,6 +2544,8 @@ class PhotoManager(App):
         if 'export' not in self.screen_manager.screen_names:
             from screenexporting import ExportScreen
             self.screen_manager.add_widget(ExportScreen(name='export'))
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'export'
 
     def show_transfer(self):
@@ -2523,6 +2554,8 @@ class PhotoManager(App):
         self.clear_drags()
         if 'transfer' not in self.screen_manager.screen_names:
             self.screen_manager.add_widget(TransferScreen(name='transfer'))
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'transfer'
 
     def popup_message(self, text, title='Notification'):

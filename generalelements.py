@@ -8,6 +8,7 @@ from kivy.config import Config
 Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.animation import Animation
 from kivy.cache import Cache
 from kivy.graphics.transformation import Matrix
 from kivy.uix.behaviors import ButtonBehavior, DragBehavior
@@ -82,6 +83,8 @@ Builder.load_string("""
 
 <MainHeader@HeaderBase>:
     canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
         Rectangle:
             size: self.size
             pos: self.pos
@@ -91,6 +94,8 @@ Builder.load_string("""
 
 <MainArea@BoxLayout>:
     canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
         Rectangle:
             size: self.size
             pos: self.pos
@@ -323,20 +328,18 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: (1, 1, 1, 1) if root.expanded else (0, 0, 0, 0)
+                rgba: (1, 1, 1, 1)
             BorderImage:
                 pos: self.pos
                 size: self.size
                 source: 'data/buttonmenu.png'
-        cols: 2
+        padding: app.padding
+        cols: 1
         size_hint: 1, None
-        height: self.minimum_height
-        GridLayout:
-            padding: app.padding
-            cols: 1
-            size_hint: 1, None
-            height: self.minimum_height
-            id: contentContainer
+        #height: self.minimum_height
+        height: app.padding * 2
+        opacity: 0
+        id: contentContainer
 
 <TreeViewButton>:
     color_selected: app.selected_color
@@ -417,6 +420,8 @@ Builder.load_string("""
 
 <ReverseToggle@ToggleButton>:
     canvas:
+        Color:
+            rgba: 1, 1, 1, 1
         Rectangle:
             pos: self.pos
             size: self.size
@@ -598,8 +603,8 @@ Builder.load_string("""
         Color:
             rgba: 1, 1, 1, 1
         Rectangle:
-            size: self.size
-            pos: self.pos
+            size: root.width, root.height * root.show_percent
+            pos: root.pos[0], root.pos[1] + (root.height * (1 - root.show_percent)) if root.invert else root.pos[1]
             source: 'data/buttonmenu.png'
 
 <AlbumSortDropDown>:
@@ -798,6 +803,8 @@ Builder.load_string("""
 
 <SplitterPanel>:
     canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
         Rectangle:
             size: self.size
             pos: self.pos
@@ -809,13 +816,11 @@ Builder.load_string("""
 
 <SplitterPanelLeft>:
     width: self.display_width
-    opacity: 0 if self.hidden else 1
     disabled: self.hidden
     sizable_from: 'right'
 
 <SplitterPanelRight>:
     width: self.display_width
-    opacity: 0 if self.hidden else 1
     disabled: self.hidden
     sizable_from: 'left'
 
@@ -1035,34 +1040,21 @@ class PhotoThumbLabel(NormalLabel):
 
 
 class InfoLabel(ShortLabel):
-    bgcolor = ListProperty([0, 0, 0, 0])
+    bgcolor = ListProperty([1, 1, 0, 0])
     blinker = ObjectProperty()
 
     def on_text(self, instance, text):
         del instance
         if self.blinker:
-            self.blinker.cancel()
-        self.reset_bgcolor()
+            self.stop_blinking()
         if text:
-            self.blinker = Clock.schedule_interval(self.toggle_bgcolor, .33)
-            Clock.schedule_once(self.stop_blinking, 5)
-
-    def toggle_bgcolor(self, *_):
-        if self.bgcolor == [0, 0, 0, 0]:
-            self.hilight_bgcolor()
-        else:
-            self.reset_bgcolor()
+            self.blinker = Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33)
+            self.blinker.start(self)
 
     def stop_blinking(self, *_):
         if self.blinker:
-            self.blinker.cancel()
-        Clock.schedule_once(self.reset_bgcolor)
-
-    def hilight_bgcolor(self, *_):
-        self.bgcolor = [1, 1, 0, .75]
-
-    def reset_bgcolor(self, *_):
-        self.bgcolor = [0, 0, 0, 0]
+            self.blinker.cancel(self)
+        self.bgcolor = [1, 1, 0, 0]
 
 
 #Text Inputs
@@ -1562,6 +1554,7 @@ class ExpandableButton(GridLayout):
     expanded = BooleanProperty(False)  #Determines if the expanded area is displayed
     content = ObjectProperty()  #Widget to be displayed when expanded is enabled
     index = NumericProperty()  #The button's index in the list - useful for the remove function
+    animation = None
 
     def __init__(self, **kwargs):
         super(ExpandableButton, self).__init__(**kwargs)
@@ -1574,12 +1567,42 @@ class ExpandableButton(GridLayout):
         self.expanded = expanded
 
     def on_expanded(self, *_):
+        app = App.get_running_app()
         if self.content:
-            content_container = self.ids['contentContainer']
             if self.expanded:
-                content_container.add_widget(self.content)
+                Clock.schedule_once(self.animate_expand)
             else:
+                content_container = self.ids['contentContainer']
+                content_container.unbind(minimum_height=self.set_content_height)
+                if app.animations:
+                    anim = Animation(height=app.padding * 2, opacity=0, duration=app.animation_length)
+                    anim.start(content_container)
+                else:
+                    content_container.opacity = 0
+                    content_container.height = app.padding * 2
                 content_container.clear_widgets()
+
+    def animate_expand(self, *_):
+        content_container = self.ids['contentContainer']
+        app = App.get_running_app()
+        if app.animations:
+            if self.animation:
+                self.animation.cancel(content_container)
+            self.animation = Animation(height=(self.content.height + (app.padding * 2)), opacity=1, duration=app.animation_length)
+            self.animation.start(content_container)
+            self.animation.bind(on_complete=self.finish_expand)
+        else:
+            self.finish_expand()
+            content_container.opacity = 1
+        content_container.add_widget(self.content)
+
+    def finish_expand(self, *_):
+        content_container = self.ids['contentContainer']
+        content_container.bind(minimum_height=self.set_content_height)
+
+    def set_content_height(self, *_):
+        content_container = self.ids['contentContainer']
+        content_container.height = content_container.minimum_height
 
     def on_press(self):
         pass
@@ -1694,7 +1717,30 @@ class PhotoRecycleViewButton(RecycleItem):
 #Popups
 class NormalPopup(Popup):
     """Basic popup widget."""
-    pass
+
+    def open(self, *args, **kwargs):
+        app = App.get_running_app()
+        if app.animations:
+            self.opacity = 0
+            height = self.height
+            self.height = 4 * self.height
+            anim = Animation(opacity=1, height=height, duration=app.animation_length)
+            anim.start(self)
+        else:
+            self.opacity = 1
+        super(NormalPopup, self).open(*args, **kwargs)
+
+    def dismiss(self, *args, **kwargs):
+        app = App.get_running_app()
+        if app.animations:
+            anim = Animation(opacity=0, height=0, duration=app.animation_length)
+            anim.start(self)
+            anim.bind(on_complete=self.finish_dismiss)
+        else:
+            super(NormalPopup, self).dismiss()
+
+    def finish_dismiss(self, *_):
+        super(NormalPopup, self).dismiss()
 
 
 class MessagePopup(GridLayout):
@@ -1771,7 +1817,49 @@ class ConfirmPopup(GridLayout):
 #Menus
 class NormalDropDown(DropDown):
     """Base dropdown menu class."""
-    pass
+
+    show_percent = NumericProperty(1)
+    invert = BooleanProperty(False)
+
+    def open(self, *args, **kwargs):
+        app = App.get_running_app()
+        super(NormalDropDown, self).open(*args, **kwargs)
+
+        if app.animations:
+            #determine if we opened up or down
+            if self.attach_to.y > self.y:
+                self.invert = True
+                children = reversed(self.container.children)
+            else:
+                self.invert = False
+                children = self.container.children
+
+            #Animate background
+            self.opacity = 1
+            self.show_percent = 0
+            anim = Animation(show_percent=1, duration=app.animation_length)
+            anim.start(self)
+
+            item_delay = app.animation_length / len(self.container.children)
+
+            for i, w in enumerate(children):
+                anim = (Animation(duration=i * item_delay) + Animation(opacity=1, duration=app.animation_length))
+                w.opacity = 0
+                anim.start(w)
+        else:
+            self.opacity = 1
+
+    def dismiss(self, *args, **kwargs):
+        app = App.get_running_app()
+        if app.animations:
+            anim = Animation(opacity=0, duration=app.animation_length)
+            anim.start(self)
+            anim.bind(on_complete=self.finish_dismiss)
+        else:
+            self.finish_dismiss()
+
+    def finish_dismiss(self, *_):
+        super(NormalDropDown, self).dismiss()
 
 
 class AlbumSortDropDown(NormalDropDown):
@@ -1782,13 +1870,41 @@ class AlbumSortDropDown(NormalDropDown):
 #Splitter Panels
 class SplitterPanel(Splitter):
     """Base class for the left and right adjustable panels"""
-    pass
+    hidden = BooleanProperty(False)
+    display_width = NumericProperty(0)
+    animating = None
+
+    def done_animating(self, *_):
+        self.animating = None
+        if self.width == 0:
+            self.opacity = 0
+        else:
+            self.opacity = 1
+
+    def on_hidden(self, *_):
+        app = App.get_running_app()
+        if self.animating:
+            self.animating.cancel(self)
+        if self.hidden:
+            if app.animations:
+                self.animating = anim = Animation(width=0, opacity=0, duration=app.animation_length)
+                anim.bind(on_complete=self.done_animating)
+                anim.start(self)
+            else:
+                self.opacity = 0
+                self.width = 0
+        else:
+            if app.animations:
+                self.animating = anim = Animation(width=self.display_width, opacity=1, duration=app.animation_length)
+                anim.bind(on_complete=self.done_animating)
+                anim.start(self)
+            else:
+                self.opacity = 1
+                self.width = self.display_width
 
 
 class SplitterPanelLeft(SplitterPanel):
     """Left-side adjustable width panel."""
-    hidden = BooleanProperty(False)
-    display_width = NumericProperty(0)
 
     def __init__(self, **kwargs):
         app = App.get_running_app()
@@ -1796,17 +1912,16 @@ class SplitterPanelLeft(SplitterPanel):
         super(SplitterPanelLeft, self).__init__(**kwargs)
 
     def on_hidden(self, *_):
-        if self.hidden:
-            self.width = 0
-        else:
-            app = App.get_running_app()
-            self.display_width = app.left_panel_width()
-            self.width = self.display_width
+        app = App.get_running_app()
+        self.display_width = app.left_panel_width()
+        super(SplitterPanelLeft, self).on_hidden()
 
     def on_width(self, instance, width):
         """When the width of the panel is changed, save to the app settings."""
 
         del instance
+        if self.animating:
+            return
         if width > 0:
             app = App.get_running_app()
             widthpercent = (width/Window.width)
@@ -1817,8 +1932,6 @@ class SplitterPanelLeft(SplitterPanel):
 
 class SplitterPanelRight(SplitterPanel):
     """Right-side adjustable width panel."""
-    hidden = BooleanProperty(True)
-    display_width = NumericProperty(0)
 
     def __init__(self, **kwargs):
         app = App.get_running_app()
@@ -1826,17 +1939,16 @@ class SplitterPanelRight(SplitterPanel):
         super(SplitterPanelRight, self).__init__(**kwargs)
 
     def on_hidden(self, *_):
-        if self.hidden:
-            self.width = 0
-        else:
-            app = App.get_running_app()
-            self.display_width = app.right_panel_width()
-            self.width = self.display_width
+        app = App.get_running_app()
+        self.display_width = app.right_panel_width()
+        super(SplitterPanelRight, self).on_hidden()
 
     def on_width(self, instance, width):
         """When the width of the panel is changed, save to the app settings."""
 
         del instance
+        if self.animating:
+            return
         if width > 0:
             app = App.get_running_app()
             widthpercent = (width/Window.width)
