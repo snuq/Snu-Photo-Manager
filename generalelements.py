@@ -1840,7 +1840,10 @@ class NormalDropDown(DropDown):
             anim = Animation(show_percent=1, duration=app.animation_length)
             anim.start(self)
 
-            item_delay = app.animation_length / len(self.container.children)
+            if len(self.container.children) > 0:
+                item_delay = app.animation_length / len(self.container.children)
+            else:
+                item_delay = 0
 
             for i, w in enumerate(children):
                 anim = (Animation(duration=i * item_delay) + Animation(opacity=1, duration=app.animation_length))

@@ -351,6 +351,8 @@ Builder.load_string("""
         size_hint_x: 0.5
         FloatLayout:
             canvas.before:
+                Color:
+                    rgba: 1, 1, 1, 1
                 Rectangle:
                     size: self.size
                     pos: self.pos
