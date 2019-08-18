@@ -21,6 +21,25 @@ def to_bool(value):
     return str(value).lower() in ('yes', 'true', 't', '1', 'down')
 
 
+def float_to_hex(value):
+    """Converts a 0-1 float into a hex value"""
+
+    value = abs(value)
+    if value > 1:
+        value = 1
+    value = int(round(255 * value))
+    value = format(value, 'X').zfill(2)
+    return value
+
+
+def hex_to_float(value):
+    """Converts a 2 digit hex value into a 0-1 float"""
+
+    value = int(value, 16)
+    value = value / 255
+    return value
+
+
 def naming(naming_method, title='My Photos', year=None, month=None, day=None):
     """Generates a folder name appropriate for a photo directory using various settings.
     Arguments:

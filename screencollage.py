@@ -93,6 +93,12 @@ Builder.load_string("""
             root.dismiss()
 
 <CollageScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
         MainHeader:
@@ -132,6 +138,8 @@ Builder.load_string("""
                         scroll_distance: 10
                         scroll_timeout: 200
                         bar_width: int(app.button_scale * .5)
+                        bar_color: app.theme.scroller_selected
+                        bar_inactive_color: app.theme.scroller
                         scroll_type: ['bars', 'content']
                         SelectableRecycleGrid:
                             cols: int((self.width - app.button_scale) / (app.button_scale * 3))
@@ -255,6 +263,8 @@ class ScatterImage(ScatterLayout):
         super().on_touch_up(touch)
 
     def transform_with_touch(self, touch):
+        if not self.selected:
+            return
         right_click = False
         if hasattr(touch, 'button'):
             if touch.button == 'right':

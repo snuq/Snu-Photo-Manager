@@ -17,6 +17,12 @@ from generalconstants import *
 from kivy.lang.builder import Builder
 Builder.load_string("""
 <DatabaseScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     id: databaseScreen
     BoxLayout:
         focus: True
@@ -78,6 +84,8 @@ Builder.load_string("""
                         scroll_distance: 10
                         scroll_timeout: 200
                         bar_width: int(app.button_scale * .5)
+                        bar_color: app.theme.scroller_selected
+                        bar_inactive_color: app.theme.scroller
                         scroll_type: ['bars', 'content']
                         SelectableRecycleBoxLayout:
                             id: databaseInterior
@@ -89,11 +97,11 @@ Builder.load_string("""
                         BoxLayout:
                             canvas.before:
                                 Color:
-                                    rgba: (1, 1, 1, 1)
+                                    rgba: app.theme.menu_background if app.simple_interface else app.theme.header_background
                                 Rectangle:
                                     size: self.size
                                     pos: self.pos
-                                    source: 'data/buttonmenu.png' if app.simple_interface else 'data/headerbg.png'
+                                    source: 'data/buttonflat.png' if app.simple_interface else 'data/headerbg.png'
                             orientation: 'vertical'
                             size_hint_y: 1
                             opacity: databaseOptionsArea.height_scale if app.simple_interface else 1
@@ -147,7 +155,7 @@ Builder.load_string("""
                             opacity: 1 if app.simple_interface else 0
                             disabled: False if app.simple_interface else True
                             on_press: databaseOptionsArea.set_hidden(self.state)
-            MainArea:
+            BoxLayout:
                 orientation: 'vertical'
                 Header:
                     ShortLabel:
@@ -175,12 +183,13 @@ Builder.load_string("""
                     size_hint_y: None
                     height: self.minimum_height
                     disabled: app.database_scanning
-                NormalRecycleView:
-                    data: root.data
-                    id: photosContainer
-                    viewclass: 'PhotoRecycleThumb'
-                    SelectableRecycleGrid:
-                        id: photos
+                MainArea:
+                    NormalRecycleView:
+                        data: root.data
+                        id: photosContainer
+                        viewclass: 'PhotoRecycleThumb'
+                        SelectableRecycleGrid:
+                            id: photos
                 Header:
                     Label:
                         text: ''
@@ -225,6 +234,12 @@ Builder.load_string("""
                         on_release: root.tag_menu.open(self)
 
 <TransferScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     id: transferScreen
     BoxLayout:
         orientation: 'vertical'
@@ -273,6 +288,8 @@ Builder.load_string("""
                         scroll_distance: 10
                         scroll_timeout: 200
                         bar_width: int(app.button_scale * .5)
+                        bar_color: app.theme.scroller_selected
+                        bar_inactive_color: app.theme.scroller
                         scroll_type: ['bars', 'content']
                         SelectableRecycleBoxLayout:
                             multiselect: True
@@ -308,6 +325,8 @@ Builder.load_string("""
                         scroll_distance: 10
                         scroll_timeout: 200
                         bar_width: int(app.button_scale * .5)
+                        bar_color: app.theme.scroller_selected
+                        bar_inactive_color: app.theme.scroller
                         scroll_type: ['bars', 'content']
                         SelectableRecycleBoxLayout:
                             multiselect: True
@@ -547,7 +566,7 @@ class DatabaseScreen(Screen):
         """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
         return False
 
-    def dismiss_popup(self):
+    def dismiss_popup(self, *_):
         """If this screen has a popup, closes it and removes it."""
 
         if self.popup:
@@ -1637,7 +1656,7 @@ class TransferScreen(Screen):
         else:
             return False
 
-    def dismiss_popup(self):
+    def dismiss_popup(self, *_):
         """Close a currently open popup for this screen."""
 
         if self.popup:

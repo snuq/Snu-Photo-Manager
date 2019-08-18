@@ -63,6 +63,12 @@ from generalconstants import *
 from kivy.lang.builder import Builder
 Builder.load_string("""
 <AlbumScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
         MainHeader:
@@ -102,6 +108,8 @@ Builder.load_string("""
                         scroll_distance: 10
                         scroll_timeout: 200
                         bar_width: int(app.button_scale * .5)
+                        bar_color: app.theme.scroller_selected
+                        bar_inactive_color: app.theme.scroller
                         scroll_type: ['bars', 'content']
                         SelectableRecycleBoxLayout:
                             id: album
@@ -210,11 +218,11 @@ Builder.load_string("""
                                 GridLayout:
                                     canvas.before:
                                         Color:
-                                            rgba: 1, 1, 1, .25
+                                            rgba: app.theme.area_background
                                         BorderImage:
                                             pos: self.pos
                                             size: self.size
-                                            source: 'data/buttonmenu.png'
+                                            source: 'data/buttonflat.png'
                                     padding: app.padding
                                     id: displayTags
                                     cols: 1
@@ -232,11 +240,11 @@ Builder.load_string("""
                                 GridLayout:
                                     canvas.before:
                                         Color:
-                                            rgba: 1, 1, 1, .25
+                                            rgba: app.theme.area_background
                                         BorderImage:
                                             pos: self.pos
                                             size: self.size
-                                            source: 'data/buttonmenu.png'
+                                            source: 'data/buttonflat.png'
                                     padding: app.padding
                                     id: addToTags
                                     cols: 1
@@ -251,18 +259,18 @@ Builder.load_string("""
                                         cols: 2
                                         height: self.minimum_height
                                 MediumBufferY:
-                                GridLayout:
+                                BoxLayout:
                                     canvas.before:
                                         Color:
-                                            rgba: 1, 1, 1, .25
+                                            rgba: app.theme.area_background
                                         BorderImage:
                                             pos: self.pos
                                             size: self.size
-                                            source: 'data/buttonmenu.png'
+                                            source: 'data/buttonflat.png'
                                     padding: app.padding
-                                    cols: 1
+                                    orientation: 'vertical'
                                     size_hint: 1, None
-                                    height: self.minimum_height
+                                    height: app.button_scale * 2 + app.padding * 2
                                     NormalLabel:
                                         text: "Create Tags:"
                                     BoxLayout:
@@ -285,15 +293,15 @@ Builder.load_string("""
                 width: app.button_scale
                 VerticalButton:
                     state: 'down' if root.view_panel == 'info' else 'normal'
-                    text: "Photo Info"
+                    vertical_text: "Photo Info"
                     on_press: root.show_info_panel()
                 VerticalButton:
                     state: 'down' if root.view_panel == 'edit' else 'normal'
-                    text: "Editing"
+                    vertical_text: "Editing"
                     on_press: root.show_edit_panel()
                 VerticalButton:
                     state: 'down' if root.view_panel == 'tags' else 'normal'
-                    text: "Tags"
+                    vertical_text: "Tags"
                     on_press: root.show_tags_panel()
 
 <CustomImage>:
@@ -301,8 +309,8 @@ Builder.load_string("""
 
 <TreeViewInfo>:
     color_selected: app.selected_color
-    odd_color: app.color_odd
-    even_color: app.color_even
+    odd_color: app.list_background_odd
+    even_color: app.list_background_even
     size_hint_y: None
     height: app.button_scale
     orientation: 'horizontal'
@@ -331,7 +339,7 @@ Builder.load_string("""
         size_hint_y: 1
         canvas.after:
             Color:
-                rgba: 1, 1, 1, .5 if root.favorite else 0
+                rgba: app.theme.favorite if root.favorite else [0, 0, 0, 0]
             Rectangle:
                 source: 'data/star.png'
                 pos: self.width - (self.width*.03), 0
@@ -394,7 +402,7 @@ Builder.load_string("""
     SpecialVideoPlayer:
         canvas.after:
             Color:
-                rgba: 1, 1, 1, .5 if root.favorite else 0
+                rgba: app.theme.favorite if root.favorite else [0, 0, 0, 0]
             Rectangle:
                 source: 'data/star.png'
                 pos: self.width - (self.width*.03), 44
@@ -754,11 +762,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -794,11 +802,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -859,11 +867,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -903,11 +911,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -945,11 +953,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -986,11 +994,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1076,11 +1084,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1132,11 +1140,11 @@ Builder.load_string("""
         BoxLayout:
             canvas.before:
                 Color:
-                    rgba: 1, 1, 1, .25
+                    rgba: app.theme.area_background
                 BorderImage:
                     pos: self.pos
                     size: self.size
-                    source: 'data/buttonmenu.png'
+                    source: 'data/buttonflat.png'
             orientation: 'horizontal'
             size_hint_y: None
             height: int(app.button_scale * 10)
@@ -1148,11 +1156,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1208,11 +1216,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1249,6 +1257,8 @@ Builder.load_string("""
                 id: wrapper
                 size_hint: 1, 1
                 bar_width: int(app.button_scale * .75)
+                bar_color: app.theme.scroller_selected
+                bar_inactive_color: app.theme.scroller
                 RelativeLayout:
                     owner: root
                     size_hint: None, None
@@ -1340,11 +1350,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1404,11 +1414,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1466,11 +1476,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1531,11 +1541,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1584,11 +1594,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1707,11 +1717,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, .25
+                rgba: app.theme.area_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -1967,7 +1977,7 @@ Builder.load_string("""
 
 <ExternalProgramEditor>:
     cols: 1
-    height: self.minimum_height
+    height: app.button_scale * 6
     size_hint: 1, None
     BoxLayout:
         orientation: 'horizontal'
@@ -2677,7 +2687,7 @@ class AlbumScreen(Screen):
                 return True
         return False
 
-    def dismiss_popup(self):
+    def dismiss_popup(self, *_):
         """Close a currently open popup for this screen."""
 
         if self.popup:
@@ -2715,7 +2725,8 @@ class AlbumScreen(Screen):
                 if key == 'right' or key == 'down':
                     self.next_photo()
                 if key == 'enter':
-                    self.viewer.fullscreen = not self.viewer.fullscreen
+                    if self.viewer:
+                        self.viewer.fullscreen = not self.viewer.fullscreen
                 if key == 'space':
                     self.set_favorite()
                 if key == 'delete':
@@ -3332,6 +3343,8 @@ class AlbumScreen(Screen):
         #reset edit panel
         self.encoding = False
         self.cancel_encoding = False
+        self.edit_panel = 'main'
+        Clock.schedule_once(lambda *dt: self.update_edit_panel())
 
     def update_edit_panel(self):
         """Set up the edit panel with the current preset."""
@@ -3343,6 +3356,7 @@ class AlbumScreen(Screen):
             edit_panel_container = self.ids['panelEdit']
             if self.edit_panel == 'main':
                 self.edit_panel_object = EditMain(owner=self)
+                self.edit_panel_object.update_programs()
                 self.viewer.bypass = False
             else:
                 self.viewer.bypass = True
@@ -4686,10 +4700,13 @@ class PhotoShow(ButtonBehavior, RelativeLayout):
         if touch.is_double_tap and not self.bypass:
             app = App.get_running_app()
             if not app.shift_pressed:
+                #photowrapper = LimitedScatterLayout()
                 photowrapper = self.parent.parent
+                #photocontainer = PhotoViewer()
                 photocontainer = photowrapper.parent.parent
                 if photowrapper.scale > 1:
                     photocontainer.zoom = 0
+                    photocontainer.on_zoom()  #Need to call this manually because sometimes it doesnt get called...?
                 else:
                     zoompos = self.to_local(touch.pos[0], touch.pos[1])
                     photocontainer.zoompos = zoompos
@@ -4730,6 +4747,7 @@ class PhotoViewer(BoxLayout):
         scale_max = self.scale_max
         scale_size = 1 + ((scale_max - 1) * self.zoom)
         scale = Matrix().scale(scale_size, scale_size, scale_size)
+        #wrapper = LimitedScatterLayout()
         wrapper = self.ids['wrapper']
         wrapper.transform = Matrix()
         zoompos = self.zoompos
@@ -5098,7 +5116,7 @@ class EditMain(GridLayout):
 
         app = App.get_running_app()
         app.program_save(index, name, command, argument)
-        self.update_programs(expand=True, expand_index=index)
+        #self.update_programs(expand=True, expand_index=index)
 
     def remove_program(self, index):
         """Removes a program from the external programs list.
@@ -6343,10 +6361,13 @@ class Curves(FloatLayout):
 
         size = 20
         real_point = self.relative_to_local(point)
+        app = App.get_running_app()
         if point == self.current_point:
-            source = 'data/curve_point_selected.png'
+            color = app.theme.selected
         else:
-            source = 'data/curve_point.png'
+            color = (1, 1, 1, 1)
+        source = 'data/curve_point.png'
+        canvas.add(Color(rgba=color))
         canvas.add(Rectangle(source=source, pos=(real_point[0]-(size/2), real_point[1]-(size/2)), size=(size, size)))
 
     def add_point(self, point):
@@ -6618,6 +6639,7 @@ class ExternalProgramEditor(GridLayout):
         if not instance.focus:
             self.name = instance.text
             self.save_program()
+            self.parent.parent.text = instance.text
 
     def set_argument(self, instance):
         if not instance.focus:

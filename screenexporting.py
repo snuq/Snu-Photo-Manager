@@ -20,6 +20,12 @@ from filebrowser import FileBrowser
 from kivy.lang.builder import Builder
 Builder.load_string("""
 <ExportScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
         MainHeader:
@@ -149,28 +155,30 @@ Builder.load_string("""
             ShortLabel:
                 text: 'Export To: '
             NormalToggle:
+                toggle: False
                 size_hint_x: 1
                 id: toggleFolder
                 text: 'Folder'
                 group: 'exports'
                 on_press: root.toggle_exports(self)
-                background_normal: 'data/buttontabup.png'
-                background_down: 'data/buttontabdown.png'
+                background_normal: 'data/buttontop.png'
+                background_down: 'data/buttontop.png'
             NormalToggle:
+                toggle: False
                 size_hint_x: 1
                 id: toggleFTP
                 text: 'FTP'
                 group: 'exports'
                 on_press: root.toggle_exports(self)
-                background_normal: 'data/buttontabup.png'
-                background_down: 'data/buttontabdown.png'
+                background_normal: 'data/buttontop.png'
+                background_down: 'data/buttontop.png'
         BoxLayout:
             size_hint_x: .33
 
     GridLayout:
         canvas.before:
             Color:
-                rgba: 1, 1, 1, 1
+                rgba: app.theme.button_down
             BorderImage:
                 size: self.size
                 pos: self.pos
@@ -187,12 +195,13 @@ Builder.load_string("""
         size_hint_y: None
         height: app.button_scale
         NormalToggle:
+            toggle: False
             size_hint_x: .33
             state: 'down' if root.scale_image else 'normal'
             text: 'Scale Photo' if root.scale_image else "Don't Scale Photo"
             on_press: root.set_scale_image(self.state)
-            background_normal: 'data/buttonlightup.png'
-            background_down: 'data/buttontabdown.png'
+            background_normal: 'data/button.png'
+            background_down: 'data/buttontop.png'
         BoxLayout:
             size_hint_x: .67
     GridLayout:
@@ -207,12 +216,13 @@ Builder.load_string("""
         size_hint_y: None
         height: app.button_scale
         NormalToggle:
+            toggle: False
             size_hint_x: .33
             state: 'down' if root.watermark else 'normal'
             text: 'Use Watermark' if root.watermark else "Don't Use Watermark"
             on_press: root.set_watermark(self.state)
-            background_normal: 'data/buttonlightup.png'
-            background_down: 'data/buttontabdown.png'
+            background_normal: 'data/button.png'
+            background_down: 'data/buttontop.png'
         BoxLayout:
             size_hint_x: .67
     GridLayout:
@@ -224,7 +234,7 @@ Builder.load_string("""
 <ScaleSettings>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.button_down
         BorderImage:
             size: self.size
             pos: self.pos
@@ -272,7 +282,7 @@ Builder.load_string("""
 <WatermarkSettings>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.button_down
         BorderImage:
             size: self.size
             pos: self.pos
@@ -1003,6 +1013,7 @@ class ExportPresetArea(GridLayout):
     def __init__(self, **kwargs):
         super(ExportPresetArea, self).__init__(**kwargs)
         self.scale_size_to_dropdown = NormalDropDown()
+        self.scale_size_to_dropdown.basic_animation = True
         self.last_export_folder = self.export_folder
         if self.scale_image:
             self.add_scale_settings()
@@ -1225,7 +1236,7 @@ class ExportPresetArea(GridLayout):
         if not instance.focus:
             self.name = instance.text
             self.update_preset()
-            self.owner.owner.update_treeview()
+            self.owner.text = instance.text
 
     def filename_filter(self, string, *_):
         remove_string = '\\/*?<>|,'.replace(os.path.sep, "")

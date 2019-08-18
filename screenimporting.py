@@ -24,6 +24,12 @@ from generalconstants import *
 from kivy.lang.builder import Builder
 Builder.load_string("""
 <ImportScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
         MainHeader:
@@ -76,85 +82,92 @@ Builder.load_string("""
                         GridLayout:
                             cols: 3
                             size_hint_y: None
+                            size_hint_y: 1
                             height: (app.button_scale * 11)
                             ShortLabel:
                                 text: '%Y'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Full Year (2016)'
-        
+
                             ShortLabel:
                                 text: '%y'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Year Decade Digits (16)'
-        
+
                             ShortLabel:
                                 text: '%B'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Full Month Name (January)'
-        
+
                             ShortLabel:
                                 text: '%b'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Month In 3 Letters (Jan)'
-        
+
                             ShortLabel:
                                 text: '%M'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Month In 2 Digits (01)'
-        
+
                             ShortLabel:
                                 text: '%m'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Month In Digits, No Padding (1)'
-        
+
                             ShortLabel:
                                 text: '%D'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Day Of Month In 2 Digits (04)'
-        
+
                             ShortLabel:
                                 text: '%d'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Day Of Month, No Padding (4)'
-        
+
                             ShortLabel:
                                 text: '%T'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Folder Title (My Pictures)'
-        
+
                             ShortLabel:
                                 text: '%t'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Folder Title With Underscores (My_Pictures)'
-        
+
                             ShortLabel:
                                 text: '%%'
                             ShortLabel:
                                 text: ' - '
-                            ShortLabel:
+                            LeftNormalLabel:
                                 text: 'Percent Sign (%)'
 
 <ImportingScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
         MainHeader:
@@ -266,7 +279,8 @@ Builder.load_string("""
     size_hint_y: None
     padding: app.padding
     spacing: app.padding, 0
-    height: self.minimum_height
+    height: (app.button_scale * 6)+(app.padding*2)
+    #height: self.minimum_height
     #height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
     GridLayout:
         cols: 2
@@ -332,7 +346,7 @@ Builder.load_string("""
                 state: 'down' if root.single_folder == True else 'normal'
                 text: 'Single Folder' if root.single_folder == True else 'Dated Folders'
                 on_press: root.set_single_folder(self.state)
-            NormalButton:
+            MenuStarterButtonWide:
                 id: importToButton
                 size_hint_x: 1
                 text: root.import_to
@@ -1205,7 +1219,7 @@ class ImportingScreen(Screen):
                 return True
         return False
 
-    def dismiss_popup(self):
+    def dismiss_popup(self, *_):
         """Close a currently open popup for this screen."""
 
         if self.popup:
@@ -1268,6 +1282,7 @@ class ImportPresetArea(GridLayout):
         Clock.schedule_once(self.update_import_from)
         app = App.get_running_app()
         self.imports_dropdown = NormalDropDown()
+        self.imports_dropdown.basic_animation = True
         database_folders = app.config.get('Database Directories', 'paths')
         database_folders = local_path(database_folders)
         if database_folders.strip(' '):
@@ -1297,7 +1312,7 @@ class ImportPresetArea(GridLayout):
         if not instance.focus:
             self.title = instance.text
             self.update_preset()
-            self.owner.owner.update_treeview()
+            self.owner.text = instance.text
 
     def test_naming_method(self, string, *_):
         return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;")

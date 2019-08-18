@@ -171,7 +171,7 @@ class FileBrowser(BoxLayout):
         Clock.schedule_once(self.refresh_locations)
         super(FileBrowser, self).__init__(**kwargs)
 
-    def dismiss_popup(self):
+    def dismiss_popup(self, *_):
         """If this dialog has a popup, closes it and removes it."""
 
         if self.popup:

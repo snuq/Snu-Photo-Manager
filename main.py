@@ -37,6 +37,7 @@ from ffpyplayer.pic import SWScale
 from kivy.config import Config
 Config.window_icon = "data/icon.png"
 from kivy.app import App
+from kivy.uix.widget import Widget
 from kivy.clock import Clock
 from kivy.base import EventLoop
 from kivy.uix.screenmanager import ScreenManager
@@ -53,7 +54,7 @@ except:
 
 from generalconstants import *
 from generalcommands import list_folders, get_folder_info, local_thumbnail, isfile2, naming, to_bool, local_path, local_paths, agnostic_path, local_photoinfo, agnostic_photoinfo, get_file_info
-from generalelements import PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup
+from generalelements import PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu
 from screendatabase import DatabaseScreen, DatabaseRestoreScreen, TransferScreen
 from screensettings import PhotoManagerSettings, AboutPopup
 print('Startup Time: '+str(time.perf_counter() - start))
@@ -75,6 +76,55 @@ else:
 if platform == 'android':
     from android.permissions import request_permissions, Permission
     request_permissions([Permission.WRITE_EXTERNAL_STORAGE])
+
+
+class MainWindow(FloatLayout):
+    pass
+
+
+class Theme(Widget):
+    colors = ['button_down', 'button_up', 'button_text', 'button_warn_down', 'button_warn_up', 'button_toggle_true', 'button_toggle_false', 'button_menu_up', 'button_menu_down', 'button_disabled', 'button_disabled_text', 'header_background', 'header_main_background', 'header_text', 'info_text', 'info_background', 'input_background', 'scroller', 'scroller_selected', 'sidebar_background', 'sidebar_resizer', 'slider_grabber', 'slider_background', 'main_background', 'menu_background', 'area_background', 'background', 'text', 'disabled_text', 'selected', 'missing', 'favorite']
+
+    button_down = ListProperty()
+    button_up = ListProperty()
+    button_text = ListProperty()
+    button_warn_down = ListProperty()
+    button_warn_up = ListProperty()
+    button_toggle_true = ListProperty()
+    button_toggle_false = ListProperty()
+    button_menu_up = ListProperty()
+    button_menu_down = ListProperty()
+    button_disabled = ListProperty()
+    button_disabled_text = ListProperty()
+
+    header_background = ListProperty()
+    header_main_background = ListProperty()
+    header_text = ListProperty()
+
+    info_text = ListProperty()
+    info_background = ListProperty()
+
+    input_background = ListProperty()
+
+    scroller = ListProperty()
+    scroller_selected = ListProperty()
+
+    sidebar_background = ListProperty()
+    sidebar_resizer = ListProperty()
+
+    slider_grabber = ListProperty()
+    slider_background = ListProperty()
+
+    main_background = ListProperty()
+    menu_background = ListProperty()
+    area_background = ListProperty()
+
+    background = ListProperty()
+    text = ListProperty()
+    disabled_text = ListProperty()
+    selected = ListProperty()
+    missing = ListProperty()
+    favorite = ListProperty()
 
 
 class MultiThreadOK(threading.Thread):
@@ -129,6 +179,7 @@ class MultiThreadOK(threading.Thread):
 class PhotoManager(App):
     """Main class of the app."""
 
+    button_update = BooleanProperty(False)
     settings_open = BooleanProperty(False)
     right_panel = BooleanProperty(False)
     last_width = NumericProperty(0)
@@ -147,9 +198,10 @@ class PhotoManager(App):
 
     #Theming variables
     icon = 'data/icon.png'
+    theme = ObjectProperty()
     selected_color = (0.5098, 0.8745, 0.6588, .5)
-    color_odd = (0, 0, 0, 0)
-    color_even = (1, 1, 1, .1)
+    list_background_odd = (0, 0, 0, 0)
+    list_background_even = (0, 0, 0, .1)
     padding = NumericProperty(10)
     popup_x = 640
     animations = True
@@ -192,6 +244,7 @@ class PhotoManager(App):
     scanningthread = None
     scanningpopup = None
     popup = None
+    bubble = None
 
     #Databases
     photos = None
@@ -201,6 +254,66 @@ class PhotoManager(App):
     imported = None
 
     about_text = StringProperty()
+
+    def popup_bubble(self, text_input, pos):
+        self.close_bubble()
+        text_input.unfocus_on_touch = False
+        self.bubble = InputMenu(owner=text_input)
+        window = self.root_window
+        window.add_widget(self.bubble)
+        self.bubble.pos = pos
+
+    def close_bubble(self, *_):
+        if self.bubble:
+            self.bubble.owner.unfocus_on_touch = True
+            window = self.root_window
+            window.remove_widget(self.bubble)
+            self.bubble = None
+
+    def save_current_theme(self):
+        data = self.theme_to_data(self.theme)
+        themefile = os.path.realpath(os.path.join(self.data_directory, "theme.txt"))
+        self.save_theme_data(themefile, data)
+        self.message('Saved Current Theme Settings')
+
+    def theme_default(self):
+        data = themes[0]
+        self.data_to_theme(data)
+
+    def theme_to_data(self, theme):
+        data = {}
+        for color in theme.colors:
+            data[color] = list(eval('theme.'+color))
+        return data
+
+    def data_to_theme(self, data):
+        theme = self.theme
+        for color in theme.colors:
+            try:
+                new_color = data[color]
+                r = float(new_color[0])
+                g = float(new_color[1])
+                b = float(new_color[2])
+                a = float(new_color[3])
+                new_color = [r, g, b, a]
+                setattr(theme, color, new_color)
+            except:
+                pass
+        self.button_update = not self.button_update
+
+    def save_theme_data(self, theme_file, data):
+        try:
+            json.dump(data, open(theme_file, 'w'))
+            return True
+        except Exception as e:
+            return e
+
+    def load_theme_data(self, theme_file):
+        try:
+            data = json.load(open(theme_file))
+            return [True, data]
+        except Exception as e:
+            return [False, e]
 
     def generate_thumbnail(self, fullpath, database_folder):
         """Creates a thumbnail image for a photo.
@@ -614,6 +727,12 @@ class PhotoManager(App):
             "key": "photoinfo"
         })
         settingspanel.append({
+            "type": "themescreen",
+            "title": "",
+            "section": "Settings",
+            "key": "photoinfo"
+        })
+        settingspanel.append({
             "type": "multidirectory",
             "title": "Database Directories",
             "desc": "Folders For Image Database",
@@ -648,13 +767,6 @@ class PhotoManager(App):
             "key": "paths"
         })
         settingspanel.append({
-            "type": "bool",
-            "title": "Save .photoinfo.ini Files",
-            "desc": "Auto-save .photoinfo.ini files in album folders when photos or albums are changed",
-            "section": "Settings",
-            "key": "photoinfo"
-        })
-        settingspanel.append({
             "type": "numeric",
             "title": "Button Size Percent",
             "desc": "Scale Percentage Of Interface Buttons",
@@ -674,6 +786,13 @@ class PhotoManager(App):
             "desc": "Size In Pixels Of Generated Thumbnails",
             "section": "Settings",
             "key": "thumbsize"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Save .photoinfo.ini Files",
+            "desc": "Auto-save .photoinfo.ini files in album folders when photos or albums are changed",
+            "section": "Settings",
+            "key": "photoinfo"
         })
         settingspanel.append({
             "type": "bool",
@@ -713,7 +832,7 @@ class PhotoManager(App):
         settingspanel.append({
             "type": "bool",
             "title": "Low Memory Mode",
-            "desc": "For Older Computers That Show Larger Images As Black, Displays All Images At A Smaller Size.",
+            "desc": "For older computers that show larger images as black, display all images at a smaller size",
             "section": "Settings",
             "key": "lowmem"
         })
@@ -805,6 +924,7 @@ class PhotoManager(App):
         self.imported.join()
 
     def open_settings(self, *largs):
+        self.clear_drags()
         self.settings_open = True
         super().open_settings(*largs)
 
@@ -815,10 +935,17 @@ class PhotoManager(App):
     def hook_keyboard(self, window, scancode, *_):
         """This function receives keyboard events"""
 
+        self.close_bubble()
+
         if self.settings_open:
             if scancode == 27:
-                self.close_settings()
-                return True
+                if self.popup:
+                    self.popup.dismiss()
+                    self.popup = None
+                    return True
+                else:
+                    self.close_settings()
+                    return True
         else:
             del window
             current_screen = self.screen_manager.current_screen
@@ -1135,14 +1262,6 @@ class PhotoManager(App):
             os.remove(imported_db_backup)
         if os.path.exists(imported_db):
             copyfile(imported_db, imported_db_backup)
-
-    def show_database_restore(self):
-        """Switch to the database restoring screen layout."""
-
-        self.clear_drags()
-        if 'database_restore' not in self.screen_manager.screen_names:
-            self.screen_manager.add_widget(self.database_restore_screen)
-        self.screen_manager.current = 'database_restore'
 
     def database_restore(self):
         """Attempts to restore the backup databases"""
@@ -1528,6 +1647,15 @@ class PhotoManager(App):
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
 
+        self.theme = Theme()
+        self.theme_default()
+        themefile = os.path.realpath(os.path.join(self.data_directory, "theme.txt"))
+        if themefile and os.path.exists(themefile):
+            print('Loading theme file...')
+            loaded, data = self.load_theme_data(themefile)
+            if loaded:
+                self.data_to_theme(data)
+        Window.clearcolor = list(self.theme.background)
         if int(self.config.get("Settings", "buttonsize")) < 50:
             self.config.set("Settings", "buttonsize", 50)
         if int(self.config.get("Settings", "textsize")) < 50:
@@ -1553,7 +1681,7 @@ class PhotoManager(App):
         self.set_single_database()
 
         #Set up widgets
-        self.main_layout = FloatLayout()
+        self.main_layout = MainWindow()
         self.drag_image = PhotoDrag()
         self.drag_treenode = TreenodeDrag()
 
@@ -2472,6 +2600,25 @@ class PhotoManager(App):
             self.screen_manager.transition.direction = 'right'
         self.screen_manager.current = 'database'
 
+    def show_database_restore(self):
+        """Switch to the database restoring screen layout."""
+
+        self.clear_drags()
+        if 'database_restore' not in self.screen_manager.screen_names:
+            self.screen_manager.add_widget(self.database_restore_screen)
+        self.screen_manager.current = 'database_restore'
+
+    def show_theme(self):
+        """Switch to the theme editor screen layout."""
+
+        self.clear_drags()
+        if 'theme' not in self.screen_manager.screen_names:
+            from screentheme import ThemeScreen
+            self.screen_manager.add_widget(ThemeScreen(name='theme'))
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
+        self.screen_manager.current = 'theme'
+
     def show_collage(self):
         """Switch to the create collage screen layout.
         """
@@ -2571,8 +2718,9 @@ class PhotoManager(App):
         self.popup.open()
 
     def clear_drags(self):
-        """Removes the drag-n-drop widgets."""
+        """Removes the drag-n-drop widgets and copy popups."""
 
+        self.close_bubble()
         self.main_layout.remove_widget(self.drag_treenode)
         self.main_layout.remove_widget(self.drag_image)
 

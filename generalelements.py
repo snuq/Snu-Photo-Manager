@@ -11,9 +11,11 @@ from kivy.clock import Clock
 from kivy.animation import Animation
 from kivy.cache import Cache
 from kivy.graphics.transformation import Matrix
+from kivy.uix.bubble import Bubble
 from kivy.uix.behaviors import ButtonBehavior, DragBehavior
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
@@ -74,7 +76,7 @@ Builder.load_string("""
 <Header@HeaderBase>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.header_background
         Rectangle:
             size: self.size
             pos: self.pos
@@ -84,7 +86,7 @@ Builder.load_string("""
 <MainHeader@HeaderBase>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.header_main_background
         Rectangle:
             size: self.size
             pos: self.pos
@@ -95,7 +97,7 @@ Builder.load_string("""
 <MainArea@BoxLayout>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.main_background
         Rectangle:
             size: self.size
             pos: self.pos
@@ -105,37 +107,40 @@ Builder.load_string("""
     #:set sizing 18
     canvas:
         Color:
-            rgba: 1, 1, 1, 1 if not root.disabled else 0.3
+            rgba: app.theme.slider_background
         BorderImage:
             border: (0, sizing, 0, sizing)
             pos: self.pos
             size: self.size
             source: 'data/sliderbg.png'
+        Color:
+            rgba: app.theme.slider_grabber
         Rectangle:
             pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
             size: app.button_scale/2, app.button_scale
-            source: 'data/buttontoggleon.png'
+            source: 'data/buttonflat.png'
     size_hint_y: None
     height: app.button_scale
     min: -1
     max: 1
     value: 0
-    cursor_image: 'data/buttontoggleon.png'
 
 <-HalfSlider@Slider>:
     #:set sizing 18
     canvas:
         Color:
-            rgba: 1, 1, 1, 1 if not root.disabled else 0.3
+            rgba: app.theme.slider_background
         BorderImage:
             border: (0, sizing, 0, sizing)
             pos: self.pos
             size: self.size
             source: 'data/sliderbg.png'
+        Color:
+            rgba: app.theme.slider_grabber
         Rectangle:
             pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
             size: app.button_scale/2, app.button_scale
-            source: 'data/buttontoggleon.png'
+            source: 'data/buttonflat.png'
     size_hint_y: None
     height: app.button_scale
     min: 0
@@ -146,7 +151,7 @@ Builder.load_string("""
     #:set sizing 18
     canvas:
         Color:
-            rgba: 1, 1, 1, 1 if not root.disabled else 0.3
+            rgba: app.theme.slider_background
         BorderImage:
             border: (0, sizing, 0, sizing)
             pos: self.pos
@@ -161,11 +166,11 @@ Builder.load_string("""
             pos: self.width * self.end, 0
             size: self.width * (1 - self.end), self.height
         Color:
-            rgba: 1, 1, 1, 1 if not root.disabled else 0.3
+            rgba: app.theme.slider_grabber
         Rectangle:
             pos: (self.value_pos[0] - app.button_scale/4, self.center_y - app.button_scale/2)
             size: app.button_scale/2, app.button_scale
-            source: 'data/buttontoggleon.png'
+            source: 'data/buttonflat.png'
     size_hint_y: None
     height: app.button_scale
     min: 0
@@ -175,6 +180,7 @@ Builder.load_string("""
 
 <NormalLabel>:
     mipmap: True
+    color: app.theme.text
     font_size: app.text_scale
     size_hint_y: None
     height: app.button_scale
@@ -217,7 +223,7 @@ Builder.load_string("""
             size: self.size
     mipmap: True
     text: app.infotext
-    color: 0, 0, 0, 1
+    color: app.theme.info_text
 
 <DatabaseLabel@ShortLabel>:
     mipmap: True
@@ -225,19 +231,51 @@ Builder.load_string("""
 
 <HeaderLabel@Label>:
     mipmap: True
+    color: app.theme.header_text
     font_size: int(app.text_scale * 1.5)
     size_hint_y: None
     height: app.button_scale
     bold: True
 
 
-<NormalInput@TextInput>:
+<BubbleContent>:
+    canvas:
+        Clear:
+    opacity: .7 if self.disabled else 1
+    rows: 1
+
+<InputMenu>:
+    canvas.before:
+        Color:
+            rgba: app.theme.menu_background
+        BorderImage:
+            size: self.size
+            pos: self.pos
+            source: 'data/buttonflat.png'
+    size_hint: None, None
+    size: app.button_scale * 9, app.button_scale
+    show_arrow: False
+    MenuButton:
+        text: 'Select All'
+        on_release: root.select_all()
+    MenuButton:
+        text: 'Cut'
+        on_release: root.cut()
+    MenuButton:
+        text: 'Copy'
+        on_release: root.copy()
+    MenuButton:
+        text: 'Paste'
+        on_release: root.paste()
+
+<NormalInput>:
     mipmap: True
+    cursor_color: app.theme.text
     write_tab: False
-    use_bubble: True
-    background_color: .2, .2, .3, .8
+    background_color: app.theme.input_background
+    hint_text_color: app.theme.disabled_text
     disabled_foreground_color: 1,1,1,.75
-    foreground_color: 1,1,1,1
+    foreground_color: app.theme.text
     size_hint_y: None
     height: app.button_scale
     font_size: app.text_scale
@@ -261,39 +299,29 @@ Builder.load_string("""
     font_size: app.text_scale
 
 
-<NormalButton>:
+<ButtonBase>:
     mipmap: True
     size_hint_y: None
     height: app.button_scale
+    background_normal: 'data/button.png'
+    background_down: 'data/button.png'
+    background_disabled_down: 'data/button.png'
+    background_disabled_normal: 'data/button.png'
+    button_update: app.button_update
+
+<NormalButton>:
     width: self.texture_size[0] + app.button_scale
     size_hint_x: None
     font_size: app.text_scale
-    background_normal: 'data/buttonwarnup.png' if self.warn else 'data/buttonlightup.png'
-    background_down: 'data/buttonwarndown.png' if self.warn else 'data/buttonlightdown.png'
-    background_disabled_down: 'data/buttondisabled.png'
-    background_disabled_normal: 'data/buttondisabled.png'
 
 <WideButton>:
-    size_hint_y: None
-    height: app.button_scale
     text_size: self.size
     halign: 'center'
     valign: 'middle'
-    font_size: app.text_scale
-    background_normal: 'data/buttonwarnup.png' if self.warn else 'data/buttonlightup.png'
-    background_down: 'data/buttonwarndown.png' if self.warn else 'data/buttonlightdown.png'
-    background_disabled_down: 'data/buttondisabled.png'
-    background_disabled_normal: 'data/buttondisabled.png'
 
 <MenuButton>:
-    mipmap: True
-    font_size: app.text_scale
-    size_hint_y: None
-    height: app.button_scale
-    background_normal: 'data/buttonwarnup.png' if self.warn else 'data/buttonup.png'
-    background_down: 'data/buttonwarndown.png' if self.warn else 'data/buttondown.png'
-    background_disabled_down: 'data/buttondisabled.png'
-    background_disabled_normal: 'data/buttondisabled.png'
+    menu: True
+    size_hint_x: 1
 
 <RemoveButton>:
     mipmap: True
@@ -328,11 +356,11 @@ Builder.load_string("""
     GridLayout:
         canvas.before:
             Color:
-                rgba: (1, 1, 1, 1)
+                rgba: app.theme.menu_background
             BorderImage:
                 pos: self.pos
                 size: self.size
-                source: 'data/buttonmenu.png'
+                source: 'data/buttonflat.png'
         padding: app.padding
         cols: 1
         size_hint: 1, None
@@ -342,9 +370,9 @@ Builder.load_string("""
         id: contentContainer
 
 <TreeViewButton>:
-    color_selected: app.selected_color
-    odd_color: app.color_odd
-    even_color: app.color_even
+    color_selected: app.theme.selected
+    odd_color: app.list_background_odd
+    even_color: app.list_background_even
     orientation: 'vertical'
     size_hint_y: None
     height: app.button_scale
@@ -365,35 +393,31 @@ Builder.load_string("""
         height: 0
         text: root.subtext
 
-<MenuStarterButton@Button>:
+<MenuStarterButton@ButtonBase>:
     canvas.after:
         Color:
-            rgba: 1, 1, 1, .5
+            rgba: self.color
         Rectangle:
             pos: (root.pos[0]+root.width-(root.height/1.5)), root.pos[1]
             size: root.height/2, root.height
             source: 'data/menuarrows.png'
-    mipmap: True
+    menu: True
     size_hint_y: None
     height: app.button_scale
     shorten: True
     shorten_from: 'right'
     font_size: app.text_scale
     size_hint_max_x: self.texture_size[0] + (app.button_scale * 1.2)
-    background_normal: 'data/buttonup.png'
-    background_down: 'data/buttondown.png'
-    background_disabled_down: 'data/buttondisabled.png'
-    background_disabled_normal: 'data/buttondisabled.png'
 
-<MenuStarterButtonWide@Button>:
+<MenuStarterButtonWide@ButtonBase>:
     canvas.after:
         Color:
-            rgba: 1, 1, 1, .5
+            rgba: self.color
         Rectangle:
             pos: (root.pos[0]+root.width-(root.height/1.5)), root.pos[1]
             size: root.height/2, root.height
             source: 'data/menuarrows.png'
-    mipmap: True
+    menu: True
     size_hint_y: None
     height: app.button_scale
     text_size: self.size
@@ -403,55 +427,41 @@ Builder.load_string("""
     shorten_from: 'right'
     font_size: app.text_scale
     size_hint_x: 1
-    background_normal: 'data/buttonup.png'
-    background_down: 'data/buttondown.png'
-    background_disabled_down: 'data/buttondisabled.png'
-    background_disabled_normal: 'data/buttondisabled.png'
 
-<NormalToggle@ToggleButton>:
-    mipmap: True
-    font_size: app.text_scale
-    size_hint_y: None
-    height: app.button_scale
+<NormalToggle@ToggleBase>:
+    toggle: True
     size_hint_x: None
     width: self.texture_size[0] + 20
-    background_normal: 'data/buttontoggleoff.png'
-    background_down: 'data/buttontoggleon.png'
 
-<ReverseToggle@ToggleButton>:
+<ReverseToggle@ToggleBase>:
     canvas:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: self.color
         Rectangle:
             pos: self.pos
             size: self.size
             source: 'data/arrowdown.png' if self.state == 'normal' else 'data/arrowup.png'
-    mipmap: True
+    menu: True
     size_hint: None, None
     height: app.button_scale
     width: app.button_scale
-    background_normal: 'data/buttontoggleoff.png'
-    background_down: 'data/buttontoggleoff.png'
 
 <SettingsButton@NormalButton>:
-    mipmap: True
     text: '' if app.simple_interface else 'Settings'
     border: (0, 0, 0, 0) if app.simple_interface else (16, 16, 16, 16)
-    background_normal: 'data/settings.png' if app.simple_interface else 'data/buttonlightup.png'
-    background_down: 'data/settings.png' if app.simple_interface else 'data/buttonlightdown.png'
+    background_normal: 'data/settings.png' if app.simple_interface else 'data/button.png'
+    background_down: 'data/settings.png' if app.simple_interface else 'data/button.png'
     on_release: app.open_settings()
 
-<VerticalButton@ToggleButton>:
-    mipmap: True
-    color: 1, 1, 1, 0
+<VerticalButton>:
     size_hint_y: None
     width: app.button_scale
     size_hint_x: None
     font_size: app.text_scale
-    height: self.texture_size[0] + 100
-    background_normal: 'data/buttonlightup.png'
-    background_down: 'data/buttonsidetabdown.png'
+    height: textArea.texture_size[0] + 100
+    background_down: 'data/buttonright.png'
     Label:
+        id: textArea
         center: self.parent.center
         canvas.before:
             PushMatrix
@@ -461,7 +471,8 @@ Builder.load_string("""
                 origin: self.center
         canvas.after:
             PopMatrix
-        text: self.parent.text
+        color: self.parent.color
+        text: self.parent.vertical_text
 
 <PhotoRecycleViewButton>:
     canvas.after:
@@ -471,7 +482,7 @@ Builder.load_string("""
             pos: self.pos
             size: self.size
         Color:
-            rgba: 1, 1, 1, .5 if self.favorite else 0
+            rgba: app.theme.favorite if self.favorite else [0, 0, 0, 0]
         Rectangle:
             source: 'data/star.png'
             pos: (self.pos[0]+(self.width-(self.height*.5)), self.pos[1]+(self.height*.5)-(self.height*.167))
@@ -502,7 +513,22 @@ Builder.load_string("""
 
 
 <NormalPopup>:
-    background: 'data/panelbg.png'
+    canvas.before:
+        Color:
+            rgba: 0, 0, 0, .75 * self._anim_alpha
+        Rectangle:
+            size: self._window.size if self._window else (0, 0)
+        Color:
+            rgba: app.theme.sidebar_background
+        Rectangle:
+            size: self.size
+            pos: self.pos
+            source: 'data/panelbg.png'
+    background_color: 1, 1, 1, 0
+    background: 'data/transparent.png'
+    separator_color: 1, 1, 1, .25
+    title_size: app.text_scale * 1.25
+    title_color: app.theme.header_text
 
 <MessagePopup>:
     cols:1
@@ -601,11 +627,11 @@ Builder.load_string("""
 <NormalDropDown>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.menu_background
         Rectangle:
             size: root.width, root.height * root.show_percent
             pos: root.pos[0], root.pos[1] + (root.height * (1 - root.show_percent)) if root.invert else root.pos[1]
-            source: 'data/buttonmenu.png'
+            source: 'data/buttonflat.png'
 
 <AlbumSortDropDown>:
     MenuButton:
@@ -644,7 +670,8 @@ Builder.load_string("""
 <PhotoRecycleThumb>:
     canvas.before:
         Color:
-            rgba: app.selected_color if self.selected else (0, 0, 0, 0)
+            rgba: self.underlay_color
+            #rgba: app.theme.selected if self.selected else (0, 0, 0, 0)
         Rectangle:
             pos: (self.pos[0]-5, self.pos[1]-5)
             size: (self.size[0]+10, self.size[1]+10)
@@ -655,7 +682,7 @@ Builder.load_string("""
             pos: self.pos
             size: self.size
         Color:
-            rgba: 1, 1, 1, .5 if root.favorite else 0
+            rgba: app.theme.favorite if root.favorite else [0, 0, 0, 0]
         Rectangle:
             source: 'data/star.png'
             pos: (self.pos[0]+(self.size[0]/2)-(self.size[0]*.05), self.pos[1]+(self.size[0]*.1))
@@ -785,26 +812,30 @@ Builder.load_string("""
     scroll_distance: 10
     scroll_timeout: 200
     bar_width: int(app.button_scale * .5)
+    bar_color: app.theme.scroller_selected
+    bar_inactive_color: app.theme.scroller
     scroll_type: ['bars', 'content']
 
 <NormalTreeView@TreeView>:
-    color_selected: app.selected_color
-    odd_color: app.color_odd
-    even_color: app.color_even
+    color_selected: app.theme.selected
+    odd_color: app.list_background_odd
+    even_color: app.list_background_even
     indent_level: int(app.button_scale * .5)
     size_hint: 1, None
     height: self.minimum_height
     hide_root: True
 
 
-<SplitterStrip>:
+<SplitterResizer>:
+    background_color: app.theme.sidebar_resizer
     background_normal: 'data/splitterbgup.png'
     background_down: 'data/splitterbgdown.png'
+    border: 0, 0, 0, 0
 
 <SplitterPanel>:
     canvas.before:
         Color:
-            rgba: 1, 1, 1, 1
+            rgba: app.theme.sidebar_background
         Rectangle:
             size: self.size
             pos: self.pos
@@ -856,6 +887,8 @@ Builder.load_string("""
     scroll_distance: 10
     scroll_timeout: 200
     bar_width: int(app.button_scale * .5)
+    bar_color: app.theme.scroller_selected
+    bar_inactive_color: app.theme.scroller
     scroll_type: ['bars', 'content']
 
 <ColorPickerCustom_Label@Label>:
@@ -894,12 +927,13 @@ Builder.load_string("""
             pos: self.pos
             size: self.size
 
+    orientation: 'vertical'
     size_hint_y: None
-    height: sp(33)*10
+    height: sp(33)*10 if self. orientation == 'vertical' else sp(33)*5
     foreground_color: (1, 1, 1, 1) if self.hsv[2] * wheel.a < .5 else (0, 0, 0, 1)
     wheel: wheel
     BoxLayout:
-        orientation: 'vertical'
+        orientation: root.orientation
         spacing: '5sp'
         ColorWheel:
             id: wheel
@@ -961,6 +995,70 @@ Builder.load_string("""
 
 
 #Misc ELements
+class InputMenu(Bubble):
+    owner = ObjectProperty()
+
+    def on_touch_down(self, touch):
+        if not self.collide_point(*touch.pos):
+            app = App.get_running_app()
+            app.close_bubble()
+        else:
+            super(InputMenu, self).on_touch_down(touch)
+
+    def select_all(self, *_):
+        if self.owner:
+            app = App.get_running_app()
+            self.owner.select_all()
+            app.close_bubble()
+
+    def cut(self, *_):
+        if self.owner:
+            app = App.get_running_app()
+            self.owner.cut()
+            app.close_bubble()
+
+    def copy(self, *_):
+        if self.owner:
+            app = App.get_running_app()
+            self.owner.copy()
+            app.close_bubble()
+
+    def paste(self, *_):
+        if self.owner:
+            app = App.get_running_app()
+            self.owner.paste()
+            app.close_bubble()
+
+
+class NormalInput(TextInput):
+    messed_up_coords = BooleanProperty(False)
+    long_press_time = NumericProperty(1)
+    long_press_clock = None
+    long_press_pos = None
+
+    def on_touch_up(self, touch):
+        if self.long_press_clock:
+            self.long_press_clock.cancel()
+            self.long_press_clock = None
+        super(NormalInput, self).on_touch_up(touch)
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            pos = self.to_window(*touch.pos)
+            self.long_press_clock = Clock.schedule_once(self.do_long_press, self.long_press_time)
+            self.long_press_pos = pos
+            if touch.button == 'right':
+                app = App.get_running_app()
+
+                app.popup_bubble(self, pos)
+                return
+        super(NormalInput, self).on_touch_down(touch)
+
+    def do_long_press(self, *_):
+        app = App.get_running_app()
+        app.popup_bubble(self, self.long_press_pos)
+
+
 class HalfSliderLimited(Slider):
     start = NumericProperty(0.0)
     end = NumericProperty(1.0)
@@ -1045,10 +1143,13 @@ class InfoLabel(ShortLabel):
 
     def on_text(self, instance, text):
         del instance
+        app = App.get_running_app()
         if self.blinker:
             self.stop_blinking()
         if text:
-            self.blinker = Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33) + Animation(bgcolor=[1, 1, 0, .75], duration=0.33) + Animation(bgcolor=[1, 1, 0, 0], duration=0.33)
+            no_bg = [.5, .5, .5, 0]
+            yes_bg = app.theme.info_background
+            self.blinker = Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33) + Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33) + Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33) + Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33) + Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33) + Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33) + Animation(bgcolor=yes_bg, duration=0.33) + Animation(bgcolor=no_bg, duration=0.33)
             self.blinker.start(self)
 
     def stop_blinking(self, *_):
@@ -1095,12 +1196,12 @@ class RecycleItem(RecycleDataViewBehavior, BoxLayout):
         app = App.get_running_app()
 
         if self.selected:
-            self.bgcolor = app.selected_color
+            self.bgcolor = app.theme.selected
         else:
             if self.index % 2 == 0:
-                self.bgcolor = app.color_even
+                self.bgcolor = app.list_background_even
             else:
-                self.bgcolor = app.color_odd
+                self.bgcolor = app.list_background_odd
 
     def refresh_view_attrs(self, rv, index, data):
         self.index = index
@@ -1126,6 +1227,7 @@ class RecycleItem(RecycleDataViewBehavior, BoxLayout):
 class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
     """Wrapper widget for image thumbnails.  Used for displaying images in grid views."""
 
+    underlay_color = ListProperty([0, 0, 0, 0])
     found = BooleanProperty(True)  # Used to add a red overlay to the thumbnail if the source file doesn't exist
     owner = ObjectProperty()
     target = StringProperty()
@@ -1150,6 +1252,18 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
     mirror = BooleanProperty(False)
     index = NumericProperty(0)
     data = {}
+
+    def on_selected(self, *_):
+        app = App.get_running_app()
+        if self.selected:
+            new_color = app.theme.selected
+        else:
+            new_color = [0, 0, 0, 0]
+        if app.animations:
+            anim = Animation(underlay_color=new_color, duration=app.animation_length)
+            anim.start(self)
+        else:
+            self.underlay_color = new_color
 
     def refresh_view_attrs(self, rv, index, data):
         """Called when widget is loaded into recycleview layout"""
@@ -1519,25 +1633,129 @@ class PhotoListRecycleView(RecycleView):
 
 
 #Buttons
-class NormalButton(Button):
+class ButtonBase(Button):
     """Basic button widget."""
 
     warn = BooleanProperty(False)
+    target_background = ListProperty()
+    target_text = ListProperty()
+    background_animation = ObjectProperty()
+    text_animation = ObjectProperty()
+    last_disabled = False
+    menu = BooleanProperty(False)
+    toggle = BooleanProperty(False)
+
+    button_update = BooleanProperty()
+
+    def __init__(self, **kwargs):
+        self.background_animation = Animation()
+        self.text_animation = Animation()
+        app = App.get_running_app()
+        self.background_color = app.theme.button_up
+        self.target_background = self.background_color
+        self.color = app.theme.button_text
+        self.target_text = self.color
+        super(ButtonBase, self).__init__(**kwargs)
+
+    def on_button_update(self, *_):
+        Clock.schedule_once(self.set_color_instant)
+
+    def set_color_instant(self, *_):
+        self.set_color(instant=True)
+
+    def set_color(self, instant=False):
+        app = App.get_running_app()
+        if self.disabled:
+            self.set_text(app.theme.button_disabled_text, instant=instant)
+            self.set_background(app.theme.button_disabled, instant=instant)
+        else:
+            self.set_text(app.theme.button_text, instant=instant)
+            if self.menu:
+                if self.state == 'down':
+                    self.set_background(app.theme.button_menu_down, instant=True)
+                else:
+                    self.set_background(app.theme.button_menu_up, instant=instant)
+            elif self.toggle:
+                if self.state == 'down':
+                    self.set_background(app.theme.button_toggle_true, instant=instant)
+                else:
+                    self.set_background(app.theme.button_toggle_false, instant=instant)
+
+            elif self.warn:
+                if self.state == 'down':
+                    self.set_background(app.theme.button_warn_down, instant=True)
+                else:
+                    self.set_background(app.theme.button_warn_up, instant=instant)
+            else:
+                if self.state == 'down':
+                    self.set_background(app.theme.button_down, instant=True)
+                else:
+                    self.set_background(app.theme.button_up, instant=instant)
+
+    def on_disabled(self, *_):
+        self.set_color()
+
+    def on_menu(self, *_):
+        self.set_color(instant=True)
+
+    def on_toggle(self, *_):
+        self.set_color(instant=True)
+
+    def on_warn(self, *_):
+        self.set_color(instant=True)
+
+    def on_state(self, *_):
+        self.set_color()
+
+    def set_background(self, color, instant=False):
+        if self.target_background == color:
+            return
+        app = App.get_running_app()
+        self.background_animation.stop(self)
+        if app.animations and not instant:
+            self.background_animation = Animation(background_color=color, duration=app.animation_length)
+            self.background_animation.start(self)
+        else:
+            self.background_color = color
+        self.target_background = color
+
+    def set_text(self, color, instant=False):
+        if self.target_text == color:
+            return
+        app = App.get_running_app()
+        self.text_animation.stop(self)
+        if app.animations and not instant:
+            self.text_animation = Animation(color=color, duration=app.animation_length)
+            self.text_animation.start(self)
+        else:
+            self.color = color
+        self.target_text = color
 
 
-class WideButton(Button):
+class ToggleBase(ToggleButton, ButtonBase):
+    pass
+
+
+class VerticalButton(ToggleBase):
+    vertical_text = StringProperty('')
+
+
+class NormalButton(ButtonBase):
+    """Basic button widget."""
+    pass
+
+
+class WideButton(ButtonBase):
     """Full width button widget"""
+    pass
 
-    warn = BooleanProperty(False)
 
-
-class MenuButton(Button):
+class MenuButton(ButtonBase):
     """Basic class for a drop-down menu button item."""
+    pass
 
-    warn = BooleanProperty(False)
 
-
-class RemoveButton(NormalButton):
+class RemoveButton(ButtonBase):
     """Base class for a button to remove an item from a list."""
 
     remove = True
@@ -1567,25 +1785,30 @@ class ExpandableButton(GridLayout):
         self.expanded = expanded
 
     def on_expanded(self, *_):
-        app = App.get_running_app()
         if self.content:
             if self.expanded:
-                Clock.schedule_once(self.animate_expand)
-            else:
                 content_container = self.ids['contentContainer']
-                content_container.unbind(minimum_height=self.set_content_height)
-                if app.animations:
-                    anim = Animation(height=app.padding * 2, opacity=0, duration=app.animation_length)
-                    anim.start(content_container)
-                else:
-                    content_container.opacity = 0
-                    content_container.height = app.padding * 2
-                content_container.clear_widgets()
+                self.animate_expand()
+            else:
+                self.animate_close()
 
-    def animate_expand(self, *_):
+    def animate_close(self, instant=False, *_):
+        app = App.get_running_app()
+        content_container = self.ids['contentContainer']
+        content_container.unbind(minimum_height=self.set_content_height)
+        if app.animations and not instant:
+            anim = Animation(height=app.padding * 2, opacity=0, duration=app.animation_length)
+            anim.start(content_container)
+        else:
+            content_container.opacity = 0
+            content_container.height = app.padding * 2
+        content_container.clear_widgets()
+
+    def animate_expand(self, instant=False, *_):
         content_container = self.ids['contentContainer']
         app = App.get_running_app()
-        if app.animations:
+        content_container.add_widget(self.content)
+        if app.animations and not instant:
             if self.animation:
                 self.animation.cancel(content_container)
             self.animation = Animation(height=(self.content.height + (app.padding * 2)), opacity=1, duration=app.animation_length)
@@ -1594,9 +1817,9 @@ class ExpandableButton(GridLayout):
         else:
             self.finish_expand()
             content_container.opacity = 1
-        content_container.add_widget(self.content)
 
     def finish_expand(self, *_):
+        self.animation = None
         content_container = self.ids['contentContainer']
         content_container.bind(minimum_height=self.set_content_height)
 
@@ -1820,35 +2043,43 @@ class NormalDropDown(DropDown):
 
     show_percent = NumericProperty(1)
     invert = BooleanProperty(False)
+    basic_animation = BooleanProperty(False)
 
     def open(self, *args, **kwargs):
         app = App.get_running_app()
         super(NormalDropDown, self).open(*args, **kwargs)
 
         if app.animations:
-            #determine if we opened up or down
-            if self.attach_to.y > self.y:
-                self.invert = True
-                children = reversed(self.container.children)
+            if self.basic_animation:
+                #Dont do fancy child opacity animation
+                self.opacity = 0
+                self.show_percent = 1
+                anim = Animation(opacity=1, duration=app.animation_length)
+                anim.start(self)
             else:
-                self.invert = False
-                children = self.container.children
+                #determine if we opened up or down
+                if self.attach_to.y > self.y:
+                    self.invert = True
+                    children = reversed(self.container.children)
+                else:
+                    self.invert = False
+                    children = self.container.children
 
-            #Animate background
-            self.opacity = 1
-            self.show_percent = 0
-            anim = Animation(show_percent=1, duration=app.animation_length)
-            anim.start(self)
+                #Animate background
+                self.opacity = 1
+                self.show_percent = 0
+                anim = Animation(show_percent=1, duration=app.animation_length)
+                anim.start(self)
 
-            if len(self.container.children) > 0:
-                item_delay = app.animation_length / len(self.container.children)
-            else:
-                item_delay = 0
+                if len(self.container.children) > 0:
+                    item_delay = app.animation_length / len(self.container.children)
+                else:
+                    item_delay = 0
 
-            for i, w in enumerate(children):
-                anim = (Animation(duration=i * item_delay) + Animation(opacity=1, duration=app.animation_length))
-                w.opacity = 0
-                anim.start(w)
+                for i, w in enumerate(children):
+                    anim = (Animation(duration=i * item_delay) + Animation(opacity=1, duration=app.animation_length))
+                    w.opacity = 0
+                    anim.start(w)
         else:
             self.opacity = 1
 
@@ -1871,11 +2102,16 @@ class AlbumSortDropDown(NormalDropDown):
 
 
 #Splitter Panels
+class SplitterResizer(Button):
+    pass
+
+
 class SplitterPanel(Splitter):
     """Base class for the left and right adjustable panels"""
     hidden = BooleanProperty(False)
     display_width = NumericProperty(0)
     animating = None
+    strip_cls = SplitterResizer
 
     def done_animating(self, *_):
         self.animating = None
