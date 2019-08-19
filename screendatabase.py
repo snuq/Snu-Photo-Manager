@@ -189,10 +189,16 @@ Builder.load_string("""
                         id: photosContainer
                         viewclass: 'PhotoRecycleThumb'
                         SelectableRecycleGrid:
+                            scale: root.scale
                             id: photos
                 Header:
-                    Label:
-                        text: ''
+                    HalfSlider:
+                        min: root.scale_min
+                        max: root.scale_max
+                        value: root.scale
+                        on_value: root.scale = self.value
+                    #Label:
+                    #    text: ''
                     NormalButton:
                         text: 'Browse Folder'
                         disabled: not root.can_browse
@@ -439,6 +445,9 @@ class DatabaseScreen(Screen):
     can_rename_folder = BooleanProperty(False)
     can_new_folder = BooleanProperty(False)
     can_browse = BooleanProperty(False)
+    scale = NumericProperty(1)  #Controls the scale of picture widgets
+    scale_min = .5
+    scale_max = 3
 
     def open_browser(self):
         if self.can_browse:
@@ -1112,7 +1121,6 @@ class DatabaseScreen(Screen):
 
         #Get and sort folder list
         all_folders = self.get_folders()
-
         #Add folders to tree
         folder_root = {
             'fullpath': 'Folders',
@@ -1134,7 +1142,8 @@ class DatabaseScreen(Screen):
 
         #Parse and sort folders and subfolders
         root_folders = []
-        for full_folder in all_folders:
+        for folder_info in all_folders:
+            full_folder, folder_title, folder_description = folder_info
             if full_folder and not any(avoidfolder in full_folder for avoidfolder in avoidfolders):
                 newname = full_folder
                 children = root_folders
@@ -1150,7 +1159,7 @@ class DatabaseScreen(Screen):
                         if child['folder'] == root:
                             root_element = child
                     if not root_element:
-                        children.append({'folder': root, 'full_folder': parent_folder, 'children': []})
+                        children.append({'folder': root, 'title': folder_title, 'full_folder': parent_folder, 'children': []})
                         root_element = children[-1]
                     children = root_element['children']
                     newname = leaf
@@ -1159,7 +1168,7 @@ class DatabaseScreen(Screen):
                     if child['folder'] == newname:
                         root_element = child
                 if not root_element:
-                    children.append({'folder': newname, 'full_folder': full_folder, 'children': []})
+                    children.append({'folder': newname, 'title': folder_title, 'full_folder': full_folder, 'children': []})
 
         #ensure that selected folder is expanded up to
         selected_folder = self.selected
@@ -1188,15 +1197,11 @@ class DatabaseScreen(Screen):
         folder_root = self.sort_folders(folder_root)
         for folder in folder_root:
             full_folder = folder['full_folder']
+            subtext = folder['title']
             expandable = True if len(folder['children']) > 0 else False
             is_expanded = True if full_folder in expanded else False
             if all:
                 is_expanded = True
-            folder_info = app.database_folder_exists(full_folder)
-            if folder_info:
-                subtext = folder_info[1]
-            else:
-                subtext = ''
             total_photos = ''
             folder_element = {
                 'fullpath': full_folder,
@@ -1260,8 +1265,9 @@ class DatabaseScreen(Screen):
     def get_folders(self, *_):
         if self.update_folders:
             app = App.get_running_app()
-            all_folders = app.database_get_folders(quick=True)
-            self.folders = all_folders
+            all_folders = app.database_get_all_folder_info()
+            #all_folders = app.database_get_folders(quick=True)
+            self.folders = all_folders  #Just used to cache folder data when a refresh is not needed for a faster refresh
             self.update_folders = False
         return self.folders
 
@@ -1583,6 +1589,14 @@ class DatabaseScreen(Screen):
         Sets up variables and widgets, and gets the screen ready to be filled with information."""
 
         app = App.get_running_app()
+        try:
+            self.scale = float(app.config.get("Settings", "databasescale"))/100
+        except:
+            self.scale = 1
+        if self.scale < self.scale_min:
+            self.scale = self.scale_min
+        if self.scale > self.scale_max:
+            self.scale = self.scale_max
         app.fullpath = ''
         self.tag_menu = NormalDropDown()
         self.album_menu = NormalDropDown()

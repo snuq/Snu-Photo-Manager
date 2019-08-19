@@ -5,6 +5,14 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 """
+"""
+Todo:
+    Need to prevent popup windows from appearing partially offscreen
+    implement a .nomedia file that will make spm ignore a folder
+    implement a 'delete all unedited originals in folder' function
+    Need to think of a way to divide up years abstractly
+    when deleting files, sometimes other photos in the dir wont load properly anymore
+"""
 
 import time
 start = time.perf_counter()
@@ -179,6 +187,7 @@ class MultiThreadOK(threading.Thread):
 class PhotoManager(App):
     """Main class of the app."""
 
+    timer_value = 0
     button_update = BooleanProperty(False)
     settings_open = BooleanProperty(False)
     right_panel = BooleanProperty(False)
@@ -239,6 +248,7 @@ class PhotoManager(App):
     main_layout = ObjectProperty()  #Main layout root widget
     screen_manager = ObjectProperty()
     database_screen = ObjectProperty()
+    album_screen = ObjectProperty()
     importing_screen = ObjectProperty()
     database_restore_screen = ObjectProperty()
     scanningthread = None
@@ -254,6 +264,12 @@ class PhotoManager(App):
     imported = None
 
     about_text = StringProperty()
+
+    def timer(self, *_):
+        start_time = time.perf_counter()
+        timed = start_time - self.timer_value
+        self.timer_value = start_time
+        return timed
 
     def popup_bubble(self, text_input, pos):
         self.close_bubble()
@@ -693,7 +709,8 @@ class PhotoManager(App):
                 'simpleinterface': simple_interface,
                 'backupdatabase': 1,
                 'rescanstartup': 0,
-                'animations': 1
+                'animations': 1,
+                'databasescale': 100
             })
         config.setdefaults(
             'Database Directories', {
@@ -776,16 +793,23 @@ class PhotoManager(App):
         settingspanel.append({
             "type": "numeric",
             "title": "Text Size Percent",
-            "desc": "Scale Percentage Of Interface Text",
+            "desc": "Scale percentage of interface text",
             "section": "Settings",
             "key": "textsize"
         })
         settingspanel.append({
             "type": "numeric",
             "title": "Thumbnail Size",
-            "desc": "Size In Pixels Of Generated Thumbnails",
+            "desc": "Size in pixels of generated thumbnails",
             "section": "Settings",
             "key": "thumbsize"
+        })
+        settingspanel.append({
+            "type": "numeric",
+            "title": "Database Thumbs Scale",
+            "desc": "Default pecentage scale for thumbnails in the database screen",
+            "section": "Settings",
+            "key": "databasescale"
         })
         settingspanel.append({
             "type": "bool",
@@ -2124,6 +2148,13 @@ class PhotoManager(App):
             photos = list(self.photos.select('SELECT * FROM photos WHERE Folder = ?', (folder, )))
         return local_paths(photos)
 
+    def database_get_all_folder_info(self):
+        folders = []
+        folder_items = list(self.folders.select('SELECT * FROM folders'))
+        for item in folder_items:
+            folders.append([local_path(item[0]), item[1], item[2]])
+        return folders
+
     def database_get_folders(self, database_folder=False, quick=False):
         """Get all folders from the photo database.
         Returns: List of folder database-relative paths.
@@ -2642,7 +2673,8 @@ class PhotoManager(App):
         self.clear_drags()
         if 'album' not in self.screen_manager.screen_names:
             from screenalbum import AlbumScreen
-            self.screen_manager.add_widget(AlbumScreen(name='album'))
+            self.album_screen = AlbumScreen(name='album')
+            self.screen_manager.add_widget(self.album_screen)
         if self.animations:
             self.screen_manager.transition.direction = 'left'
         if button:
@@ -2855,6 +2887,7 @@ class PhotoManager(App):
                 self.database_folder_update_title(folder, title)
                 self.folders.commit()
                 self.update_photoinfo(folders=[folder])
+                root.update_folders = True
                 root.update_treeview()
 
     def edit_add_watermark(self, imagedata, watermark_image, watermark_opacity, watermark_horizontal, watermark_vertical, watermark_size):

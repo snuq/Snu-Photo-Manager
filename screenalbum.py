@@ -2808,26 +2808,31 @@ class AlbumScreen(Screen):
         del instance
         if answer == 'yes':
             app = App.get_running_app()
+            self.viewer.stop()
             fullpath = self.fullpath
             filename = self.photo
             if self.type == 'Album':
                 index = app.album_find(self.target)
                 if index >= 0:
                     app.album_remove_photo(index, fullpath, message=True)
+                deleted = True
             elif self.type == 'Tag':
                 app.database_remove_tag(fullpath, self.target, message=True)
+                deleted = True
             else:
                 photo_info = app.database_exists(fullpath)
-                app.delete_photo(fullpath, filename, message=True)
-                if photo_info:
-                    app.update_photoinfo(folders=photo_info[1])
-            app.photos.commit()
-            if len(self.photos) == 1:
-                app.show_database()
-            else:
-                self.next_photo()
-                self.update_tags()
-                self.update_treeview()
+                deleted = app.delete_photo(fullpath, filename, message=True)
+                if deleted:
+                    if photo_info:
+                        app.update_photoinfo(folders=photo_info[1])
+            if deleted:
+                app.photos.commit()
+                if len(self.photos) == 1:
+                    app.show_database()
+                else:
+                    self.next_photo()
+                    self.update_tags()
+                    self.update_treeview()
         self.dismiss_popup()
 
     def current_photo_index(self):
@@ -2955,6 +2960,8 @@ class AlbumScreen(Screen):
                 self.photo = 'data/null.jpg'
             self.viewer = PhotoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo, photoinfo=self.photoinfo)
             container.add_widget(self.viewer)
+            self.refresh_photoinfo_simple()
+            self.refresh_photoinfo_full()
         else:
             #a video is selected
             self.view_image = False
@@ -2965,9 +2972,9 @@ class AlbumScreen(Screen):
                 self.photo = 'data/null.jpg'
             self.viewer = VideoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo, photoinfo=self.photoinfo)
             container.add_widget(self.viewer)
+            self.refresh_photoinfo_simple()
 
         app.refresh_photo(self.fullpath)
-        self.refresh_photo()
         if app.config.getboolean("Settings", "precache"):
             self.imagecache = threading.Thread(target=self.cache_nearby_images)
             self.imagecache.start()
@@ -3088,10 +3095,10 @@ class AlbumScreen(Screen):
     def full_photo_refresh(self):
         app = App.get_running_app()
         app.refresh_photo(self.fullpath, force=True)
-        self.refresh_photo()
+        self.on_photo()
 
-    def refresh_photo(self):
-        """Displays all the info for the current photo in the photo info right tab."""
+    def refresh_photoinfo_simple(self):
+        """Displays the basic info for the current photo in the photo info right tab."""
 
         app = App.get_running_app()
 
@@ -3103,7 +3110,6 @@ class AlbumScreen(Screen):
 
         #Add basic info
         photoinfo = app.database_exists(self.fullpath)
-        container = self.ids['photoViewerContainer']
         full_filename = os.path.join(photoinfo[2], photoinfo[0])
         filename = os.path.basename(photoinfo[0])
         info_panel.add_node(TreeViewInfo(title='Filename: ' + filename))
@@ -3121,102 +3127,118 @@ class AlbumScreen(Screen):
             file_size = format_size(photoinfo[4])
         info_panel.add_node(TreeViewInfo(title='File Size: ' + file_size))
 
-        #Add resolution info
-        try:
-            pil_image = Image.open(self.photo)
-            exif = pil_image._getexif()
-        except:
-            pil_image = False
-            exif = []
-        if pil_image:
-            self.image_x, self.image_y = pil_image.size
-            wrapper_size = container.size
-            if wrapper_size[0] > 0:
-                xscale = self.image_x/wrapper_size[0]
-            else:
-                xscale = 1
-            if wrapper_size[1] > 0:
-                yscale = self.image_y/wrapper_size[1]
-            else:
-                yscale = 1
-            if xscale > yscale:
-                scale_max = xscale
-            else:
-                scale_max = yscale
-            if scale_max < 2 or to_bool(app.config.get("Settings", "lowmem")):
-                scale_max = 2
-            self.viewer.scale_max = scale_max
-            resolution = str(self.image_x) + ' * ' + str(self.image_y)
-            megapixels = round(((self.image_x * self.image_y) / 1000000), 2)
-            info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
-        else:
-            self.image_x = 0
-            self.image_y = 0
+    def refresh_photoinfo_full(self, video=None):
+        """Displays all the info for the current photo in the photo info right tab."""
 
-        #Add exif info
-        if exif:
-            if 271 in exif:
-                camera_type = exif[271]+' '+exif[272]
-                info_panel.add_node(TreeViewInfo(title='Camera: ' + camera_type))
-            if 33432 in exif:
-                copyright = exif[33432]
-                info_panel.add_node(TreeViewInfo(title='Copyright: ' + copyright))
-            if 36867 in exif:
-                camera_date = exif[36867]
-                info_panel.add_node(TreeViewInfo(title='Date Taken: ' + camera_date))
-            if 33434 in exif:
-                exposure = exif[33434]
-                camera_exposure = str(exposure[0]/exposure[1])+'seconds'
-                info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
-            if 37377 in exif:
-                camera_shutter_speed = str(exif[37377][0]/exif[37377][1])
-                info_panel.add_node(TreeViewInfo(title='Shutter Speed: ' + camera_shutter_speed))
-            if 33437 in exif:
-                f_stop = exif[33437]
-                camera_f = str(f_stop[0]/f_stop[1])
-                info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
-            if 37378 in exif:
-                camera_aperture = str(exif[37378][0]/exif[37378][0])
-                info_panel.add_node(TreeViewInfo(title='Aperture: ' + camera_aperture))
-            if 34855 in exif:
-                camera_iso = str(exif[34855])
-                info_panel.add_node(TreeViewInfo(title='ISO Level: ' + camera_iso))
-            if 37385 in exif:
-                flash = bin(exif[37385])[2:].zfill(8)
-                camera_flash = 'Not Used' if flash[1] == '0' else 'Used'
-                info_panel.add_node(TreeViewInfo(title='Flash: ' + str(camera_flash)))
-            if 37386 in exif:
-                focal_length = str(exif[37386][0]/exif[37386][1])+'mm'
-                if 41989 in exif:
-                    film_focal = exif[41989]
-                    if film_focal != 0:
-                        focal_length = focal_length+' ('+str(film_focal)+' 35mm equiv.)'
-                info_panel.add_node(TreeViewInfo(title='Focal Length: ' + focal_length))
-            if 41988 in exif:
-                digital_zoom = exif[41988]
-                if digital_zoom[0] != 0:
-                    digital_zoom_amount = str(round(digital_zoom[0]/digital_zoom[1], 2))+'X'
-                    info_panel.add_node(TreeViewInfo(title='Digital Zoom: ' + digital_zoom_amount))
-            if 34850 in exif:
-                exposure_program = exif[34850]
-                if exposure_program > 0:
-                    if exposure_program == 1:
-                        program_name = 'Manual'
-                    elif exposure_program == 2:
-                        program_name = 'Normal'
-                    elif exposure_program == 3:
-                        program_name = 'Aperture Priority'
-                    elif exposure_program == 4:
-                        program_name = 'Shutter Priority'
-                    elif exposure_program == 5:
-                        program_name = 'Creative Program'
-                    elif exposure_program == 6:
-                        program_name = 'Action Program'
-                    elif exposure_program == 7:
-                        program_name = 'Portrait'
-                    else:
-                        program_name = 'Landscape'
-                    info_panel.add_node(TreeViewInfo(title='Exposure Mode: ' + program_name))
+        info_panel = self.ids['panelInfo']
+        app = App.get_running_app()
+        container = self.ids['photoViewerContainer']
+
+        if not self.view_image:
+            if video:
+                length = time_index(video.duration)
+                info_panel.add_node(TreeViewInfo(title='Duration: ' + length))
+                self.image_x, self.image_y = video.texture.size
+                resolution = str(self.image_x) + ' * ' + str(self.image_y)
+                megapixels = round(((self.image_x * self.image_y) / 1000000), 2)
+                info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
+        else:
+            #Add resolution info
+            try:
+                pil_image = Image.open(self.photo)
+                exif = pil_image._getexif()
+            except:
+                pil_image = False
+                exif = []
+            if pil_image:
+                self.image_x, self.image_y = pil_image.size
+                wrapper_size = container.size
+                if wrapper_size[0] > 0:
+                    xscale = self.image_x/wrapper_size[0]
+                else:
+                    xscale = 1
+                if wrapper_size[1] > 0:
+                    yscale = self.image_y/wrapper_size[1]
+                else:
+                    yscale = 1
+                if xscale > yscale:
+                    scale_max = xscale
+                else:
+                    scale_max = yscale
+                if scale_max < 2 or to_bool(app.config.get("Settings", "lowmem")):
+                    scale_max = 2
+                self.viewer.scale_max = scale_max
+                resolution = str(self.image_x) + ' * ' + str(self.image_y)
+                megapixels = round(((self.image_x * self.image_y) / 1000000), 2)
+                info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
+            else:
+                self.image_x = 0
+                self.image_y = 0
+
+            #Add exif info
+            if exif:
+                if 271 in exif:
+                    camera_type = exif[271]+' '+exif[272]
+                    info_panel.add_node(TreeViewInfo(title='Camera: ' + camera_type))
+                if 33432 in exif:
+                    copyright = exif[33432]
+                    info_panel.add_node(TreeViewInfo(title='Copyright: ' + copyright))
+                if 36867 in exif:
+                    camera_date = exif[36867]
+                    info_panel.add_node(TreeViewInfo(title='Date Taken: ' + camera_date))
+                if 33434 in exif:
+                    exposure = exif[33434]
+                    camera_exposure = str(exposure[0]/exposure[1])+'seconds'
+                    info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
+                if 37377 in exif:
+                    camera_shutter_speed = str(exif[37377][0]/exif[37377][1])
+                    info_panel.add_node(TreeViewInfo(title='Shutter Speed: ' + camera_shutter_speed))
+                if 33437 in exif:
+                    f_stop = exif[33437]
+                    camera_f = str(f_stop[0]/f_stop[1])
+                    info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
+                if 37378 in exif:
+                    camera_aperture = str(exif[37378][0]/exif[37378][0])
+                    info_panel.add_node(TreeViewInfo(title='Aperture: ' + camera_aperture))
+                if 34855 in exif:
+                    camera_iso = str(exif[34855])
+                    info_panel.add_node(TreeViewInfo(title='ISO Level: ' + camera_iso))
+                if 37385 in exif:
+                    flash = bin(exif[37385])[2:].zfill(8)
+                    camera_flash = 'Not Used' if flash[1] == '0' else 'Used'
+                    info_panel.add_node(TreeViewInfo(title='Flash: ' + str(camera_flash)))
+                if 37386 in exif:
+                    focal_length = str(exif[37386][0]/exif[37386][1])+'mm'
+                    if 41989 in exif:
+                        film_focal = exif[41989]
+                        if film_focal != 0:
+                            focal_length = focal_length+' ('+str(film_focal)+' 35mm equiv.)'
+                    info_panel.add_node(TreeViewInfo(title='Focal Length: ' + focal_length))
+                if 41988 in exif:
+                    digital_zoom = exif[41988]
+                    if digital_zoom[0] != 0:
+                        digital_zoom_amount = str(round(digital_zoom[0]/digital_zoom[1], 2))+'X'
+                        info_panel.add_node(TreeViewInfo(title='Digital Zoom: ' + digital_zoom_amount))
+                if 34850 in exif:
+                    exposure_program = exif[34850]
+                    if exposure_program > 0:
+                        if exposure_program == 1:
+                            program_name = 'Manual'
+                        elif exposure_program == 2:
+                            program_name = 'Normal'
+                        elif exposure_program == 3:
+                            program_name = 'Aperture Priority'
+                        elif exposure_program == 4:
+                            program_name = 'Shutter Priority'
+                        elif exposure_program == 5:
+                            program_name = 'Creative Program'
+                        elif exposure_program == 6:
+                            program_name = 'Action Program'
+                        elif exposure_program == 7:
+                            program_name = 'Portrait'
+                        else:
+                            program_name = 'Landscape'
+                        info_panel.add_node(TreeViewInfo(title='Exposure Mode: ' + program_name))
 
     def resort_method(self, method):
         """Sets the album sort method.
@@ -3274,7 +3296,7 @@ class AlbumScreen(Screen):
         Cache.remove('kv.loader')
         Cache.remove('kv.image')
         Cache.remove('kv.texture')
-        self.on_photo()
+        #self.on_photo()
         self.update_tags()
         self.refresh_all()
 
@@ -5022,6 +5044,15 @@ class SpecialVideoPlayer(VideoPlayer):
 
 class PauseableVideo(Video):
     """modified Video class to allow clicking anywhere to pause/resume."""
+
+    first_load = True
+
+    def on_texture(self, *kwargs):
+        super(PauseableVideo, self).on_texture(*kwargs)
+        if self.first_load:
+            app = App.get_running_app()
+            app.album_screen.refresh_photoinfo_full(video=self._video)
+        self.first_load = False
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):

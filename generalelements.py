@@ -790,13 +790,13 @@ Builder.load_string("""
     touch_multiselect: False
 
 <SelectableRecycleGrid>:
-    cols: max(1, int(self.width / ((app.button_scale * 4) + (app.button_scale / 2))))
+    cols: max(1, int(self.width / ((app.button_scale * 4 * self.scale) + (app.button_scale / 2))))
     spacing: int(app.button_scale / 2)
     padding: int(app.button_scale / 2)
     focus: False
     touch_multiselect: True
     multiselect: True
-    default_size: app.button_scale * 4, app.button_scale * 4
+    default_size: app.button_scale * 4 * self.scale, app.button_scale * 4 * self.scale
     default_size_hint: None, None
     height: self.minimum_height
     size_hint_y: None
@@ -1580,7 +1580,7 @@ class SelectableRecycleLayout(LayoutSelectionBehavior):
 
 
 class SelectableRecycleGrid(SelectableRecycleLayout, RecycleGridLayout):
-    pass
+    scale = NumericProperty(1)
 
 
 class NormalRecycleView(RecycleView):
