@@ -521,6 +521,12 @@ Builder.load_string("""
         on_release: root.owner.delete_original()
     SmallBufferY:
     WideButton:
+        id: deleteOriginalAll
+        text: 'Delete All Originals In Folder'
+        warn: True
+        on_release: root.owner.delete_original_all()
+    SmallBufferY:
+    WideButton:
         id: undoEdits
         text: 'Restore Original Unedited File'
         on_release: root.owner.restore_original()
@@ -2572,9 +2578,19 @@ class AlbumScreen(Screen):
         """Tries to delete the original version of an edited photo."""
 
         app = App.get_running_app()
-        app.delete_photo_original(self.photoinfo)
-        self.set_edit_panel('main')
-        app.message("Deleted original file.")
+        deleted, message = app.delete_photo_original(self.photoinfo)
+        if deleted:
+            self.set_edit_panel('main')
+        app.message(message)
+
+    def delete_original_all(self):
+        folder = self.photoinfo[1]
+        app = App.get_running_app()
+        deleted_photos = app.delete_folder_original(folder)
+        if len(deleted_photos) > 0:
+            app.message('Deleted '+str(len(deleted_photos))+' original files')
+        else:
+            app.message('Could not delete any original files')
 
     def restore_original(self):
         """Tries to restore the original version of an edited photo."""
@@ -2650,6 +2666,8 @@ class AlbumScreen(Screen):
         if self.edit_panel != panelname:
             self.edit_panel = panelname
             Clock.schedule_once(lambda *dt: self.update_edit_panel())
+        elif self.edit_panel == 'main':
+            self.edit_panel_object.refresh_buttons()
 
     def export(self):
         """Switches to export screen."""
@@ -5109,8 +5127,12 @@ class EditMain(GridLayout):
     def __init__(self, **kwargs):
         super(EditMain, self).__init__(**kwargs)
         self.update_programs()
+        self.refresh_buttons()
+
+    def refresh_buttons(self):
         self.update_undo()
         self.update_delete_original()
+        self.update_delete_original_all()
 
     def save_last(self):
         pass
@@ -5126,6 +5148,15 @@ class EditMain(GridLayout):
             delete_original_button.disabled = False
         else:
             delete_original_button.disabled = True
+
+    def update_delete_original_all(self):
+        """Checks if currently viewing a folder, enables 'Delete All Originals' button if so."""
+
+        delete_original_all_button = self.ids['deleteOriginalAll']
+        if self.owner.type == 'Folder':
+            delete_original_all_button.disabled = False
+        else:
+            delete_original_all_button.disabled = True
 
     def update_undo(self):
         """Checks if the current viewed photo has an original file, enables the 'Restore Original' button if so."""

@@ -7,9 +7,7 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
 """
 """
 Todo:
-    Need to prevent popup windows from appearing partially offscreen
     implement a .nomedia file that will make spm ignore a folder
-    implement a 'delete all unedited originals in folder' function
     Need to think of a way to divide up years abstractly
     when deleting files, sometimes other photos in the dir wont load properly anymore
 """
@@ -277,7 +275,14 @@ class PhotoManager(App):
         self.bubble = InputMenu(owner=text_input)
         window = self.root_window
         window.add_widget(self.bubble)
-        self.bubble.pos = pos
+        posx = pos[0]
+        posy = pos[1]
+        #check position to ensure its not off screen
+        if posx + self.bubble.width > window.width:
+            posx = window.width - self.bubble.width
+        if posy + self.bubble.height > window.height:
+            posy = window.height - self.bubble.height
+        self.bubble.pos = [posx, posy]
 
     def close_bubble(self, *_):
         if self.bubble:
@@ -1788,8 +1793,20 @@ class PhotoManager(App):
                 self.popup_message(text='Could not delete file', title='Warning')
             return deleted
 
+    def delete_folder_original(self, folder):
+        """Delete all original unedited files in a given folder"""
+
+        photos = self.database_get_folder(folder)
+        deleted_photos = []
+        for photoinfo in photos:
+            original_file = local_path(photoinfo[10])
+            deleted = self.delete_file(original_file)
+            if deleted is True:
+                deleted_photos.append(photoinfo)
+        return deleted_photos
+
     def delete_photo_original(self, photoinfo):
-        """Delete the original edited file.
+        """Delete the original unedited file.
         Argument:
             photoinfo: List, photoinfo object.
         """
@@ -1797,10 +1814,11 @@ class PhotoManager(App):
         original_file = local_path(photoinfo[10])
         if os.path.isfile(original_file):
             deleted = self.delete_file(original_file)
-            if not deleted:
-                self.popup_message(text='Could not delete original file', title='Warning')
+            if deleted is not True:
+                return False, 'Could not delete original file: '+str(deleted)
         else:
-            self.popup_message(text='Could not find original file', title='Warning')
+            return False, 'Could not find original file'
+        return True, "Deleted original file"
 
     def delete_file(self, filepath):
         """Attempt to delete a file using send2trash.
