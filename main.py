@@ -7,6 +7,7 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
 """
 """
 Todo:
+    when setting outpoint of video, can freeze when loading frames near end
     implement a .nomedia file that will make spm ignore a folder
     Need to think of a way to divide up years abstractly
     when deleting files, sometimes other photos in the dir wont load properly anymore

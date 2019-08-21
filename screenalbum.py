@@ -2379,6 +2379,7 @@ class AlbumScreen(Screen):
         input_video.close_player()
         input_video = None
 
+        start_time = time.time()
         start_point = self.viewer.start_point
         end_point = self.viewer.end_point
         framerate = input_metadata['frame_rate']
@@ -2416,7 +2417,8 @@ class AlbumScreen(Screen):
                 app.popup_message(text='Could not create new encode, file already exists.', title='Warning')
                 return
 
-        self.encoding_process_thread = subprocess.Popen(command, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+        #used to have 'shell=True' in arguments, is it still needed?
+        self.encoding_process_thread = subprocess.Popen(command, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
         # Poll process for new output until finished
         progress = []
@@ -2436,13 +2438,15 @@ class AlbumScreen(Screen):
                 self.current_frame = int(nextline.split('frame=')[1].split('fps=')[0].strip())
                 scanning_percentage = self.current_frame / self.total_frames * 100
                 self.popup.scanning_percentage = scanning_percentage
-                time_done = nextline.split('time=')[1].split('bitrate=')[0].strip()
+                #time_done = nextline.split('time=')[1].split('bitrate=')[0].strip()
+                elapsed_time = time.time() - start_time
+                time_done = time_index(elapsed_time)
                 remaining_frames = self.total_frames - self.current_frame
                 try:
-                    fps = int(nextline.split('fps=')[1].split('q=')[0].strip())
+                    fps = float(nextline.split('fps=')[1].split('q=')[0].strip())
                     seconds_left = remaining_frames / fps
                     time_remaining = time_index(seconds_left)
-                    time_text = "  Time: "+time_done.split('.')[0]+"  Remaining: "+time_remaining
+                    time_text = "  Time: "+time_done+"  Remaining: "+time_remaining
                 except:
                     time_text = ""
                 self.popup.scanning_text = str(str(int(scanning_percentage)))+"%"+time_text
@@ -2468,10 +2472,11 @@ class AlbumScreen(Screen):
                 output_video.close_player()
                 output_video = None
                 if output_metadata:
-                    new_size = (int(self.encoding_settings['width']), int(self.encoding_settings['height']))
-                    if output_metadata['src_vid_size'] != new_size:
-                        error_code = ', Output size is incorrect'
-                        good_file = False
+                    if self.encoding_settings['width'] and self.encoding_settings['height']:
+                        new_size = (int(self.encoding_settings['width']), int(self.encoding_settings['height']))
+                        if output_metadata['src_vid_size'] != new_size:
+                            error_code = ', Output size is incorrect'
+                            good_file = False
                 else:
                     error_code = ', Unable to find output file metadata'
                     good_file = False
@@ -2506,8 +2511,10 @@ class AlbumScreen(Screen):
 
                     # reload video in ui
                     self.fullpath = local_path(new_photoinfo[0])
-                    self.photo = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
-                    Clock.schedule_once(lambda *dt: self.refresh_all())
+                    newpath = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
+                    Clock.schedule_once(lambda x: self.set_photo(newpath))
+                    #Todo: this function is causing interface desync for some reason...
+                    #self.photo = newpath
 
                 except:
                     app.popup_message(text='Could not replace original file', title='Warning')
@@ -2525,6 +2532,10 @@ class AlbumScreen(Screen):
             app.popup_message(text='File not encoded, FFMPEG gave exit code '+str(exit_code), title='Warning')
 
         self.encoding = False
+
+    def set_photo(self, photo):
+        self.photo = photo
+        Clock.schedule_once(lambda *dt: self.refresh_all())
 
     def delete_output(self, output_file, timeout=20):
         """Continuously try to delete a file until its done."""
@@ -3048,7 +3059,7 @@ class AlbumScreen(Screen):
         self.show_selected()
         photolist.scroll_to_selected()
 
-    def refresh_all(self):
+    def refresh_all(self, *_):
         self.refresh_photolist()
         self.refresh_photoview()
 
@@ -3128,6 +3139,8 @@ class AlbumScreen(Screen):
 
         #Add basic info
         photoinfo = app.database_exists(self.fullpath)
+        if not photoinfo:
+            return
         full_filename = os.path.join(photoinfo[2], photoinfo[0])
         filename = os.path.basename(photoinfo[0])
         info_panel.add_node(TreeViewInfo(title='Filename: ' + filename))
@@ -3390,6 +3403,7 @@ class AlbumScreen(Screen):
         """Set up the edit panel with the current preset."""
 
         if self.viewer and isfile2(self.photo):
+            self.viewer.stop()
             if self.edit_panel_object:
                 self.edit_panel_object.save_last()
             self.viewer.edit_mode = self.edit_panel
@@ -3528,7 +3542,8 @@ class AlbumScreen(Screen):
         print(command)
 
         start_time = time.time()
-        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
+        #used to have shell=True in arguments, is it still needed?
+        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
         # Poll process for new output until finished
         while True:
             if self.cancel_encoding:
@@ -3588,7 +3603,8 @@ class AlbumScreen(Screen):
             output_temp_file = output_file_folder + os.path.sep + output_temp_filename
 
             print(command)
-            self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1, shell=True)
+            #used to have shell=True in arguments... is it still needed?
+            self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
             #Poll process for new output until finished
             deleted = self.delete_output(output_temp_file)
             if not deleted:
@@ -3613,13 +3629,11 @@ class AlbumScreen(Screen):
                 if nextline.startswith('frame= '):
                     self.current_frame = int(nextline.split('frame=')[1].split('fps=')[0].strip())
                     scanning_percentage = 95 + ((self.current_frame - start_frame) / self.total_frames * 5)
-                    print(scanning_percentage)
                     self.popup.scanning_percentage = scanning_percentage
                     elapsed_time = time.time() - start_time
 
                     try:
                         percentage_remaining = 95 - scanning_percentage
-                        print(scanning_percentage)
                         seconds_left = (elapsed_time * percentage_remaining) / scanning_percentage
                         time_done = time_index(elapsed_time)
                         time_remaining = time_index(seconds_left)
@@ -5112,6 +5126,9 @@ class EditPanelContainer(GridLayout):
 class EditNone(GridLayout):
     owner = ObjectProperty()
 
+    def refresh_buttons(self):
+        pass
+
     def save_last(self):
         pass
 
@@ -5234,6 +5251,9 @@ class EditColorImage(GridLayout):
     def __init__(self, **kwargs):
         Clock.schedule_once(self.add_video_preset)
         super(EditColorImage, self).__init__(**kwargs)
+
+    def refresh_buttons(self):
+        pass
 
     def add_video_preset(self, *_):
         if not self.owner.view_image:
@@ -5408,6 +5428,9 @@ class EditColorImageAdvanced(GridLayout):
         #interpolation_button.bind(on_release=self.interpolation_drop_down.open)
         #self.interpolation_drop_down.bind(on_select=self.set_interpolation)
 
+    def refresh_buttons(self):
+        pass
+
     def add_video_preset(self, *_):
         if not self.owner.view_image:
             video_preset = self.ids['videoPreset']
@@ -5528,6 +5551,9 @@ class EditFilterImage(GridLayout):
         Clock.schedule_once(self.add_video_preset)
         super(EditFilterImage, self).__init__(**kwargs)
 
+    def refresh_buttons(self):
+        pass
+
     def add_video_preset(self, *_):
         if not self.owner.view_image:
             video_preset = self.ids['videoPreset']
@@ -5643,6 +5669,9 @@ class EditBorderImage(GridLayout):
         Clock.schedule_once(self.populate_borders)
         super(EditBorderImage, self).__init__(**kwargs)
 
+    def refresh_buttons(self):
+        pass
+
     def add_video_preset(self, *_):
         if not self.owner.view_image:
             video_preset = self.ids['videoPreset']
@@ -5747,6 +5776,9 @@ class EditDenoiseImage(GridLayout):
     def __init__(self, **kwargs):
         Clock.schedule_once(self.update_preview)
         super(EditDenoiseImage, self).__init__(**kwargs)
+
+    def refresh_buttons(self):
+        pass
 
     def save_last(self):
         self.owner.edit_denoise = True
@@ -5877,6 +5909,9 @@ class EditCropImage(GridLayout):
         else:
             self.orientation = 'vertical'
             self.ids['verticalToggle'].state = 'down'
+
+    def refresh_buttons(self):
+        pass
 
     def save_image(self, *_):
         if self.owner.viewer.edit_image.video:
@@ -6019,6 +6054,9 @@ class EditRotateImage(GridLayout):
     fine_angle = NumericProperty(0)
     owner = ObjectProperty()
 
+    def refresh_buttons(self):
+        pass
+
     def save_image(self, *_):
         if self.owner.viewer.edit_image.video:
             self.owner.save_video()
@@ -6066,6 +6104,9 @@ class EditRotateImage(GridLayout):
 class EditConvertImage(GridLayout):
     """Currently not supported."""
     owner = ObjectProperty()
+
+    def refresh_buttons(self):
+        pass
 
     def save_last(self):
         pass
@@ -6121,6 +6162,9 @@ class EditConvertVideo(GridLayout):
                 self.deinterlace = to_bool(encoding_settings[9])
                 self.command_line = encoding_settings[10]
         super(EditConvertVideo, self).__init__(**kwargs)
+
+    def refresh_buttons(self):
+        pass
 
     def save_last(self):
         pass
@@ -6230,8 +6274,8 @@ class EditConvertVideo(GridLayout):
                 self.encoding_speed = preset['encoding_speed']
                 self.deinterlace = preset['deinterlace']
                 self.command_line = preset['command_line']
+                self.store_settings()
                 return
-        self.store_settings()
 
     def on_video_bitrate(self, *_):
         self.store_settings()
@@ -6296,6 +6340,7 @@ class EditConvertVideo(GridLayout):
                              'deinterlace': self.deinterlace,
                              'command_line': self.command_line}
         self.owner.encoding_settings = encoding_settings
+        print(encoding_settings)
         self.store_settings()
         self.owner.begin_encode()
 
