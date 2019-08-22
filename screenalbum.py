@@ -3959,8 +3959,10 @@ class CustomImage(KivyImage):
         target_seek_frame = seek * framerate
 
         loops = 0
+        total_loops = 0
         while True:
             loops += 1
+            total_loops += 1
             if loops > 5:
                 #seek has been stuck for a while, try to seek again
                 self.start_seek(seek)
@@ -3970,8 +3972,8 @@ class CustomImage(KivyImage):
             current_seek = frame[1]
             current_seek_frame = current_seek * framerate
             frame_distance = abs(target_seek_frame - current_seek_frame)
-            if frame_distance < 2:
-                #seek has finished!
+            if frame_distance < 2 or total_loops >= 30:
+                #seek has finished, or give up after a lot of tries to not freeze the program...
                 break
         return frame
 
