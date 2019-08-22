@@ -33,6 +33,7 @@ import threading
 from kivy.config import Config
 Config.window_icon = "data/icon.png"
 from kivy.app import App
+from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.cache import Cache
 from kivy.animation import Animation
@@ -2513,8 +2514,6 @@ class AlbumScreen(Screen):
                     self.fullpath = local_path(new_photoinfo[0])
                     newpath = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
                     Clock.schedule_once(lambda x: self.set_photo(newpath))
-                    #Todo: this function is causing interface desync for some reason...
-                    #self.photo = newpath
 
                 except:
                     app.popup_message(text='Could not replace original file', title='Warning')
@@ -2532,6 +2531,9 @@ class AlbumScreen(Screen):
             app.popup_message(text='File not encoded, FFMPEG gave exit code '+str(exit_code), title='Warning')
 
         self.encoding = False
+
+        #switch active video in photo list back to image
+        self.show_selected()
 
     def set_photo(self, photo):
         self.photo = photo
@@ -2665,6 +2667,8 @@ class AlbumScreen(Screen):
             app.message("Restored original file.")
             self.set_edit_panel('main')
 
+            #switch active photo in photo list back to image
+            self.show_selected()
         else:
             app.popup_message(text='Could not find original file', title='Warning')
 
@@ -2860,6 +2864,10 @@ class AlbumScreen(Screen):
                     app.show_database()
                 else:
                     self.next_photo()
+                    Cache.remove('kv.loader')
+                    self.cache_nearby_images()
+                    #Cache.remove('kv.image')
+                    #Cache.remove('kv.texture')
                     self.update_tags()
                     self.update_treeview()
         self.dismiss_popup()
@@ -3491,10 +3499,6 @@ class AlbumScreen(Screen):
         self.encoding = False
         app.popup_message(text=message, title='Warning')
 
-    def set_photo(self, photo):
-        self.photo = photo
-        self.refresh_photoview()
-
     def save_video_process(self):
         self.viewer.stop()
         app = App.get_running_app()
@@ -3737,6 +3741,9 @@ class AlbumScreen(Screen):
         self.encoding = False
         self.set_edit_panel('main')
 
+        #switch active video in photo list back to image
+        self.show_selected()
+
     def save_image(self):
         """Saves any temporary edits on the currently viewed image."""
 
@@ -3804,6 +3811,10 @@ class AlbumScreen(Screen):
 
         #close edit panel
         self.set_edit_panel('main')
+
+        #switch active photo in photo list back to image
+        self.show_selected()
+
         app.message("Saved edits to image")
 
 
@@ -3850,6 +3861,7 @@ class CustomImage(KivyImage):
     All editing variables are watched by the widget and it will automatically update the preview when they are changed.
     """
 
+    exif = []
     pixel_format = ''
     length = NumericProperty(0)
     framerate = ListProperty()
@@ -4324,10 +4336,7 @@ class CustomImage(KivyImage):
         self.update_preview()
 
     def on_size(self, *_):
-        """The image widget has been resized, regenerate the preview image."""
-
-        self.reload_edit_image()
-        self.update_preview()
+        pass
 
     def on_source(self, *_):
         """The source file has been changed, reload image and regenerate preview."""
@@ -4336,11 +4345,11 @@ class CustomImage(KivyImage):
         if self.video:
             self.open_video()
         self.reload_edit_image()
-        self.update_preview()
+        self.update_texture(self.edit_image)
+        #self.update_preview()
 
     def on_position(self, *_):
-        self.reload_edit_image()
-        self.update_preview()
+        pass
 
     def reload_edit_image(self):
         """Regenerate the edit preview image."""
@@ -4366,6 +4375,10 @@ class CustomImage(KivyImage):
 
         else:
             original_image = Image.open(self.source)
+            try:
+                self.exif = original_image._getexif()
+            except:
+                self.exif = []
             if self.angle != 0:
                 if self.angle == 90:
                     original_image = original_image.transpose(PIL.Image.ROTATE_90)
@@ -4378,8 +4391,9 @@ class CustomImage(KivyImage):
             image = original_image.copy()
             self.original_image = original_image.copy()
             original_image.close()
-        width = int(self.width)
-        height = int(self.width*(image.size[1]/image.size[0]))
+        image_width = Window.width * .75
+        width = int(image_width)
+        height = int(image_width*(image.size[1]/image.size[0]))
         if width < 10:
             width = 10
         if height < 10:
@@ -4389,7 +4403,11 @@ class CustomImage(KivyImage):
             image = image.convert('RGB')
         self.size_multiple = self.original_width / image.size[0]
         self.edit_image = image
-        self.histogram = image.histogram()
+        Clock.schedule_once(self.update_histogram)  #Need to delay this because kivy will mess up the drawing of it on first load.
+        #self.histogram = image.histogram()
+
+    def update_histogram(self, *_):
+        self.histogram = self.edit_image.histogram()
 
     def on_texture(self, instance, value):
         if value is not None:

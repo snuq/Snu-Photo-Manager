@@ -2310,8 +2310,11 @@ class AsyncThumbnail(KivyImage):
             self._on_source_load()
 
     def _on_source_load(self, *_):
-        image = self._coreimage.image
-        if not image:
+        try:
+            image = self._coreimage.image
+            if not image:
+                return
+        except:
             return
         self.thumbnail = image
         self.thumbsize = image.size
