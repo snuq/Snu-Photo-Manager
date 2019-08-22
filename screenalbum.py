@@ -4376,8 +4376,8 @@ class CustomImage(KivyImage):
             self.original_width = original_image.size[0]
             self.original_height = original_image.size[1]
             image = original_image.copy()
-            self.original_image = original_image
-            #original_image.close()
+            self.original_image = original_image.copy()
+            original_image.close()
         width = int(self.width)
         height = int(self.width*(image.size[1]/image.size[0]))
         if width < 10:
@@ -4870,8 +4870,8 @@ class PhotoViewer(BoxLayout):
 
     def stop(self):
         self.fullscreen = False
-        if self.edit_image:
-            self.edit_image.close_image()
+        #if self.edit_image:
+        #    self.edit_image.close_image()
 
     def close(self):
         pass
