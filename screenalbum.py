@@ -3744,6 +3744,7 @@ class AlbumScreen(Screen):
 
         #generate full quality image
         edit_image = self.viewer.edit_image.get_full_quality()
+        self.viewer.stop()
 
         #back up old image and save new edit
         photo_file = self.photo
@@ -4715,6 +4716,9 @@ class CustomImage(KivyImage):
         image = self.adjust_image(image, preview=False)
         return image
 
+    def close_image(self):
+        self.original_image.close()
+
 
 class TreeViewInfo(BoxLayout, TreeViewNode):
     """Simple treeview node to display a line of text.
@@ -4866,6 +4870,8 @@ class PhotoViewer(BoxLayout):
 
     def stop(self):
         self.fullscreen = False
+        if self.edit_image:
+            self.edit_image.close_image()
 
     def close(self):
         pass
