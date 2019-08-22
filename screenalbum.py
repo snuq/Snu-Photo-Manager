@@ -3751,6 +3751,7 @@ class AlbumScreen(Screen):
 
         #generate full quality image
         edit_image = self.viewer.edit_image.get_full_quality()
+        exif = self.viewer.edit_image.exif
         self.viewer.stop()
 
         #back up old image and save new edit
@@ -3782,7 +3783,7 @@ class AlbumScreen(Screen):
         if os.path.isfile(photo_file):
             app.popup_message(text='Could not save edited photo', title='Warning')
             return
-        edit_image.save(photo_file, "JPEG", quality=95)
+        edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
         if not os.path.isfile(photo_file):
             if os.path.isfile(backup_photo_file):
                 copy2(backup_photo_file, photo_file)
@@ -3861,7 +3862,7 @@ class CustomImage(KivyImage):
     All editing variables are watched by the widget and it will automatically update the preview when they are changed.
     """
 
-    exif = []
+    exif = ''
     pixel_format = ''
     length = NumericProperty(0)
     framerate = ListProperty()
@@ -4376,9 +4377,9 @@ class CustomImage(KivyImage):
         else:
             original_image = Image.open(self.source)
             try:
-                self.exif = original_image._getexif()
+                self.exif = original_image.info.get('exif', b'')
             except:
-                self.exif = []
+                self.exif = ''
             if self.angle != 0:
                 if self.angle == 90:
                     original_image = original_image.transpose(PIL.Image.ROTATE_90)
