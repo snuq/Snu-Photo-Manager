@@ -5936,6 +5936,7 @@ class EditCropImage(GridLayout):
         else:
             self.orientation = 'vertical'
             self.ids['verticalToggle'].state = 'down'
+        Clock.schedule_once(self.reset_crop)  #Give the cropper overlay a frame so it can figure out its actual size
 
     def refresh_buttons(self):
         pass
@@ -6006,7 +6007,7 @@ class EditCropImage(GridLayout):
             edit_image.set_aspect(self.aspect_x, self.aspect_y)
             self.update_crop()
 
-    def reset_crop(self):
+    def reset_crop(self, *_):
         edit_image = self.owner.viewer.edit_image
         if edit_image:
             edit_image.reset_crop()

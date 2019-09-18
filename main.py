@@ -1,5 +1,6 @@
 """
 Future Todo (lower priority, need to figure out how to do it, or a lot of work):
+    Need to think of a way to divide up years abstractly
     Collage editor - add more collage modes (grids)
     Rework cropping editor
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
@@ -8,7 +9,6 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
 """
 Todo:
     implement a .nomedia file that will make spm ignore a folder
-    Need to think of a way to divide up years abstractly
 """
 
 import time
