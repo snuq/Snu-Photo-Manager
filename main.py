@@ -1,12 +1,26 @@
 """
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+"""
 Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     Need to think of a way to divide up years abstractly
     Collage editor - add more collage modes (grids)
     Rework cropping editor
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
-"""
-"""
+
 Todo:
     implement a .nomedia file that will make spm ignore a folder
 """

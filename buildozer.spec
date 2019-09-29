@@ -19,7 +19,7 @@ source.include_exts = py,png,jpg,kv,atlas,txt,ini
 source.exclude_dirs = tests, bin
 
 # (str) Application versioning (method 1)
-version = 0.9.007
+version = 0.9.008
 
 # (list) Application requirements
 # comma seperated e.g. requirements = sqlite3,kivy

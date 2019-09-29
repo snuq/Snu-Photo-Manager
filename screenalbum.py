@@ -2418,8 +2418,7 @@ class AlbumScreen(Screen):
                 app.popup_message(text='Could not create new encode, file already exists.', title='Warning')
                 return
 
-        #used to have 'shell=True' in arguments, is it still needed?
-        self.encoding_process_thread = subprocess.Popen(command, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        self.encoding_process_thread = subprocess.Popen(command, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
 
         # Poll process for new output until finished
         progress = []
@@ -3546,8 +3545,7 @@ class AlbumScreen(Screen):
         print(command)
 
         start_time = time.time()
-        #used to have shell=True in arguments, is it still needed?
-        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
         # Poll process for new output until finished
         while True:
             if self.cancel_encoding:

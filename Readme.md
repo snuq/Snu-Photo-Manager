@@ -5,6 +5,7 @@ It should run on any platform that the required libraries can be run on.  So far
 Download latest binaries at: www.snuq.com/snuphotomanager/  
 Note that the android version is very beta - some features are missing, it is pretty slow, and it is not yet a signed executable (debug only for now).  
 
+This program is released under the GNU General Public License
 
 Watch the demo video:
 
