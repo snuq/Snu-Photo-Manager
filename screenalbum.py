@@ -4402,7 +4402,8 @@ class CustomImage(KivyImage):
             image = image.convert('RGB')
         self.size_multiple = self.original_width / image.size[0]
         self.edit_image = image
-        Clock.schedule_once(self.update_histogram)  #Need to delay this because kivy will mess up the drawing of it on first load.
+        Clock.schedule_once(self.update_preview)
+        #Clock.schedule_once(self.update_histogram)  #Need to delay this because kivy will mess up the drawing of it on first load.
         #self.histogram = image.histogram()
 
     def update_histogram(self, *_):
@@ -4870,20 +4871,24 @@ class PhotoViewer(BoxLayout):
                 viewer.remove_widget(self.overlay)
                 self.overlay = None
         else:
-            image.opacity = 0
-            viewer = self.ids['photoShow']
-            self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo)
-            viewer.add_widget(self.edit_image)
-            if self.edit_mode == 'rotate':
-                #add rotation grid overlay
-                self.overlay = RotationGrid()
-                viewer.add_widget(self.overlay)
-            if self.edit_mode == 'crop':
-                #add cropper overlay and set image to crop mode
-                self.overlay = CropOverlay(owner=self.edit_image)
-                viewer.add_widget(self.overlay)
-                self.edit_image.cropping = True
-                self.edit_image.cropper = self.overlay
+            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            Clock.schedule_once(self.start_edit_mode)  #Need to delay this because if i add it right away it will show a non-rotated version for some reason
+
+    def start_edit_mode(self, *_):
+        image = self.ids['image']
+        image.opacity = 0
+        viewer = self.ids['photoShow']
+        viewer.add_widget(self.edit_image)
+        if self.edit_mode == 'rotate':
+            #add rotation grid overlay
+            self.overlay = RotationGrid()
+            viewer.add_widget(self.overlay)
+        if self.edit_mode == 'crop':
+            #add cropper overlay and set image to crop mode
+            self.overlay = CropOverlay(owner=self.edit_image)
+            viewer.add_widget(self.overlay)
+            self.edit_image.cropping = True
+            self.edit_image.cropper = self.overlay
 
     def stop(self):
         self.fullscreen = False
@@ -5005,7 +5010,7 @@ class VideoViewer(FloatLayout):
             overlay_container.opacity = 1
             player.opacity = 0
             viewer = self.ids['photoShow']
-            self.edit_image = CustomImage(source=self.file, mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo)
+            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
             viewer.add_widget(self.edit_image)
             if self.edit_mode == 'rotate':
                 #add rotation grid overlay
