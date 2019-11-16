@@ -926,7 +926,6 @@ class PhotoManager(App):
             self.open_settings()
         self.database_auto_rescan_timer = float(self.config.get("Settings", "autoscan"))
         self.database_auto_rescanner = Clock.schedule_interval(self.database_auto_rescan, 60)
-        self.rescale_interface(force=True)
         Window.bind(on_draw=self.rescale_interface)
 
     def on_pause(self):
@@ -1667,10 +1666,9 @@ class PhotoManager(App):
         if Window.width != self.last_width or force:
             self.popup_x = int(Window.width * .75)
             self.last_width = Window.width
-            if first_change and desktop:
-                #kivy bugs out on the first refresh on kivy older than 1.11, so skip it if on that version
-                if kivy_version_primary <= 1 and kivy_version_secondary < 11:
-                    return
+            if first_change:
+                Clock.schedule_once(lambda x: self.rescale_interface(force=True))
+                return
             if desktop:
                 button_multiplier = 1
             else:
