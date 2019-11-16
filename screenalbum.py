@@ -4348,7 +4348,7 @@ class CustomImage(KivyImage):
         #self.update_preview()
 
     def on_position(self, *_):
-        pass
+        self.reload_edit_image()
 
     def reload_edit_image(self):
         """Regenerate the edit preview image."""
