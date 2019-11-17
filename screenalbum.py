@@ -2531,12 +2531,10 @@ class AlbumScreen(Screen):
 
         self.encoding = False
 
-        #switch active video in photo list back to image
-        self.show_selected()
-
     def set_photo(self, photo):
         self.photo = photo
         Clock.schedule_once(lambda *dt: self.refresh_all())
+        Clock.schedule_once(self.show_selected)
 
     def delete_output(self, output_file, timeout=20):
         """Continuously try to delete a file until its done."""
@@ -3046,7 +3044,7 @@ class AlbumScreen(Screen):
             except:
                 pass
 
-    def show_selected(self):
+    def show_selected(self, *_):
         album_container = self.ids['albumContainer']
         album = self.ids['album']
         selected = self.fullpath
@@ -3738,9 +3736,6 @@ class AlbumScreen(Screen):
 
         self.encoding = False
         self.set_edit_panel('main')
-
-        #switch active video in photo list back to image
-        self.show_selected()
 
     def save_image(self):
         """Saves any temporary edits on the currently viewed image."""
@@ -4994,8 +4989,6 @@ class VideoViewer(FloatLayout):
         overlay_container = self.ids['overlay']
         player = self.ids['player']
         self.position = 0
-        self.reset_start_point()
-        self.reset_end_point()
         if self.edit_mode == 'main':
             player.opacity = 1
             overlay_container.opacity = 0
@@ -5007,6 +5000,8 @@ class VideoViewer(FloatLayout):
                 viewer.remove_widget(self.edit_image)
                 self.edit_image = None
         else:
+            self.reset_start_point()
+            self.reset_end_point()
             overlay_container.opacity = 1
             player.opacity = 0
             viewer = self.ids['photoShow']
@@ -6371,7 +6366,6 @@ class EditConvertVideo(GridLayout):
                              'deinterlace': self.deinterlace,
                              'command_line': self.command_line}
         self.owner.encoding_settings = encoding_settings
-        print(encoding_settings)
         self.store_settings()
         self.owner.begin_encode()
 
