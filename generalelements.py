@@ -647,6 +647,18 @@ Builder.load_string("""
         text: 'Modified'
         on_release: root.select(self.text)
 
+<AlbumExportDropDown>:
+    MenuButton:
+        text: 'Create Collage'
+        disabled: not app.can_export
+        on_release: root.dismiss()
+        on_release: app.screen_manager.current_screen.collage_screen()
+    MenuButton:
+        text: 'Export'
+        disabled: not app.can_export
+        on_release: root.dismiss()
+        on_release: app.screen_manager.current_screen.export_screen()
+
 
 <RecycleItem>:
     canvas.before:
@@ -2098,6 +2110,11 @@ class NormalDropDown(DropDown):
 
 class AlbumSortDropDown(NormalDropDown):
     """Drop-down menu for sorting album elements"""
+    pass
+
+
+class AlbumExportDropDown(NormalDropDown):
+    """Drop-down menu for album operations"""
     pass
 
 

@@ -108,7 +108,7 @@ Builder.load_string("""
         size: root.size
         pos: root.pos
         font_size: '15sp'
-        disabled: app.database_scanning
+        disabled: True if app.database_scanning or app.standalone else False
         on_release: root.database_import()
 
 <SettingDatabaseClean>:
@@ -117,7 +117,7 @@ Builder.load_string("""
         size: root.size
         pos: root.pos
         font_size: '15sp'
-        disabled: app.database_scanning
+        disabled: True if app.database_scanning or app.standalone else False
         on_release: root.database_clean()
 
 <SettingDatabaseRestore>:

@@ -11,7 +11,7 @@ from kivy.uix.boxlayout import BoxLayout
 from functools import partial
 
 from generalcommands import to_bool, get_folder_info, local_path, verify_copy
-from generalelements import NormalPopup, ConfirmPopup, MoveConfirmPopup, ScanningPopup, InputPopup, InputPopupTag, MenuButton, NormalDropDown, AlbumSortDropDown
+from generalelements import NormalPopup, ConfirmPopup, MoveConfirmPopup, ScanningPopup, InputPopup, InputPopupTag, MenuButton, NormalDropDown, AlbumSortDropDown, AlbumExportDropDown
 from generalconstants import *
 
 from kivy.lang.builder import Builder
@@ -205,14 +205,9 @@ Builder.load_string("""
                         opacity: 1 if root.can_browse else 0
                         width: (self.texture_size[0] + app.button_scale) if root.can_browse else 0
                         on_release: root.open_browser()
-                    NormalButton:
-                        text: 'Create Collage'
-                        on_release: app.show_collage()
-                        disabled: not root.can_export
-                    NormalButton:
-                        text: 'Export'
-                        disabled: not root.can_export
-                        on_release: root.export()
+                    MenuStarterButton:
+                        text: 'Export Album'
+                        on_release: root.album_exports.open(self)
                     NormalButton:
                         text: 'Toggle Select'
                         on_release: root.toggle_select()
@@ -427,11 +422,11 @@ class DatabaseScreen(Screen):
     album_details = ObjectProperty()  #Holder for the album details widget
     popup = None  #Holder for the popup dialog widget
     photos = []  #List of photo infos in the currently displayed album
-    can_export = BooleanProperty(False)  #Controls if the export button in the album view area is enabled
     sort_reverse_button = StringProperty('normal')
     album_sort_reverse_button = StringProperty('normal')
     tag_menu = ObjectProperty()
     album_menu = ObjectProperty()
+    album_exports = ObjectProperty()
     data = ListProperty()
     expanded_albums = BooleanProperty(True)
     expanded_tags = BooleanProperty(True)
@@ -539,7 +534,7 @@ class DatabaseScreen(Screen):
         sort_reverse = to_bool(app.config.get('Sorting', 'album_sort_reverse'))
         self.album_sort_reverse_button = 'down' if sort_reverse else 'normal'
 
-    def export(self):
+    def export_screen(self):
         """Switches the app to export mode with the current selected album."""
 
         if self.selected and self.type != 'None':
@@ -547,6 +542,14 @@ class DatabaseScreen(Screen):
             app.export_target = self.selected
             app.export_type = self.type
             app.show_export()
+
+    def collage_screen(self):
+        """Switches the app to collage mode with the current selected album."""
+
+        app = App.get_running_app()
+        app.export_type = self.type
+        app.export_target = self.selected
+        app.show_collage()
 
     def text_input_active(self):
         """Checks if any 'NormalInput' or 'FloatInput' widgets are currently active (being typed in).
@@ -1426,7 +1429,7 @@ class DatabaseScreen(Screen):
                 operation_label.text = ''
                 self.can_rename_folder = False
                 self.can_delete_folder = False
-                self.can_export = False
+                app.can_export = False
                 folder_title_type.text = ''
                 folder_path.text = ''
                 delete_button.text = 'Delete Selected'
@@ -1503,7 +1506,7 @@ class DatabaseScreen(Screen):
 
                 self.photos = sorted_photos
                 if sorted_photos:
-                    self.can_export = True
+                    app.can_export = True
                 datas = []
                 for photo in sorted_photos:
                     full_filename = os.path.join(photo[2], photo[0])
@@ -1584,6 +1587,10 @@ class DatabaseScreen(Screen):
         self.album_sort_reverse = album_sort_reverse
         self.on_selected('', '')
 
+    def on_leave(self, *_):
+        app = App.get_running_app()
+        app.clear_drags()
+
     def on_enter(self, *_):
         """Called when the screen is entered.
         Sets up variables and widgets, and gets the screen ready to be filled with information."""
@@ -1600,9 +1607,9 @@ class DatabaseScreen(Screen):
         app.fullpath = ''
         self.tag_menu = NormalDropDown()
         self.album_menu = NormalDropDown()
+        self.album_exports = AlbumExportDropDown()
         self.ids['leftpanel'].width = app.left_panel_width()
 
-        #self.can_export = False
         self.folder_details = FolderDetails(owner=self)
         self.album_details = AlbumDetails(owner=self)
 
@@ -1700,6 +1707,10 @@ class TransferScreen(Screen):
         sort_reverse = True if reverse == 'down' else False
         self.right_sort_reverse = sort_reverse
         self.refresh_right_database()
+
+    def on_leave(self, *_):
+        app = App.get_running_app()
+        app.clear_drags()
 
     def on_enter(self):
         """Called when screen is entered, set up the needed variables and image viewer."""

@@ -22,6 +22,8 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 
 Todo:
+    Add an app.current_fullpath, current_folder and other variables (maybe app.photo for all info?) and have the screens set/use that as the current photo rather than pass it around.
+    Test 'standalone' mode
     implement a .nomedia file that will make spm ignore a folder
 """
 
@@ -198,6 +200,11 @@ class MultiThreadOK(threading.Thread):
 class PhotoManager(App):
     """Main class of the app."""
 
+    standalone = False
+    standalone_file = ''
+    standalone_in_database = False
+    standalone_database = ''
+    standalone_text = ''
     timer_value = 0
     button_update = BooleanProperty(False)
     settings_open = BooleanProperty(False)
@@ -215,6 +222,7 @@ class PhotoManager(App):
     infotext_setter = ObjectProperty()
     single_database = BooleanProperty(True)
     simple_interface = BooleanProperty(False)
+    can_export = BooleanProperty(True)  #Controls if the export button in the album view area is enabled
 
     #Theming variables
     icon = 'data/icon.png'
@@ -268,6 +276,10 @@ class PhotoManager(App):
     bubble = None
 
     #Databases
+    photos_name = 'photos.db'
+    folders_name = 'folders.db'
+    thumbnails_name = 'thumbnails.db'
+    imported_name = 'imported.db'
     photos = None
     folders = None
     thumbnails = None
@@ -1031,6 +1043,10 @@ class PhotoManager(App):
                 current_screen.key('f4')
             if scancode == 27:  #Escape
                 self.clear_drags()
+                if self.standalone:
+                    match_screen = 'album'
+                else:
+                    match_screen = 'database'
                 if Window.keyboard_height > 0:
                     Window.release_all_keyboards()
                     return True
@@ -1044,11 +1060,14 @@ class PhotoManager(App):
                 elif self.screen_manager.current_screen.has_popup():
                     self.screen_manager.current_screen.dismiss_popup()
                     return True
-                elif self.screen_manager.current != 'database':
+                elif self.screen_manager.current != match_screen:
                     if self.screen_manager.current == 'photo':
                         self.show_album()
                     else:
-                        self.show_database()
+                        if self.standalone:
+                            self.show_album()
+                        else:
+                            self.show_database()
                     return True
 
     def setup_import_presets(self):
@@ -1349,12 +1368,7 @@ class PhotoManager(App):
     def setup_database(self, restore=False):
         """Set up various databases, create if needed."""
 
-        database_directory = self.data_directory+os.path.sep+'Databases'
-        if not os.path.exists(database_directory):
-            os.makedirs(database_directory)
-
-        photos_db = os.path.join(database_directory, 'photos.db')
-        self.photos = MultiThreadOK(photos_db)
+        self.photos = MultiThreadOK(self.photos_name)
         self.photos.execute('''CREATE TABLE IF NOT EXISTS photos(
                             FullPath text PRIMARY KEY,
                             Folder text,
@@ -1371,15 +1385,14 @@ class PhotoManager(App):
                             Export integer,
                             Orientation integer);''')
 
-        folders_db = os.path.join(database_directory, 'folders.db')
-        self.folders = MultiThreadOK(folders_db)
+        self.folders = MultiThreadOK(self.folders_name)
         self.folders.execute('''CREATE TABLE IF NOT EXISTS folders(
                              Path text PRIMARY KEY,
                              Title text,
                              Description text)''')
 
         if not restore:
-            self.thumbnails = MultiThreadOK(os.path.join(database_directory, 'thumbnails.db'))
+            self.thumbnails = MultiThreadOK(self.thumbnails_name)
             self.thumbnails.execute('''CREATE TABLE IF NOT EXISTS thumbnails(
                                     FullPath text PRIMARY KEY,
                                     ModifiedDate integer,
@@ -1392,8 +1405,7 @@ class PhotoManager(App):
                                         Thumbnail blob,
                                         Orientation integer);''')
 
-        imported_db = os.path.join(database_directory, 'imported.db')
-        self.imported = MultiThreadOK(imported_db)
+        self.imported = MultiThreadOK(self.imported_name)
         self.imported.execute('''CREATE TABLE IF NOT EXISTS imported(
                               FullPath text PRIMARY KEY,
                               File text,
@@ -1676,13 +1688,32 @@ class PhotoManager(App):
             self.button_scale = int((Window.height / interface_multiplier) * int(self.config.get("Settings", "buttonsize")) / 100) * button_multiplier
             self.padding = self.button_scale / 4
             self.text_scale = int((self.button_scale / 3) * int(self.config.get("Settings", "textsize")) / 100)
-            Clock.schedule_once(self.show_database)
+            if self.standalone:
+                Clock.schedule_once(lambda x: self.show_album())
+            else:
+                Clock.schedule_once(self.show_database)
 
     def set_transition(self):
         if self.animations:
             self.screen_manager.transition = SlideTransition()
         else:
             self.screen_manager.transition = NoTransition()
+
+    def scan_folder(self, database_folder, folder):
+        files = []
+        full_folder = os.path.join(database_folder, folder)
+        for (dirpath, dirnames, filenames) in os.walk(full_folder):
+            files.extend(filenames)
+            break
+
+        for index, file in enumerate(files):
+            extension = os.path.splitext(file)[1].lower()
+            if extension in imagetypes or extension in movietypes:
+                file_info = [os.path.join(folder, file), database_folder]
+                file_info = get_file_info(file_info)
+                self.database_add(file_info)
+
+        self.photos.commit()
 
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
@@ -1708,16 +1739,103 @@ class PhotoManager(App):
         #Load data
         self.tag_directory = os.path.join(self.data_directory, 'Tags')
         self.album_directory = os.path.join(self.data_directory, 'Albums')
-        about_file = open(os.path.join(self.app_location, 'about.txt'), 'r')
+        about_file = open(kivy.resources.resource_find('about.txt'), 'r')
         self.about_text = about_file.read()
         about_file.close()
         self.program_import()  #Load external program presets
         self.setup_import_presets()  #Load import presets
         self.setup_export_presets()  #Load export presets
         self.tags_load()  #Load tags
-        self.setup_database()  #Import or set up databases
         self.album_load_all()  #Load albums
         self.load_encoding_presets()
+
+        database_directory = self.data_directory+os.path.sep+'Databases'
+        if not os.path.exists(database_directory):
+            os.makedirs(database_directory)
+        self.photos_name = os.path.join(database_directory, 'photos.db')
+        self.folders_name = os.path.join(database_directory, 'folders.db')
+        self.thumbnails_name = os.path.join(database_directory, 'thumbnails.db')
+        self.imported_name = os.path.join(database_directory, 'imported.db')
+        self.setup_database()  #Import or set up databases
+
+        #Parse open with commands and see if file is valid
+        for possible_photo in sys.argv:
+            if '.' in possible_photo:
+                extension = '.' + possible_photo.lower().split('.')[-1]
+                if extension in imagetypes or extension in movietypes:
+                    if os.path.isfile(possible_photo):
+                        print('Loading file: ' + possible_photo)
+                        self.standalone_file = possible_photo
+                        self.standalone = True
+                        break
+
+        #check if standalone file is in database
+        if self.standalone:
+            databases = self.get_database_directories(real=True)
+            abspath = os.path.abspath(self.standalone_file)
+            self.standalone_in_database = False
+            #Check if path begins with any of the databases
+            for database_path in databases:
+                if abspath.startswith(database_path):
+                    fullpath = os.path.relpath(abspath, database_path)
+                    photoinfo = self.database_exists(fullpath)
+                    if photoinfo:
+                        #File is in database, use current database
+                        self.standalone_in_database = True
+                        self.photo = self.standalone_file
+                        self.fullpath = photoinfo[0]
+                        self.target = photoinfo[1]
+                        self.type = 'Folder'
+                        self.standalone_text = 'Stand-Alone Mode, Using Database'
+                        break
+
+            if not self.standalone_in_database:
+                #File/folder is not in database, use temp databases
+                self.tempthumbnails.close()
+                self.tempthumbnails.join()
+                self.thumbnails.close()
+                self.thumbnails.join()
+                self.photos.close()
+                self.photos.join()
+                self.folders.close()
+                self.folders.join()
+                self.imported.close()
+                self.imported.join()
+
+                self.photos_name = ':memory:'
+                self.folders_name = ':memory:'
+                self.thumbnails_name = ':memory:'
+                self.imported_name = ':memory:'
+                self.setup_database()
+
+                #determine temp folder and database from passed in file
+                full_folder, file = os.path.split(abspath)
+                database_path, folder = os.path.split(full_folder)
+                self.standalone_in_database = False
+                self.standalone_database = database_path
+                self.photo = self.standalone_file
+                self.fullpath = os.path.relpath(abspath, database_path)
+                self.target = folder
+                self.type = 'Folder'
+                self.scan_folder(self.standalone_database, self.target)
+                self.standalone_text = 'Stand-Alone Mode, Not Using Database'
+
+        else:
+            #Not standalone mode, setup default settings
+            viewtype = 'None'
+            viewtarget = ''
+            viewdisplayable = False
+            if self.config.getboolean("Settings", "rememberview"):
+                config_viewtype = self.config.get("Settings", "viewtype")
+                if config_viewtype:
+                    viewtype = config_viewtype
+                    viewtarget = self.config.get("Settings", "viewtarget")
+                    viewdisplayable = to_bool(self.config.get("Settings", "viewdisplayable"))
+            self.database_screen = DatabaseScreen(name='database', type=viewtype, selected=viewtarget, displayable=viewdisplayable)
+            #self.screen_manager.add_widget(self.database_screen)
+            self.database_restore_screen = DatabaseRestoreScreen(name='database_restore')
+            if self.config.getboolean("Settings", "rescanstartup"):
+                self.database_import()
         self.set_single_database()
 
         #Set up widgets
@@ -1730,24 +1848,10 @@ class PhotoManager(App):
         self.animations = to_bool(self.config.get("Settings", "animations"))
         self.set_transition()
         self.main_layout.add_widget(self.screen_manager)
-        viewtype = 'None'
-        viewtarget = ''
-        viewdisplayable = False
-        if self.config.getboolean("Settings", "rememberview"):
-            config_viewtype = self.config.get("Settings", "viewtype")
-            if config_viewtype:
-                viewtype = config_viewtype
-                viewtarget = self.config.get("Settings", "viewtarget")
-                viewdisplayable = to_bool(self.config.get("Settings", "viewdisplayable"))
-        self.database_screen = DatabaseScreen(name='database', type=viewtype, selected=viewtarget, displayable=viewdisplayable)
-        #self.screen_manager.add_widget(self.database_screen)
-        self.database_restore_screen = DatabaseRestoreScreen(name='database_restore')
 
         #Set up keyboard catchers
         Window.bind(on_key_down=self.key_down)
         Window.bind(on_key_up=self.key_up)
-        if self.config.getboolean("Settings", "rescanstartup"):
-            self.database_import()
         return self.main_layout
 
     def key_down(self, key, scancode=None, *_):
@@ -2460,22 +2564,26 @@ class PhotoManager(App):
         self.scanningthread = threading.Thread(target=self.database_import_files)
         self.scanningthread.start()
 
-    def get_database_directories(self):
+    def get_database_directories(self, real=False):
         """Gets the current database directories.
         Returns: List of Strings of the paths to each database.
         """
 
-        directories = self.config.get('Database Directories', 'paths')
-        directories = local_path(directories)
-        if directories:
-            databases = directories.split(';')
+        if not real and (self.standalone and not self.standalone_in_database):
+            #if real is not passed in, and a standalone database is set, use that
+            return [self.standalone_database]
         else:
-            databases = []
-        databases_cleaned = []
-        for database in databases:
-            if database:
-                databases_cleaned.append(database)
-        return databases_cleaned
+            directories = self.config.get('Database Directories', 'paths')
+            directories = local_path(directories)
+            if directories:
+                databases = directories.split(';')
+            else:
+                databases = []
+            databases_cleaned = []
+            for database in databases:
+                if database:
+                    databases_cleaned.append(database)
+            return databases_cleaned
 
     def list_files(self, folder):
         """Function that returns a list of every nested file within a folder.
@@ -2653,17 +2761,18 @@ class PhotoManager(App):
     def show_database(self, *_):
         """Switch to the database screen layout."""
 
-        self.clear_drags()
-        if 'database' not in self.screen_manager.screen_names:
-            self.screen_manager.add_widget(self.database_screen)
-        if self.animations:
-            self.screen_manager.transition.direction = 'right'
-        self.screen_manager.current = 'database'
+        if self.standalone:
+            self.show_album()
+        else:
+            if 'database' not in self.screen_manager.screen_names:
+                self.screen_manager.add_widget(self.database_screen)
+            if self.animations:
+                self.screen_manager.transition.direction = 'right'
+            self.screen_manager.current = 'database'
 
     def show_database_restore(self):
         """Switch to the database restoring screen layout."""
 
-        self.clear_drags()
         if 'database_restore' not in self.screen_manager.screen_names:
             self.screen_manager.add_widget(self.database_restore_screen)
         self.screen_manager.current = 'database_restore'
@@ -2671,7 +2780,6 @@ class PhotoManager(App):
     def show_theme(self):
         """Switch to the theme editor screen layout."""
 
-        self.clear_drags()
         if 'theme' not in self.screen_manager.screen_names:
             from screentheme import ThemeScreen
             self.screen_manager.add_widget(ThemeScreen(name='theme'))
@@ -2683,12 +2791,11 @@ class PhotoManager(App):
         """Switch to the create collage screen layout.
         """
 
-        self.clear_drags()
         if 'collage' not in self.screen_manager.screen_names:
             from screencollage import CollageScreen
             self.screen_manager.add_widget(CollageScreen(name='collage'))
-        self.type = self.database_screen.type
-        self.target = self.database_screen.selected
+        #self.type = self.database_screen.type
+        #self.target = self.database_screen.selected
         if self.animations:
             self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'collage'
@@ -2699,13 +2806,13 @@ class PhotoManager(App):
             button: Optional, the widget that called this function. Allows the function to get a specific album to view.
         """
 
-        self.clear_drags()
         if 'album' not in self.screen_manager.screen_names:
             from screenalbum import AlbumScreen
             self.album_screen = AlbumScreen(name='album')
             self.screen_manager.add_widget(self.album_screen)
         if self.animations:
             self.screen_manager.transition.direction = 'left'
+
         if button:
             if button.type != 'None':
                 if not button.folder:
@@ -2726,7 +2833,6 @@ class PhotoManager(App):
     def show_import(self):
         """Switch to the import select screen layout."""
 
-        self.clear_drags()
         if 'import' not in self.screen_manager.screen_names:
             from screenimporting import ImportScreen, ImportingScreen
             self.importing_screen = ImportingScreen(name='importing')
@@ -2738,7 +2844,6 @@ class PhotoManager(App):
     def show_importing(self):
         """Switch to the photo import screen layout."""
 
-        self.clear_drags()
         if 'importing' not in self.screen_manager.screen_names:
             self.screen_manager.add_widget(self.importing_screen)
         if self.animations:
@@ -2748,7 +2853,6 @@ class PhotoManager(App):
     def show_export(self):
         """Switch to the photo export screen layout."""
 
-        self.clear_drags()
         if 'export' not in self.screen_manager.screen_names:
             from screenexporting import ExportScreen
             self.screen_manager.add_widget(ExportScreen(name='export'))
@@ -2759,7 +2863,6 @@ class PhotoManager(App):
     def show_transfer(self):
         """Switches to the database transfer screen layout"""
 
-        self.clear_drags()
         if 'transfer' not in self.screen_manager.screen_names:
             self.screen_manager.add_widget(TransferScreen(name='transfer'))
         if self.animations:

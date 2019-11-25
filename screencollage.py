@@ -766,6 +766,8 @@ class CollageScreen(Screen):
     def on_leave(self):
         """Called when the screen is left.  Clean up some things."""
 
+        app = App.get_running_app()
+        app.clear_drags()
         self.clear_collage()
         self.clear_photolist()
 
@@ -782,8 +784,8 @@ class CollageScreen(Screen):
         self.add_remove = AddRemoveDropDown(owner=self)
 
         #import variables
-        self.target = app.target
-        self.type = app.type
+        self.target = app.export_target
+        self.type = app.export_type
 
         #set up sort buttons
         self.sort_dropdown = AlbumSortDropDown()

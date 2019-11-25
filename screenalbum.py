@@ -58,7 +58,7 @@ from colorpickercustom import ColorPickerCustom
 
 from generalcommands import rotated_rect_with_max_area, interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
 from filebrowser import FileBrowser
-from generalelements import NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton
+from generalelements import NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
 from generalconstants import *
 
 from kivy.lang.builder import Builder
@@ -76,6 +76,10 @@ Builder.load_string("""
             NormalButton:
                 text: 'Back To Library'
                 on_release: app.show_database()
+                opacity: 0 if app.standalone else 1
+                disabled: True if app.standalone else False
+            ShortLabel:
+                text: app.standalone_text
             HeaderLabel:
                 text: root.folder_title
             InfoLabel:
@@ -142,6 +146,9 @@ Builder.load_string("""
                         size_hint_y: 1
                         text: 'Full Screen'
                         on_press: root.fullscreen()
+                    MenuStarterButton:
+                        text: 'Export Album'
+                        on_release: root.album_exports.open(self)
                     Label:
                         text: ''
                     NormalToggle:
@@ -150,7 +157,8 @@ Builder.load_string("""
                         id: favoriteButton
                         state: 'down' if root.favorite else 'normal'
                         on_press: root.set_favorite()
-                        disabled: app.database_scanning
+                        opacity: 0 if (app.standalone and not app.standalone_in_database) else 1
+                        disabled: True if app.database_scanning or (app.standalone and not app.standalone_in_database) else False
                     NormalButton:
                         size_hint_y: 1
                         width: self.texture_size[0] + 20 if root.canprint else 0
@@ -304,6 +312,8 @@ Builder.load_string("""
                     state: 'down' if root.view_panel == 'tags' else 'normal'
                     vertical_text: "Tags"
                     on_press: root.show_tags_panel()
+                    disabled: True if (app.standalone and not app.standalone_in_database) else False
+                    opacity: 0 if (app.standalone and not app.standalone_in_database) else 1
 
 <CustomImage>:
     allow_stretch: True
@@ -2075,6 +2085,7 @@ class AlbumScreen(Screen):
     edit_panel_object = ObjectProperty(allownone=True)  #Holder for the edit panel widget
     viewer = ObjectProperty()  #Holder for the photo viewer widget
     imagecache = None  #Holder for the image cacher thread
+    album_exports = ObjectProperty()
 
     #Variables relating to the photo list view on the left
     selected = StringProperty('')  #The current folder/album/tag being displayed
@@ -2137,6 +2148,22 @@ class AlbumScreen(Screen):
     crop_bottom = NumericProperty(0)
     crop_left = NumericProperty(0)
 
+    def export_screen(self):
+        """Switches the app to export mode with the current selected album."""
+
+        app = App.get_running_app()
+        app.export_target = self.target
+        app.export_type = self.type
+        app.show_export()
+
+    def collage_screen(self):
+        """Switches the app to the collage mode with the current selected album."""
+
+        app = App.get_running_app()
+        app.export_target = self.target
+        app.export_type = self.type
+        app.show_collage()
+
     def show_panel(self, panel_name):
         right_panel = self.ids['rightpanel']
         if self.view_panel == panel_name:
@@ -2172,12 +2199,7 @@ class AlbumScreen(Screen):
     def cancel_encode(self, *_):
         """Signal to cancel the encodig process."""
 
-        self.encoding = False
         self.cancel_encoding = True
-        if self.encoding_process_thread:
-            self.encoding_process_thread.kill()
-        app = App.get_running_app()
-        app.message("Canceled encoding.")
 
     def begin_encode(self):
         """Begins the encoding process, asks the user for confirmation with a popup."""
@@ -2424,12 +2446,19 @@ class AlbumScreen(Screen):
         progress = []
         while True:
             if self.cancel_encoding:
-                self.encoding_process_thread.kill()
+                try:
+                    self.encoding_process_thread.terminate()
+                    self.encoding_process_thread.kill()
+                    outs, errs = self.encoding_process_thread.communicate()
+                except:
+                    pass
                 if os.path.isfile(output_file):
                     self.delete_output(output_file)
                 if not os.listdir(output_file_folder):
                     os.rmdir(output_file_folder)
                 self.dismiss_popup()
+                self.encoding = False
+                app.message("Canceled video processing.")
                 return
             nextline = self.encoding_process_thread.stdout.readline()
             if nextline == '' and self.encoding_process_thread.poll() is not None:
@@ -3314,6 +3343,7 @@ class AlbumScreen(Screen):
         if self.viewer:
             self.viewer.stop()
         app = App.get_running_app()
+        app.clear_drags()
         right_panel = self.ids['rightpanel']
         #right_panel.width = app.right_panel_width()
         right_panel.hidden = True
@@ -3353,6 +3383,7 @@ class AlbumScreen(Screen):
         right_panel.hidden = True
         self.view_panel = ''
         self.show_left_panel()
+        self.album_exports = AlbumExportDropDown()
 
         #set up printing button
         if not app.canprint():
@@ -3462,16 +3493,6 @@ class AlbumScreen(Screen):
         else:
             self.save_video()
 
-    def cancel_save_video(self, *_):
-        """Signal to cancel the video processing process."""
-
-        self.encoding = False
-        self.cancel_encoding = True
-        if self.encoding_process_thread:
-            self.encoding_process_thread.kill()
-        app = App.get_running_app()
-        app.message("Canceled video processing.")
-
     def save_video(self):
         app = App.get_running_app()
         app.save_encoding_preset()
@@ -3483,7 +3504,7 @@ class AlbumScreen(Screen):
         self.popup.scanning_text = ''
         self.popup.open()
         encoding_button = self.popup.ids['scanningButton']
-        encoding_button.bind(on_press=self.cancel_save_video)
+        encoding_button.bind(on_press=self.cancel_encode)
 
         # Start encoding thread
         self.encodingthread = threading.Thread(target=self.save_video_process)
@@ -3491,12 +3512,15 @@ class AlbumScreen(Screen):
 
     def failed_encode(self, message):
         app = App.get_running_app()
-        self.cancel_save_video()
+        self.cancel_encode()
         self.dismiss_popup()
         self.encoding = False
         app.popup_message(text=message, title='Warning')
 
     def save_video_process(self):
+        #Function that applies effects to a video and encodes it
+
+        self.encoding = True
         self.viewer.stop()
         app = App.get_running_app()
         input_file = self.photo
@@ -3548,10 +3572,17 @@ class AlbumScreen(Screen):
         while True:
             if self.cancel_encoding:
                 self.dismiss_popup()
-                self.encoding_process_thread.kill()
+                try:
+                    self.encoding_process_thread.terminate()
+                    self.encoding_process_thread.kill()
+                    outs, errs = self.encoding_process_thread.communicate()
+                except:
+                    pass
                 deleted = self.delete_output(output_file)
                 if not os.listdir(output_file_folder):
                     os.rmdir(output_file_folder)
+                self.encoding = False
+                app.message("Canceled video processing.")
                 return
             frameinfo = edit_image.get_converted_frame()
             if frameinfo is None:
@@ -3613,7 +3644,11 @@ class AlbumScreen(Screen):
             while True:
                 if self.cancel_encoding:
                     self.dismiss_popup()
-                    self.encoding_process_thread.kill()
+                    try:
+                        self.encoding_process_thread.kill()
+                        outs, errs = self.encoding_process_thread.communicate()
+                    except:
+                        pass
                     deleted = self.delete_output(output_file)
                     deleted = self.delete_output(output_temp_file)
                     if not os.listdir(output_file_folder):
@@ -3621,6 +3656,8 @@ class AlbumScreen(Screen):
                             os.rmdir(output_file_folder)
                         except:
                             pass
+                    self.encoding = False
+                    app.message("Canceled video processing.")
                     return
 
                 nextline = self.encoding_process_thread.stdout.readline()
@@ -3707,6 +3744,7 @@ class AlbumScreen(Screen):
 
                 #Clock.schedule_once(lambda *dt: self.refresh_photolist())
                 Clock.schedule_once(lambda x: app.message("Completed encoding file '"+self.photo+"'"))
+                Clock.schedule_once(lambda x: self.update_video_preview(self.photoinfo))
             else:
                 #failed second encode, clean up
                 self.dismiss_popup()
@@ -3726,16 +3764,23 @@ class AlbumScreen(Screen):
                 except:
                     pass
         if self.encoding_process_thread:
-            self.encoding_process_thread.kill()
-
-        #regenerate thumbnail
-        app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
-
-        #reload photo image in ui
-        Clock.schedule_once(lambda x: self.clear_cache())
+            try:
+                self.encoding_process_thread.kill()
+                outs, errs = self.encoding_process_thread.communicate()
+            except:
+                pass
 
         self.encoding = False
         self.set_edit_panel('main')
+
+    def update_video_preview(self, photoinfo):
+        app = App.get_running_app()
+
+        #regenerate thumbnail
+        app.database_thumbnail_update(photoinfo[0], photoinfo[2], photoinfo[7], photoinfo[13])
+
+        #reload photo image in ui
+        Clock.schedule_once(lambda x: self.clear_cache())
 
     def save_image(self):
         """Saves any temporary edits on the currently viewed image."""
@@ -3931,7 +3976,7 @@ class CustomImage(KivyImage):
     def start_video_convert(self):
         self.close_video()
         self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 0.0, 'an': True})
-        self.player.set_volume(0)
+        #self.player.set_volume(0)  #crashes sometimes... hopefully not necessary
         self.frame_number = 0
         if self.start_point > 0 or self.end_point < 1:
             all_frames = self.length * (self.framerate[0] / self.framerate[1])
@@ -4343,9 +4388,14 @@ class CustomImage(KivyImage):
         #self.update_preview()
 
     def on_position(self, *_):
-        self.reload_edit_image()
+        self.reload_video_edit_image()
 
-    def reload_edit_image(self):
+    def reload_video_edit_image(self):
+        location = self.length * self.position
+        frame = self.seek_player(location)
+        Clock.schedule_once(self.reload_edit_image)
+
+    def reload_edit_image(self, *_):
         """Regenerate the edit preview image."""
         if self.video:
             if not self.player:
@@ -5311,6 +5361,8 @@ class EditColorImage(GridLayout):
     def draw_histogram(self, *_):
         """Draws the histogram image and displays it."""
 
+        if self.owner.viewer.edit_image is None:
+            return
         size = 256  #Determines histogram resolution
         size_multiplier = int(256/size)
         histogram_data = self.owner.viewer.edit_image.histogram

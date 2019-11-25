@@ -627,6 +627,8 @@ class ExportScreen(Screen):
         presets.clear_widgets()
         photo_container = self.ids['photosContainer']
         photo_container.data = []
+        app = App.get_running_app()
+        app.clear_drags()
 
     def update_treeview(self):
         """Clears and populates the export presets list on the left side."""

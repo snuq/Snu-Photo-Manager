@@ -443,6 +443,7 @@ class ImportScreen(Screen):
         """Called when the screen is left.  Save the import presets."""
 
         app = App.get_running_app()
+        app.clear_drags()
         app.import_preset_write()
         presets = self.ids['presets']
         presets.clear_widgets()
@@ -560,6 +561,10 @@ class ImportingScreen(Screen):
 
         date_info = datetime.datetime.fromtimestamp(date)
         return str(date_info.year)+str(date_info.month).zfill(2)+str(date_info.day).zfill(2)
+
+    def on_leave(self, *_):
+        app = App.get_running_app()
+        app.clear_drags()
 
     def on_enter(self):
         """Called when the screen is entered.  Sets up variables, and scans the import folders."""
