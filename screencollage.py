@@ -295,6 +295,12 @@ class AddRemoveDropDown(NormalDropDown):
 
 
 class CollageScreen(Screen):
+    #Display variables
+    selected = StringProperty('')  #The current folder/album/tag being displayed
+    type = StringProperty('None')  #'Folder', 'Album', 'Tag'
+    target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
+    photos = []  #Photoinfo of all photos in the album
+
     sort_reverse_button = StringProperty('normal')
     images = []
     collage_background = ListProperty([0, 0, 0, 1])
@@ -313,10 +319,6 @@ class CollageScreen(Screen):
     add_remove = ObjectProperty()
 
     #Variables relating to the photo list view on the left
-    selected = StringProperty('')  #The current folder/album/tag being displayed
-    type = StringProperty('None')  #'Folder', 'Album', 'Tag'
-    target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
-    photos = []  #Photoinfo of all photos in the album
     sort_method = StringProperty('Name')  #Current album sort method
     sort_reverse = BooleanProperty(False)
 

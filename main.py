@@ -22,9 +22,8 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 
 Todo:
-    Add an app.current_fullpath, current_folder and other variables (maybe app.photo for all info?) and have the screens set/use that as the current photo rather than pass it around.
+    Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
     Test 'standalone' mode
-    implement a .nomedia file that will make spm ignore a folder
 """
 
 import time
@@ -199,6 +198,13 @@ class MultiThreadOK(threading.Thread):
 
 class PhotoManager(App):
     """Main class of the app."""
+
+    #Display variables
+    photosinfo = ListProperty()  #List of all photoinfo from currently displayed photos
+    photoinfo = ListProperty()  #Photoinfo list for the currently selected/viewed photo
+    folder_type = StringProperty('folder')  #Currently selected type: folder, album, tag
+    folder_path = StringProperty('')  #The current folder/album/tag being displayed
+    folder_name = StringProperty()  #The identifier of the album/folder/tag that is being viewed
 
     standalone = False
     standalone_file = ''
@@ -2598,6 +2604,7 @@ class PhotoManager(App):
         firstroot = False
         walk = os.walk
         for root, dirs, files in walk(folder, topdown=True):
+            dir_files = []
             if self.cancel_scanning:
                 return []
             if not firstroot:
@@ -2606,9 +2613,14 @@ class PhotoManager(App):
             if filefolder == '.':
                 filefolder = ''
             for file in files:
+                if file == '.nomedia':
+                    dirs.clear()
+                    dir_files = []
+                    break
                 if self.cancel_scanning:
                     return []
-                file_list.append([os.path.join(filefolder, file), firstroot])
+                dir_files.append([os.path.join(filefolder, file), firstroot])
+            file_list.extend(dir_files)
         return file_list
 
     def database_find_file(self, file_info):

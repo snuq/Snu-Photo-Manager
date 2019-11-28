@@ -446,14 +446,16 @@ Builder.load_string("""
 
 
 class ExportScreen(Screen):
+    #Display variables
+    target = StringProperty()
+    type = StringProperty()
+    photos = []
+
     popup = None
     sort_dropdown = ObjectProperty()
     sort_method = StringProperty()
     sort_reverse = BooleanProperty(False)
-    target = StringProperty()
-    type = StringProperty()
     photos_selected = BooleanProperty(False)
-    photos = []
     cancel_exporting = BooleanProperty(False)
     total_export_files = NumericProperty(0)
     exported_files = NumericProperty(0)

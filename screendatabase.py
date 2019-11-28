@@ -409,8 +409,13 @@ Builder.load_string("""
 class DatabaseScreen(Screen):
     """Screen layout for the main photo database."""
 
+    #Display variables
     type = StringProperty('folder')  #Currently selected type: folder, album, tag
     selected = StringProperty('')  #Currently selected album in the database, may be blank
+    photos = []  #List of photo infos in the currently displayed album
+
+    folders = []
+    data = ListProperty()
     displayable = BooleanProperty(False)
     sort_dropdown = ObjectProperty()  #Database sorting menu
     sort_method = StringProperty('Name')  #Currently selected database sort mode
@@ -421,17 +426,14 @@ class DatabaseScreen(Screen):
     folder_details = ObjectProperty()  #Holder for the folder details widget
     album_details = ObjectProperty()  #Holder for the album details widget
     popup = None  #Holder for the popup dialog widget
-    photos = []  #List of photo infos in the currently displayed album
     sort_reverse_button = StringProperty('normal')
     album_sort_reverse_button = StringProperty('normal')
     tag_menu = ObjectProperty()
     album_menu = ObjectProperty()
     album_exports = ObjectProperty()
-    data = ListProperty()
     expanded_albums = BooleanProperty(True)
     expanded_tags = BooleanProperty(True)
     expanded_folders = []
-    folders = []
     update_folders = True
     search_text = StringProperty()
     search_refresh = ObjectProperty()
