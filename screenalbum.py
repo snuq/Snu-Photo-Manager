@@ -34,7 +34,6 @@ Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.core.window import Window
 from kivy.clock import Clock
-from kivy.cache import Cache
 from kivy.animation import Animation
 from kivy.graphics.transformation import Matrix
 from kivy.uix.behaviors import ButtonBehavior
@@ -51,6 +50,10 @@ from kivy.uix.video import Video
 from kivy.uix.videoplayer import VideoPlayer
 from kivy.core.image.img_pil import ImageLoaderPIL
 from kivy.loader import Loader
+Loader.max_upload_per_frame = 4
+Loader.num_workers = 2
+from kivy.cache import Cache
+Cache.register('kv.loader', limit=5)
 from kivy.graphics import Rectangle, Color, Line
 from resizablebehavior import ResizableBehavior
 from colorpickercustom import ColorPickerCustom
@@ -2089,7 +2092,6 @@ class AlbumScreen(Screen):
     edit_panel = StringProperty('')  #The type of edit panel currently loaded
     edit_panel_object = ObjectProperty(allownone=True)  #Holder for the edit panel widget
     viewer = ObjectProperty()  #Holder for the photo viewer widget
-    imagecache = None  #Holder for the image cacher thread
     album_exports = ObjectProperty()
 
     #Variables relating to the photo list view on the left
@@ -2906,6 +2908,13 @@ class AlbumScreen(Screen):
                 return index
         return 0
 
+    def remove_from_tag(self, remove_from, tag_name):
+        app = App.get_running_app()
+        app.database_remove_tag(remove_from, tag_name, message=True)
+        self.update_tags()
+        if tag_name == 'favorite':
+            self.update_treeview()
+
     def add_to_tag(self, tag_name):
         """Adds a tag to the currently viewed photo.
         Arguments:
@@ -3037,16 +3046,15 @@ class AlbumScreen(Screen):
 
         app.refresh_photo(self.fullpath)
         if app.config.getboolean("Settings", "precache"):
-            self.imagecache = threading.Thread(target=self.cache_nearby_images)
-            self.imagecache.start()
+            self.cache_nearby_images()
         self.set_edit_panel('main')  #Clear the edit panel
         #self.ids['album'].selected = self.fullpath
 
-    def cache_nearby_images(self):
+    def cache_nearby_images(self, *_):
         """Determines the next and previous images in the list, and caches them to speed up browsing."""
 
         current_photo_index = self.current_photo_index()
-        if current_photo_index == len(self.photos) -1:
+        if current_photo_index == len(self.photos) - 1:
             next_photo_index = 0
         else:
             next_photo_index = current_photo_index + 1
@@ -3065,7 +3073,7 @@ class AlbumScreen(Screen):
         if prev_photo_filename != self.photo and os.path.splitext(prev_photo_filename)[1].lower() in imagetypes:
             try:
                 if os.path.splitext(prev_photo_filename)[1].lower() == '.bmp':
-                    next_photo = ImageLoaderPIL(prev_photo_filename)
+                    prev_photo = ImageLoaderPIL(prev_photo_filename)
                 else:
                     prev_photo = Loader.image(prev_photo_filename)
             except:
@@ -3254,15 +3262,21 @@ class AlbumScreen(Screen):
                     camera_exposure = str(exposure[0]/exposure[1])+'seconds'
                     info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
                 if 37377 in exif:
-                    camera_shutter_speed = str(exif[37377][0]/exif[37377][1])
-                    info_panel.add_node(TreeViewInfo(title='Shutter Speed: ' + camera_shutter_speed))
+                    try:
+                        camera_shutter_speed = str(exif[37377][0]/exif[37377][1])
+                        info_panel.add_node(TreeViewInfo(title='Shutter Speed: ' + camera_shutter_speed))
+                    except:
+                        pass
                 if 33437 in exif:
                     f_stop = exif[33437]
                     camera_f = str(f_stop[0]/f_stop[1])
                     info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
                 if 37378 in exif:
-                    camera_aperture = str(exif[37378][0]/exif[37378][0])
-                    info_panel.add_node(TreeViewInfo(title='Aperture: ' + camera_aperture))
+                    try:
+                        camera_aperture = str(exif[37378][0]/exif[37378][0])
+                        info_panel.add_node(TreeViewInfo(title='Aperture: ' + camera_aperture))
+                    except:
+                        pass
                 if 34855 in exif:
                     camera_iso = str(exif[34855])
                     info_panel.add_node(TreeViewInfo(title='ISO Level: ' + camera_iso))
@@ -3932,9 +3946,7 @@ class PhotoShow(ButtonBehavior, RelativeLayout):
         if touch.is_double_tap and not self.bypass:
             app = App.get_running_app()
             if not app.shift_pressed:
-                #photowrapper = LimitedScatterLayout()
                 photowrapper = self.parent.parent
-                #photocontainer = PhotoViewer()
                 photocontainer = photowrapper.parent.parent
                 if photowrapper.scale > 1:
                     photocontainer.zoom = 0
@@ -5984,9 +5996,7 @@ class RemoveFromTagButton(RemoveButton):
     """Button to remove a tag from the current photo."""
 
     def on_release(self):
-        app = App.get_running_app()
-        app.database_remove_tag(self.remove_from, self.to_remove, message=True)
-        self.owner.update_treeview()
+        self.owner.remove_from_tag(self.remove_from, self.to_remove)
 
 
 class RemoveTagButton(RemoveButton):

@@ -22,6 +22,7 @@ Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 
 Todo:
+    Need to scroll up when entering a new album
     Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
     Test 'standalone' mode
 """
