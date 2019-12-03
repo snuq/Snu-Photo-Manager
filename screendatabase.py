@@ -1411,6 +1411,8 @@ class DatabaseScreen(Screen):
             dragable = False
             photos_area = self.ids['photos']
             photos_area.clear_selection()
+            photos_container = self.ids['photosContainer']
+            photos_container.scroll_y = 1
             app = App.get_running_app()
             folder_title_type = self.ids['folderType']
             folder_details = self.ids['folderDetails']
