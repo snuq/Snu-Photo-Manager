@@ -3094,14 +3094,14 @@ class CustomImage(KivyImage):
         """
 
         image = self.original_image.copy()
-        if not self.video:
-            if self.angle != 0:
-                if self.angle == 90:
-                    image = image.transpose(PIL.Image.ROTATE_90)
-                if self.angle == 180:
-                    image = image.transpose(PIL.Image.ROTATE_180)
-                if self.angle == 270:
-                    image = image.transpose(PIL.Image.ROTATE_270)
+        #if not self.video:
+        #    if self.angle != 0:
+        #        if self.angle == 90:
+        #            image = image.transpose(PIL.Image.ROTATE_90)
+        #        if self.angle == 180:
+        #            image = image.transpose(PIL.Image.ROTATE_180)
+        #        if self.angle == 270:
+        #            image = image.transpose(PIL.Image.ROTATE_270)
         if image.mode != 'RGB':
             image = image.convert('RGB')
         image = self.adjust_image(image, preview=False)

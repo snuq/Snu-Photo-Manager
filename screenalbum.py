@@ -3269,8 +3269,11 @@ class AlbumScreen(Screen):
                         pass
                 if 33437 in exif:
                     f_stop = exif[33437]
-                    camera_f = str(f_stop[0]/f_stop[1])
-                    info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
+                    try:
+                        camera_f = str(f_stop[0]/f_stop[1])
+                        info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
+                    except:
+                        pass
                 if 37378 in exif:
                     try:
                         camera_aperture = str(exif[37378][0]/exif[37378][0])
@@ -3802,6 +3805,8 @@ class AlbumScreen(Screen):
         #generate full quality image
         edit_image = self.viewer.edit_image.get_full_quality()
         exif = self.viewer.edit_image.exif
+        #new_exif = exif[:274] + b'1' + exif[275:]
+        #exif = new_exif
         self.viewer.stop()
 
         #back up old image and save new edit
@@ -3844,7 +3849,7 @@ class AlbumScreen(Screen):
 
         #update photo info
         self.photoinfo[10] = agnostic_path(backup_photo_file)
-        self.photoinfo[13] = 1
+        #self.photoinfo[13] = 1
         self.photoinfo[9] = 1
         self.photoinfo[7] = int(os.path.getmtime(photo_file))
         update_photoinfo = list(self.photoinfo)

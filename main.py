@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Future Todo (lower priority, need to figure out how to do it, or a lot of work):
     Need to think of a way to divide up years abstractly
     Collage editor - add more collage modes (grids)
-    Rework cropping editor
+    Rework cropping editor - need a 'lock aspect' option
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 
