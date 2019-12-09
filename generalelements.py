@@ -108,7 +108,7 @@ Builder.load_string("""
             pos: self.pos
             source: 'data/mainbg.png'
 
-<-NormalSlider@Slider>:
+<NormalSlider>:
     #:set sizing 18
     canvas:
         Color:
@@ -130,7 +130,7 @@ Builder.load_string("""
     max: 1
     value: 0
 
-<-HalfSlider@Slider>:
+<HalfSlider>:
     #:set sizing 18
     canvas:
         Color:
@@ -1015,6 +1015,25 @@ Builder.load_string("""
 
 
 #Misc ELements
+class SpecialSlider(Slider):
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos) and touch.is_double_tap:
+            self.reset_value()
+            return
+        super(SpecialSlider, self).on_touch_down(touch)
+
+    def reset_value(self, *_):
+        pass
+
+
+class HalfSlider(SpecialSlider):
+    pass
+
+
+class NormalSlider(SpecialSlider):
+    pass
+
+
 class InputMenu(Bubble):
     owner = ObjectProperty()
 
@@ -1079,7 +1098,7 @@ class NormalInput(TextInput):
         app.popup_bubble(self, self.long_press_pos)
 
 
-class HalfSliderLimited(Slider):
+class HalfSliderLimited(SpecialSlider):
     start = NumericProperty(0.0)
     end = NumericProperty(1.0)
 
@@ -2967,9 +2986,13 @@ class CustomImage(KivyImage):
                 kelvin = negative_kelvin[99-temperature]
             else:
                 kelvin = positive_kelvin[temperature]
-            matrix = ((kelvin[0]/255.0), 0.0, 0.0, 0.0,
-                      0.0, (kelvin[1]/255.0), 0.0, 0.0,
-                      0.0, 0.0, (kelvin[2]/255.0), 0.0)
+            offset = 255 - min(kelvin)
+            kelvin_r = (kelvin[0] + offset) / 255.0
+            kelvin_g = (kelvin[1] + offset) / 255.0
+            kelvin_b = (kelvin[2] + offset) / 255.0
+            matrix = (kelvin_r, 0.0, 0.0, 0.0,
+                      0.0, kelvin_g, 0.0, 0.0,
+                      0.0, 0.0, kelvin_b, 0.0)
             image = image.convert('RGB', matrix)
         if self.brightness != 0:
             enhancer = ImageEnhance.Brightness(image)

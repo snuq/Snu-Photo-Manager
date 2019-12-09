@@ -405,6 +405,7 @@ Builder.load_string("""
             max: 1
             value: root.zoom
             on_value: root.zoom = self.value
+            reset_value: root.reset_zoom
         Label:
             size_hint_x: .25
 
@@ -631,8 +632,8 @@ Builder.load_string("""
             on_release: root.reset_equalize()
     HalfSlider:
         id: equalizeSlider
-        value: root.equalize
         on_value: root.equalize = self.value
+        reset_value: root.reset_equalize
     SmallBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -650,8 +651,8 @@ Builder.load_string("""
         opacity: 1 if root.owner.opencv else 0
         height: app.button_scale if root.owner.opencv else 0
         id: adaptiveSlider
-        value: root.adaptive
         on_value: root.adaptive = self.value
+        reset_value: root.reset_adaptive
     SmallBufferY:
         height: int(app.button_scale / 4) if root.owner.opencv else 0
     BoxLayout:
@@ -665,8 +666,8 @@ Builder.load_string("""
             on_release: root.reset_brightness()
     NormalSlider:
         id: brightnessSlider
-        value: root.brightness
         on_value: root.brightness = self.value
+        reset_value: root.reset_brightness
     SmallBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -679,8 +680,8 @@ Builder.load_string("""
             on_release: root.reset_gamma()
     NormalSlider:
         id: gammaSlider
-        value: root.gamma
         on_value: root.gamma = self.value
+        reset_value: root.reset_gamma
     SmallBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -693,22 +694,8 @@ Builder.load_string("""
             on_release: root.reset_shadow()
     NormalSlider:
         id: shadowSlider
-        value: root.shadow
         on_value: root.shadow = self.value
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Saturation:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_saturation()
-    NormalSlider:
-        id: saturationSlider
-        value: root.saturation
-        on_value: root.saturation = self.value
+        reset_value: root.reset_shadow
     SmallBufferY:
     BoxLayout:
         orientation: 'horizontal'
@@ -721,8 +708,22 @@ Builder.load_string("""
             on_release: root.reset_temperature()
     NormalSlider:
         id: temperatureSlider
-        value: root.temperature
         on_value: root.temperature = self.value
+        reset_value: root.reset_temperature
+    SmallBufferY:
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: app.button_scale
+        LeftNormalLabel:
+            text: 'Saturation:'
+        NormalButton:
+            text: 'Reset'
+            on_release: root.reset_saturation()
+    NormalSlider:
+        id: saturationSlider
+        on_value: root.saturation = self.value
+        reset_value: root.reset_saturation
 
 <EditColorImageAdvanced>:
     padding: 0, 0, int(app.button_scale / 2), 0
@@ -903,8 +904,8 @@ Builder.load_string("""
                 on_release: root.reset_sharpen()
         NormalSlider:
             id: sharpenSlider
-            value: root.sharpen
             on_value: root.sharpen = self.value
+            reset_value: root.reset_sharpen
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -920,9 +921,9 @@ Builder.load_string("""
             height: app.button_scale if root.owner.opencv else 0
             opacity: 1 if root.owner.opencv else 0
             id: medianSlider
-            value: root.median
             on_value: root.median = self.value
             disabled: not root.owner.opencv
+            reset_value: root.reset_median
     MediumBufferY:
     GridLayout:
         canvas.before:
@@ -949,8 +950,8 @@ Builder.load_string("""
                 on_release: root.reset_bilateral_amount()
         HalfSlider:
             id: bilateralAmountSlider
-            value: root.bilateral_amount
             on_value: root.bilateral_amount = self.value
+            reset_value: root.reset_bilateral_amount
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -962,8 +963,8 @@ Builder.load_string("""
                 on_release: root.reset_bilateral()
         HalfSlider:
             id: bilateralSlider
-            value: root.bilateral
             on_value: root.bilateral = self.value
+            reset_value: root.reset_bilateral
     MediumBufferY:
         height: int(app.button_scale / 2) if root.owner.opencv else 0
     GridLayout:
@@ -989,8 +990,8 @@ Builder.load_string("""
                 on_release: root.reset_vignette_amount()
         HalfSlider:
             id: vignetteAmountSlider
-            value: root.vignette_amount
             on_value: root.vignette_amount = self.value
+            reset_value: root.reset_vignette_amount
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1004,8 +1005,8 @@ Builder.load_string("""
         HalfSlider:
             value: .5
             id: vignetteSizeSlider
-            value: root.vignette_size
             on_value: root.vignette_size = self.value
+            reset_value: root.reset_vignette_size
     MediumBufferY:
     GridLayout:
         canvas.before:
@@ -1030,8 +1031,8 @@ Builder.load_string("""
                 on_release: root.reset_edge_blur_amount()
         HalfSlider:
             id: edgeBlurAmountSlider
-            value: root.edge_blur_amount
             on_value: root.edge_blur_amount = self.value
+            reset_value: root.reset_edge_blur_amount
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1045,8 +1046,8 @@ Builder.load_string("""
         HalfSlider:
             value: .5
             id: edgeBlurSizeSlider
-            value: root.edge_blur_size
             on_value: root.edge_blur_size = self.value
+            reset_value: root.reset_edge_blur_size
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1060,8 +1061,8 @@ Builder.load_string("""
         HalfSlider:
             value: .5
             id: edgeBlurIntensitySlider
-            value: root.edge_blur_intensity
             on_value: root.edge_blur_intensity = self.value
+            reset_value: root.reset_edge_blur_intensity
 
 <EditBorderImage>:
     padding: 0, 0, int(app.button_scale / 2), 0
@@ -1120,8 +1121,8 @@ Builder.load_string("""
                 on_release: root.reset_border_opacity()
         HalfSlider:
             id: opacitySlider
-            value: root.border_opacity
             on_value: root.border_opacity = self.value
+            reset_value: root.reset_border_opacity
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -1133,8 +1134,8 @@ Builder.load_string("""
                 on_release: root.reset_border_x_scale()
         NormalSlider:
             id: borderXScale
-            value: root.border_x_scale
             on_value: root.border_x_scale = self.value
+            reset_value: root.reset_border_x_scale
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -1146,8 +1147,8 @@ Builder.load_string("""
                 on_release: root.reset_border_y_scale()
         NormalSlider:
             id: borderYScale
-            value: root.border_y_scale
             on_value: root.border_y_scale = self.value
+            reset_value: root.reset_border_y_scale
         SmallBufferY:
         LeftNormalLabel:
             text: 'Select A Border:'
@@ -1385,8 +1386,8 @@ Builder.load_string("""
                 text: str(round(cropTopSlider.value * 100, 1))+'%'
         HalfSlider:
             id: cropTopSlider
-            value: root.crop_top
             on_value: root.crop_top = self.value
+            reset_value: root.reset_crop_top
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1398,8 +1399,8 @@ Builder.load_string("""
                 text: str(round(cropRightSlider.value * 100, 1))+'%'
         HalfSlider:
             id: cropRightSlider
-            value: root.crop_right
             on_value: root.crop_right = self.value
+            reset_value: root.reset_crop_right
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1411,8 +1412,8 @@ Builder.load_string("""
                 text: str(round(cropBottomSlider.value * 100, 1))+'%'
         HalfSlider:
             id: cropBottomSlider
-            value: root.crop_bottom
             on_value: root.crop_bottom = self.value
+            reset_value: root.reset_crop_bottom
         SmallBufferY:
         BoxLayout:
             orientation: 'horizontal'
@@ -1424,8 +1425,8 @@ Builder.load_string("""
                 text: str(round(cropLeftSlider.value * 100, 1))+'%'
         HalfSlider:
             id: cropLeftSlider
-            value: root.crop_left
             on_value: root.crop_left = self.value
+            reset_value: root.reset_crop_left
     SmallBufferY:
     GridLayout:
         canvas.before:
@@ -1570,8 +1571,8 @@ Builder.load_string("""
             text: 'Fine Rotation:'
         NormalSlider:
             id: fine_angle
-            value: root.fine_angle
             on_value: root.fine_angle = self.value
+            reset_value: root.reset_fine_angle
 
 <EditConvertImage>:
     cols: 1
@@ -3990,6 +3991,9 @@ class PhotoViewer(BoxLayout):
     def reset_zoompos(self):
         self.zoompos = [self.width / 2, self.height / 2]
 
+    def reset_zoom(self, *_):
+        self.zoom = 0
+
     def on_zoom(self, *_):
         if self.zoom == 0:
             self.reset_zoompos()
@@ -4432,7 +4436,15 @@ class EditMain(GridLayout):
                 program_button.expanded = True
 
 
-class EditColorImage(GridLayout):
+class EditPanelBase(GridLayout):
+    def set_slider(self, slider, value):
+        Clock.schedule_once(lambda x: self.set_slider_delay(slider, value), .1)
+
+    def set_slider_delay(self, slider, value):
+        self.ids[slider].value = value
+
+
+class EditColorImage(EditPanelBase):
     """Panel to expose color editing options."""
 
     equalize = NumericProperty(0)
@@ -4468,21 +4480,26 @@ class EditColorImage(GridLayout):
         self.owner.adaptive = self.adaptive
         self.owner.brightness = self.brightness
         self.owner.gamma = self.gamma
-        self.owner.contrast = self.contrast
         self.owner.saturation = self.saturation
         self.owner.temperature = self.temperature
         self.owner.shadow = self.shadow
 
     def load_last(self):
         self.equalize = self.owner.equalize
+        self.set_slider('equalizeSlider', self.equalize)
         self.autocontrast = self.owner.autocontrast
         self.adaptive = self.owner.adaptive
+        self.set_slider('adaptiveSlider', self.adaptive)
         self.brightness = self.owner.brightness
+        self.set_slider('brightnessSlider', self.brightness)
         self.gamma = self.owner.gamma
-        self.contrast = self.owner.contrast
+        self.set_slider('gammaSlider', self.gamma)
         self.saturation = self.owner.saturation
+        self.set_slider('saturationSlider', self.saturation)
         self.temperature = self.owner.temperature
+        self.set_slider('temperatureSlider', self.temperature)
         self.shadow = self.owner.shadow
+        self.set_slider('shadowSlider', self.shadow)
 
     def draw_histogram(self, *_):
         """Draws the histogram image and displays it."""
@@ -4544,6 +4561,7 @@ class EditColorImage(GridLayout):
 
     def reset_equalize(self):
         self.equalize = 0
+        self.set_slider('equalizeSlider', self.equalize)
 
     def on_autocontrast(self, *_):
         self.owner.viewer.edit_image.autocontrast = self.autocontrast
@@ -4562,42 +4580,42 @@ class EditColorImage(GridLayout):
 
     def reset_adaptive(self):
         self.adaptive = 0
+        self.set_slider('adaptiveSlider', self.adaptive)
 
     def on_brightness(self, *_):
         self.owner.viewer.edit_image.brightness = self.brightness
 
     def reset_brightness(self):
         self.brightness = 0
+        self.set_slider('brightnessSlider', self.brightness)
 
     def on_shadow(self, *_):
         self.owner.viewer.edit_image.shadow = self.shadow
 
     def reset_shadow(self):
         self.shadow = 0
+        self.set_slider('shadowSlider', self.shadow)
 
     def on_gamma(self, *_):
         self.owner.viewer.edit_image.gamma = self.gamma
 
     def reset_gamma(self):
         self.gamma = 0
-
-    def on_contrast(self, *_):
-        self.owner.viewer.edit_image.contrast = self.contrast
-
-    def reset_contrast(self):
-        self.contrast = 0
+        self.set_slider('gammaSlider', self.gamma)
 
     def on_saturation(self, *_):
         self.owner.viewer.edit_image.saturation = self.saturation
 
     def reset_saturation(self):
         self.saturation = 0
+        self.set_slider('saturationSlider', self.saturation)
 
     def on_temperature(self, *_):
         self.owner.viewer.edit_image.temperature = self.temperature
 
     def reset_temperature(self):
         self.temperature = 0
+        self.set_slider('temperatureSlider', self.temperature)
 
     def reset_all(self):
         """Reset all edit settings on this panel."""
@@ -4605,7 +4623,6 @@ class EditColorImage(GridLayout):
         self.reset_brightness()
         self.reset_shadow()
         self.reset_gamma()
-        self.reset_contrast()
         self.reset_saturation()
         self.reset_temperature()
         self.reset_equalize()
@@ -4734,7 +4751,7 @@ class EditColorImageAdvanced(GridLayout):
         self.reset_tint()
 
 
-class EditFilterImage(GridLayout):
+class EditFilterImage(EditPanelBase):
     """Panel to expose filter editing options."""
 
     sharpen = NumericProperty(0)
@@ -4752,6 +4769,7 @@ class EditFilterImage(GridLayout):
 
     def __init__(self, **kwargs):
         Clock.schedule_once(self.add_video_preset)
+        Clock.schedule_once(self.reset_all)
         super(EditFilterImage, self).__init__(**kwargs)
 
     def refresh_buttons(self):
@@ -4776,70 +4794,88 @@ class EditFilterImage(GridLayout):
 
     def load_last(self):
         self.sharpen = self.owner.sharpen
-        self.vignette_amount = self.owner.vignette_amount
-        self.vignette_size = self.owner.vignette_size
-        self.edge_blur_amount = self.owner.edge_blur_amount
-        self.edge_blur_size = self.owner.edge_blur_size
-        self.edge_blur_intensity = self.owner.edge_blur_intensity
-        self.bilateral = self.owner.bilateral
-        self.bilateral_amount = self.owner.bilateral_amount
+        self.set_slider('sharpenSlider', self.sharpen)
         self.median = self.owner.median
+        self.set_slider('medianSlider', self.median)
+        self.bilateral_amount = self.owner.bilateral_amount
+        self.set_slider('bilateralAmountSlider', self.bilateral_amount)
+        self.bilateral = self.owner.bilateral
+        self.set_slider('bilateralSlider', self.bilateral)
+        self.vignette_amount = self.owner.vignette_amount
+        self.set_slider('vignetteAmountSlider', self.vignette_amount)
+        self.vignette_size = self.owner.vignette_size
+        self.set_slider('vignetteSizeSlider', self.vignette_size)
+        self.edge_blur_amount = self.owner.edge_blur_amount
+        self.set_slider('edgeBlurAmountSlider', self.edge_blur_amount)
+        self.edge_blur_size = self.owner.edge_blur_size
+        self.set_slider('edgeBlurSizeSlider', self.edge_blur_size)
+        self.edge_blur_intensity = self.owner.edge_blur_intensity
+        self.set_slider('edgeBlurIntensitySlider', self.edge_blur_intensity)
 
     def on_sharpen(self, *_):
         self.owner.viewer.edit_image.sharpen = self.sharpen
 
     def reset_sharpen(self):
         self.sharpen = 0
+        self.set_slider('sharpenSlider', self.sharpen)
 
     def on_median(self, *_):
         self.owner.viewer.edit_image.median_blur = self.median
 
     def reset_median(self):
         self.median = 0
+        self.set_slider('medianSlider', self.median)
 
     def on_bilateral_amount(self, *_):
         self.owner.viewer.edit_image.bilateral_amount = self.bilateral_amount
 
     def reset_bilateral_amount(self):
         self.bilateral_amount = 0
+        self.set_slider('bilateralAmountSlider', self.bilateral_amount)
 
     def on_bilateral(self, *_):
         self.owner.viewer.edit_image.bilateral = self.bilateral
 
     def reset_bilateral(self):
         self.bilateral = 0.5
+        self.set_slider('bilateralSlider', self.bilateral)
 
     def on_vignette_amount(self, *_):
         self.owner.viewer.edit_image.vignette_amount = self.vignette_amount
 
     def reset_vignette_amount(self):
         self.vignette_amount = 0
+        self.set_slider('vignetteAmountSlider', self.vignette_amount)
 
     def on_vignette_size(self, *_):
         self.owner.viewer.edit_image.vignette_size = self.vignette_size
 
     def reset_vignette_size(self):
         self.vignette_size = 0.5
+        self.set_slider('vignetteSizeSlider', self.vignette_size)
 
     def on_edge_blur_amount(self, *_):
         self.owner.viewer.edit_image.edge_blur_amount = self.edge_blur_amount
 
     def reset_edge_blur_amount(self):
         self.edge_blur_amount = 0
+        self.set_slider('edgeBlurAmountSlider', self.edge_blur_amount)
 
     def on_edge_blur_size(self, *_):
         self.owner.viewer.edit_image.edge_blur_size = self.edge_blur_size
 
     def reset_edge_blur_size(self):
         self.edge_blur_size = 0.5
+        self.set_slider('edgeBlurSizeSlider', self.edge_blur_size)
 
     def on_edge_blur_intensity(self, *_):
         self.owner.viewer.edit_image.edge_blur_intensity = self.edge_blur_intensity
 
     def reset_edge_blur_intensity(self):
         self.edge_blur_intensity = 0.5
+        self.set_slider('edgeBlurIntensitySlider', self.edge_blur_intensity)
 
-    def reset_all(self):
+    def reset_all(self, *_):
         """Reset all edit values to defaults."""
 
         self.reset_sharpen()
@@ -4853,7 +4889,7 @@ class EditFilterImage(GridLayout):
         self.reset_bilateral_amount()
 
 
-class EditBorderImage(GridLayout):
+class EditBorderImage(EditPanelBase):
     """Panel to expose image border overlays."""
 
     selected = StringProperty()
@@ -4868,6 +4904,7 @@ class EditBorderImage(GridLayout):
     preset_name = StringProperty()
 
     def __init__(self, **kwargs):
+        self.reset_border_opacity()
         Clock.schedule_once(self.add_video_preset)
         Clock.schedule_once(self.populate_borders)
         super(EditBorderImage, self).__init__(**kwargs)
@@ -4891,8 +4928,11 @@ class EditBorderImage(GridLayout):
     def load_last(self):
         self.selected = self.owner.border_selected
         self.border_x_scale = self.owner.border_x_scale
+        self.set_slider('borderXScale', self.border_x_scale)
         self.border_y_scale = self.owner.border_y_scale
+        self.set_slider('borderYScale', self.border_y_scale)
         self.border_opacity = self.owner.border_opacity
+        self.set_slider('opacitySlider', self.border_opacity)
         self.tint = self.owner.border_tint
 
     def on_selected(self, *_):
@@ -4942,18 +4982,21 @@ class EditBorderImage(GridLayout):
 
     def reset_border_x_scale(self):
         self.border_x_scale = 0
+        self.set_slider('borderXScale', self.border_x_scale)
 
     def on_border_y_scale(self, *_):
         self.owner.viewer.edit_image.border_y_scale = self.border_y_scale
 
     def reset_border_y_scale(self):
         self.border_y_scale = 0
+        self.set_slider('borderYScale', self.border_y_scale)
 
     def on_border_opacity(self, *_):
         self.owner.viewer.edit_image.border_opacity = self.border_opacity
 
     def reset_border_opacity(self, *_):
         self.border_opacity = 1
+        self.set_slider('opacitySlider', self.border_opacity)
 
     def on_tint(self, *_):
         self.owner.viewer.edit_image.border_tint = self.tint
@@ -5084,7 +5127,7 @@ class EditDenoiseImage(GridLayout):
         self.owner.viewer.edit_image.update_preview(denoise=True)
 
 
-class EditCropImage(GridLayout):
+class EditCropImage(EditPanelBase):
     """Panel to expose crop editing options."""
 
     crop_top = NumericProperty(0)
@@ -5157,11 +5200,19 @@ class EditCropImage(GridLayout):
             edit_image.crop_percent('top', self.crop_top)
             self.update_crop_size_text()
 
+    def reset_crop_top(self):
+        self.crop_top = 0
+        self.set_slider('cropTopSlider', self.crop_top)
+
     def on_crop_right(self, *_):
         edit_image = self.owner.viewer.edit_image
         if edit_image:
             edit_image.crop_percent('right', self.crop_right)
             self.update_crop_size_text()
+
+    def reset_crop_right(self):
+        self.crop_right = 0
+        self.set_slider('cropRightSlider', self.crop_right)
 
     def on_crop_bottom(self, *_):
         edit_image = self.owner.viewer.edit_image
@@ -5169,11 +5220,19 @@ class EditCropImage(GridLayout):
             edit_image.crop_percent('bottom', self.crop_bottom)
             self.update_crop_size_text()
 
+    def reset_crop_bottom(self):
+        self.crop_bottom = 0
+        self.set_slider('cropBottomSlider', self.crop_bottom)
+
     def on_crop_left(self, *_):
         edit_image = self.owner.viewer.edit_image
         if edit_image:
             edit_image.crop_percent('left', self.crop_left)
             self.update_crop_size_text()
+
+    def reset_crop_left(self):
+        self.crop_left = 0
+        self.set_slider('cropLeftSlider', self.crop_left)
 
     def recrop(self):
         """tell image to recrop itself based on an aspect ratio"""
@@ -5252,7 +5311,7 @@ class EditCropImage(GridLayout):
         self.recrop()
 
 
-class EditRotateImage(GridLayout):
+class EditRotateImage(EditPanelBase):
     """Panel to expose rotation editing options."""
 
     fine_angle = NumericProperty(0)
@@ -5279,18 +5338,21 @@ class EditRotateImage(GridLayout):
         self.ids['angles_90'].state = 'normal'
         self.ids['angles_180'].state = 'normal'
         self.ids['angles_270'].state = 'normal'
-        self.fine_angle = 0
-        self.ids['fine_angle'].value = 0
         self.update_flip_horizontal(flip='up')
         self.ids['flip_horizontal'].state = 'normal'
         self.update_flip_vertical(flip='up')
         self.ids['flip_vertical'].state = 'normal'
+        self.reset_fine_angle()
 
     def update_angle(self, angle):
         self.owner.viewer.edit_image.rotate_angle = angle
 
     def on_fine_angle(self, *_):
         self.owner.viewer.edit_image.fine_angle = self.fine_angle
+
+    def reset_fine_angle(self, *_):
+        self.fine_angle = 0
+        self.set_slider('fine_angle', self.fine_angle)
 
     def update_flip_horizontal(self, flip):
         if flip == 'down':

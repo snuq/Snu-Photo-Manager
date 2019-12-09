@@ -197,6 +197,7 @@ Builder.load_string("""
                         max: root.scale_max
                         value: root.scale
                         on_value: root.scale = self.value
+                        reset_value: root.reset_scale
                     #Label:
                     #    text: ''
                     NormalButton:
@@ -1591,6 +1592,23 @@ class DatabaseScreen(Screen):
         self.album_sort_reverse = album_sort_reverse
         self.on_selected('', '')
 
+    def reset_scale(self, *_):
+        self.scale = 1
+
+    def on_scale(self, *_):
+        if self.scale < self.scale_min:
+            self.scale = self.scale_min
+        if self.scale > self.scale_max:
+            self.scale = self.scale_max
+        app = App.get_running_app()
+        try:
+            saved_scale = float(app.config.get("Settings", "databasescale"))
+            if saved_scale == round(self.scale, 2):
+                return
+        except:
+            pass
+        app.config.set("Settings", "databasescale", round(self.scale, 2))
+
     def on_leave(self, *_):
         app = App.get_running_app()
         app.clear_drags()
@@ -1601,13 +1619,9 @@ class DatabaseScreen(Screen):
 
         app = App.get_running_app()
         try:
-            self.scale = float(app.config.get("Settings", "databasescale"))/100
+            self.scale = float(app.config.get("Settings", "databasescale"))
         except:
             self.scale = 1
-        if self.scale < self.scale_min:
-            self.scale = self.scale_min
-        if self.scale > self.scale_max:
-            self.scale = self.scale_max
         app.fullpath = ''
         self.tag_menu = NormalDropDown()
         self.album_menu = NormalDropDown()
