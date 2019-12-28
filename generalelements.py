@@ -2307,6 +2307,7 @@ class CustomImage(KivyImage):
     border_y_scale = NumericProperty(.5)
     crop_min = NumericProperty(100)
     size_multiple = NumericProperty(1)
+    aspect = NumericProperty(1)
 
     #Denoising variables
     denoise = BooleanProperty(False)
@@ -2428,6 +2429,7 @@ class CustomImage(KivyImage):
             aspect_y: Vertical aspect ratio element, numerical value.
         """
 
+        self.aspect = aspect_x / aspect_y
         width = self.original_width - self.crop_left - self.crop_right
         height = self.original_height - self.crop_top - self.crop_bottom
         if aspect_x != width or aspect_y != height:
@@ -2486,6 +2488,9 @@ class CustomImage(KivyImage):
                 crop_amount = texture_width - self.crop_right - crop_min
             self.crop_left = crop_amount
         self.reset_cropper()
+        self.update_crop_controls()
+
+    def update_crop_controls(self):
         if self.crop_controls:
             self.crop_controls.update_crop()
 
@@ -2631,8 +2636,7 @@ class CustomImage(KivyImage):
         else:
             self.crop_bottom = bottom_crop * divisor
         #self.update_preview(recrop=False)
-        if self.crop_controls:
-            self.crop_controls.update_crop()
+        self.update_crop_controls()
 
     def on_sharpen(self, *_):
         self.update_preview()
@@ -2732,6 +2736,7 @@ class CustomImage(KivyImage):
             self.open_video()
         self.reload_edit_image()
         self.update_texture(self.edit_image)
+        self.update_aspect()
         #self.update_preview()
 
     def on_position(self, *_):
@@ -2800,6 +2805,9 @@ class CustomImage(KivyImage):
 
     def update_histogram(self, *_):
         self.histogram = self.edit_image.histogram()
+
+    def update_aspect(self):
+        self.aspect = self.edit_image.width / self.edit_image.height
 
     def on_texture(self, instance, value):
         if value is not None:

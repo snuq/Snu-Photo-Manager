@@ -14,16 +14,26 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 """
-Future Todo (lower priority, need to figure out how to do it, or a lot of work):
-    Need to think of a way to divide up years abstractly
-    Collage editor - add more collage modes (grids)
-    Rework cropping editor - need a 'lock aspect' option
-    export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
-    RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
-
 Todo:
     Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
     Test 'standalone' mode
+
+Todo before 1.0:
+    Cropper needs a 'lock aspect' option
+    Need to think of a way to divide up years abstractly
+    Rethink edit mode
+        As soon as user open edit panel, go into edit mode?
+        needs to have all edit features available at once without having to save the file multiple times
+        maybe have a list of different edit operations, user clicks them and they open a panel under it:
+            Brightness, Color, Curves, Tinting, Rotate, Crop, Denoise, Filters, Vignette, Edge Blur
+            How would crop and rotate work with their overlays?
+            Where would the delete/restore edits and external programs stuff go?
+    Collage editor - add more collage modes (grids)
+
+Todo Possible Future:
+    export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
+    RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
+
 """
 
 import time

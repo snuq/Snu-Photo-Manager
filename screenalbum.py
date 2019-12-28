@@ -1991,6 +1991,12 @@ Builder.load_string("""
             pos_hint: {"y": 0.6666666}
         HGridLine:
             pos_hint: {"y": .999}
+    Image:
+        source: 'data/move.png'
+        pos_hint: {'center_x': .5, 'center_y': .5}
+        height: 100 if root.height > 100 else root.height
+        width: 100 if root.width > 100 else root.width
+        size_hint: None, None
 
 <ExternalProgramEditor>:
     cols: 1
@@ -4008,6 +4014,10 @@ class PhotoViewer(BoxLayout):
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
+            if touch.is_double_tap:
+                if self.edit_mode != 'main' and self.edit_image.cropping:
+                    self.edit_image.reset_crop()
+                    return True
             if self.edit_mode != 'main' and not self.overlay:
                 self.edit_image.opacity = 0
                 image = self.ids['image']
@@ -4131,6 +4141,14 @@ class VideoViewer(FloatLayout):
     end_point = NumericProperty(1.0)
     fullscreen = BooleanProperty(False)
     overlay = ObjectProperty(allownone=True)
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if touch.is_double_tap:
+                if self.edit_mode != 'main' and self.edit_image.cropping:
+                    self.edit_image.reset_crop()
+                    return True
+            return super(VideoViewer, self).on_touch_down(touch)
 
     def reset_start_point(self, *_):
         self.start_point = 0.0
@@ -5171,6 +5189,12 @@ class EditCropImage(EditPanelBase):
         if edit_image:
             edit_image.get_crop_size()
 
+    def update_crop_values(self):
+        self.ids['cropLeftSlider'].value = self.crop_left
+        self.ids['cropRightSlider'].value = self.crop_right
+        self.ids['cropTopSlider'].value = self.crop_top
+        self.ids['cropBottomSlider'].value = self.crop_bottom
+
     def update_crop(self):
         edit_image = self.owner.viewer.edit_image
         if edit_image:
@@ -5179,6 +5203,7 @@ class EditCropImage(EditPanelBase):
             self.crop_right = percents[1]
             self.crop_bottom = percents[2]
             self.crop_left = percents[3]
+            self.update_crop_values()
 
     def save_last(self):
         self.update_crop()
@@ -5668,6 +5693,7 @@ class Curves(FloatLayout):
 
         canvas = self.canvas
         canvas.clear()
+        canvas.before.clear()
         canvas.before.add(Color(0, 0, 0))
         canvas.before.add(Rectangle(size=self.size, pos=self.pos))
         self.generate_curve()
@@ -5951,6 +5977,13 @@ class CropOverlay(ResizableBehavior, RelativeLayout):
 
     owner = ObjectProperty()
     drag_mode = BooleanProperty(False)
+    recrop_mode = BooleanProperty(False)
+    start_x = NumericProperty(0)
+    moved_x = NumericProperty(0)
+    start_y = NumericProperty(0)
+    moved_y = NumericProperty(0)
+    start_width = NumericProperty(1)
+    start_height = NumericProperty(1)
 
     def __init__(self, **kwargs):
         super(CropOverlay, self).__init__(**kwargs)
@@ -5969,25 +6002,73 @@ class CropOverlay(ResizableBehavior, RelativeLayout):
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
+            #adjust crop mode
             if touch.button == 'left':
                 if self.check_resizable_side(*touch.pos):
                     self.drag_mode = False
                     super(CropOverlay, self).on_touch_down(touch)
                 else:
+                    self.start_x = self.pos[0]
+                    self.start_y = self.pos[1]
+                    self.moved_x = 0
+                    self.moved_y = 0
+                    self.start_width = self.width
+                    self.start_height = self.height
                     self.drag_mode = True
+            return True
+        elif self.owner.collide_point(*touch.pos):
+            #recrop mode
+            self.recrop_mode = True
+            self.start_x = touch.pos[0]
+            self.start_y = touch.pos[1]
             return True
 
     def on_touch_move(self, touch):
         if self.drag_mode:
-            self.x += touch.dx
-            self.y += touch.dy
-
+            self.moved_x += touch.dx
+            self.moved_y += touch.dy
+            x1 = self.start_x + self.moved_x
+            y1 = self.start_y + self.moved_y
+            x2 = x1 + self.start_width
+            y2 = y1 + self.start_height
+            self.set_cropper(x1, y1, x2, y2)
+        elif self.recrop_mode:
+            x2 = touch.pos[0]
+            y2 = touch.pos[1]
+            self.set_cropper(self.start_x, self.start_y, x2, y2)
         else:
             super(CropOverlay, self).on_touch_move(touch)
+
+    def set_cropper(self, x1, y1, x2, y2):
+        #takes 4 points and sets the cropper based on them, ensures that they are only inside the texture
+        xs = [x1, x2]
+        ys = [y1, y2]
+        min_x = min(xs)
+        min_y = min(ys)
+        max_x = max(xs)
+        max_y = max(ys)
+
+        texture_top, texture_right, texture_bottom, texture_left = self.owner.get_texture_size()
+        if min_x < texture_left:
+            min_x = texture_left
+        if min_y < texture_bottom:
+            min_y = texture_bottom
+        if max_x > texture_right:
+            max_x = texture_right
+        if max_y > texture_top:
+            max_y = texture_top
+
+        width = max_x - min_x
+        height = max_y - min_y
+
+        self.pos = (min_x, min_y)
+        self.size = (width, height)
 
     def on_touch_up(self, touch):
         if self.drag_mode:
             self.drag_mode = False
+        elif self.recrop_mode:
+            self.recrop_mode = False
         else:
             super(CropOverlay, self).on_touch_up(touch)
 
