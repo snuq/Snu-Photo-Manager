@@ -38,6 +38,12 @@ class CursorModalView(ModalView):
         except:
             pass
 
+    def close(self, *largs):
+        if self._window:
+            self.remove_widget(self.cursor)
+            self.dismiss()
+            self._window.remove_widget(self)
+
     def put_on_top(self, *args):
         self.dismiss()
         self.open()
@@ -125,17 +131,17 @@ class ResizeCursor(Widget):
         self.rect.size = val
 
     def on_hidden(self, obj, val):
-        if not self.disabled:
+        if not self.disabled and self.parent:
             self.parent.on_hidden(val)
             if val:
                 Window.show_cursor = True
+                self.pos[0] = -9999
             else:
                 Window.show_cursor = False
 
     def on_mouse_move(self, val):
         if self.hidden or self.disabled or not self.source:
-            if self.pos[0] != -9999:
-                self.pos[0] = -9999
+            pass
         else:
             self.pos[0] = val[0] - self.width / 2.0
             self.pos[1] = val[1] - self.height / 2.0
@@ -169,3 +175,4 @@ class ResizeCursor(Widget):
     def on_disabled(self, obj, val):
         if not val:
             Window.show_cursor = True
+            self.pos[0] = -9999

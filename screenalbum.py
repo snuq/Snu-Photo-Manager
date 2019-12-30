@@ -5989,11 +5989,6 @@ class CropOverlay(ResizableBehavior, RelativeLayout):
         super(CropOverlay, self).__init__(**kwargs)
         self._drag_touch = None
 
-    def on_mouse_move(self, _, pos):
-        """need to override this because the original class will still change mouse cursor after it's removed..."""
-        if self.parent:
-            super(CropOverlay, self).on_mouse_move(_, pos)
-
     def on_size(self, instance, size):
         self.owner.set_crop(self.pos[0], self.pos[1], size[0], size[1])
 

@@ -2833,7 +2833,7 @@ class CustomImage(KivyImage):
         preview_bytes.seek(0)
         return preview_bytes
 
-    def update_preview(self, denoise=False, recrop=True):
+    def update_preview(self, *_, denoise=False, recrop=True):
         """Update the preview image."""
 
         image = self.adjust_image(self.edit_image)

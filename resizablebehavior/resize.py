@@ -71,7 +71,6 @@ from kivy.app import App
 
 
 __all__ = ('ResizableBehavior', )
-_modalview = CursorModalView()
 
 
 class ResizableBehavior(object):
@@ -242,13 +241,21 @@ class ResizableBehavior(object):
     defaults to False.
     '''
 
-    cursor = _modalview.cursor
+    cursor = None
+    modalview = None
 
     def __init__(self, **kwargs):
         super(ResizableBehavior, self).__init__(**kwargs)
+        self.modalview = CursorModalView()
+        self.cursor = self.modalview.cursor
         Window.bind(mouse_pos=self.on_mouse_move)
-        Clock.schedule_once(_modalview.put_on_top, 0)
+        Clock.schedule_once(self.modalview.put_on_top, 0)
         self.oldpos, self.oldsize = [], []
+
+    def on_parent(self, *_):
+        if self.parent is None:
+            self.modalview.close()
+            Window.show_cursor = True
 
     def on_enter_resizable(self):
         self.cursor.hidden = False
