@@ -14,13 +14,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 """
-Todo:
-    Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
-    Test 'standalone' mode
-
 Todo before 1.0:
     Cropper needs a 'lock aspect' option
+    Improve dragging: should show indicator when multiple photos are dragged, should hilight where the photos are dragged into.
     Need to think of a way to divide up years abstractly
+        Maybe manually added 'markers' that can be jumped to?
     Rethink edit mode
         As soon as user open edit panel, go into edit mode?
         needs to have all edit features available at once without having to save the file multiple times
@@ -31,6 +29,7 @@ Todo before 1.0:
     Collage editor - add more collage modes (grids)
 
 Todo Possible Future:
+    Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
 
@@ -229,7 +228,6 @@ class PhotoManager(App):
     button_scale = NumericProperty(40)
     text_scale = NumericProperty(12)
     data_directory = StringProperty('')
-    app_location = StringProperty('')
     database_auto_rescanner = ObjectProperty()
     database_auto_rescan_timer = NumericProperty(0)
     database_update_text = StringProperty('')
@@ -1629,7 +1627,6 @@ class PhotoManager(App):
             self.data_directory = self.user_data_dir
         else:
             self.data_directory = os.path.sep
-        self.app_location = os.path.realpath(self.directory)
         # __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
         #__location__ = os.path.realpath(sys.path[0])
         #if __location__.endswith('.zip'):
@@ -1643,7 +1640,7 @@ class PhotoManager(App):
 
         try:
             configfile = ConfigParser(interpolation=None)
-            configfile.read(os.path.join(self.app_location, 'data/encoding_presets.ini'))
+            configfile.read(kivy.resources.resource_find('data/encoding_presets.ini'))
             preset_names = configfile.sections()
             for preset_name in preset_names:
                 if preset_name == 'Automatic':
@@ -1677,7 +1674,7 @@ class PhotoManager(App):
                 except:
                     pass
         except:
-            pass
+            self.encoding_presets = [{'name': 'Automatic', 'file_format': 'auto', 'video_codec': '', 'audio_codec': '', 'resize': False, 'width': '', 'height': '', 'video_bitrate': '', 'audio_bitrate': '', 'encoding_speed': '', 'deinterlace': False, 'command_line': ''}]
         try:
             self.selected_encoder_preset = self.config.get("Presets", "selected_preset")
         except:
