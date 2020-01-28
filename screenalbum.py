@@ -2684,12 +2684,10 @@ class AlbumScreen(Screen):
             self.photoinfo[9] = 0
             self.photoinfo[7] = int(os.path.getmtime(new_original_file))
             app.database_item_update(self.photoinfo)
-            app.save_photoinfo(target=self.photoinfo[1],
-                               save_location=os.path.join(self.photoinfo[2], self.photoinfo[1]))
+            app.save_photoinfo(target=self.photoinfo[1], save_location=os.path.join(self.photoinfo[2], self.photoinfo[1]))
 
             #regenerate thumbnail
-            app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13],
-                                          force=True)
+            app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13], force=True)
 
             #reload photo image in ui
             self.fullpath = self.photoinfo[0]
@@ -3707,75 +3705,82 @@ class AlbumScreen(Screen):
             output = self.encoding_process_thread.communicate()[0]
             exit_code = self.encoding_process_thread.returncode
 
-            #delete output_file
-            deleted = self.delete_output(output_file)
-
-            if exit_code == 0:
-                #second encoding completed
-                self.viewer.edit_image.close_video()
-
-                new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
-                if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
-                    os.makedirs(input_file_folder+os.path.sep+'.originals')
-                new_encoded_file = input_file_folder+os.path.sep+output_filename
-
-                new_photoinfo = list(self.photoinfo)
-                #check if original file has been backed up already
-                if not os.path.isfile(self.photoinfo[10]):
-                    #original file exists
-                    try:
-                        os.rename(input_file, new_original_file)
-                    except:
-                        self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
-                        return
-                    new_photoinfo[10] = new_original_file
-                else:
-                    deleted = self.delete_output(input_file)
-                    if not deleted:
-                        self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
-                        return
-                try:
-                    os.rename(output_temp_file, new_encoded_file)
-                except:
-                    self.failed_encode('Could not replace video, original file may be deleted, converted video left in "reencode" subfolder')
-                    return
-
-                if not os.listdir(output_file_folder):
-                    os.rmdir(output_file_folder)
-
-                #update database
-                extension = os.path.splitext(new_encoded_file)[1]
-                new_photoinfo[0] = os.path.splitext(self.photoinfo[0])[0]+extension  #fix extension
-                new_photoinfo[7] = int(os.path.getmtime(new_encoded_file))  #update modified date
-                new_photoinfo[9] = 1  #set edited
-
-                # regenerate thumbnail
-                app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
-
-                if self.photoinfo[0] != new_photoinfo[0]:
-                    app.database_item_rename(self.photoinfo[0], new_photoinfo[0], new_photoinfo[1])
-                app.database_item_update(new_photoinfo)
-
-                self.dismiss_popup()
-
-                # reload video in ui
-                self.photoinfo = new_photoinfo
-                self.fullpath = local_path(new_photoinfo[0])
-                #self.photo = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
-                Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
-
-                #Clock.schedule_once(lambda *dt: self.refresh_photolist())
-                Clock.schedule_once(lambda x: app.message("Completed encoding file '"+self.photo+"'"))
-                Clock.schedule_once(lambda x: self.update_video_preview(self.photoinfo))
-            else:
+            if exit_code != 0:
                 #failed second encode, clean up
-                self.dismiss_popup()
-                self.delete_output(output_file)
-                self.delete_output(output_temp_file)
-                if not os.listdir(output_file_folder):
-                    os.rmdir(output_file_folder)
-                app.popup_message(text='Second file not encoded, FFMPEG gave exit code '+str(exit_code), title='Warning')
+                #self.dismiss_popup()
+                #self.delete_output(output_file)
+                #self.delete_output(output_temp_file)
+                #if not os.listdir(output_file_folder):
+                #    os.rmdir(output_file_folder)
+                #app.popup_message(text='Second file not encoded, FFMPEG gave exit code '+str(exit_code), title='Warning')
+                #return
+                #Could not encode audio element, video file may not include audio, warn the user and continue
+                no_audio = True
+                output_temp_file = output_file
+            else:
+                #Audio track was encoded properly, delete the first encoded file
+                deleted = self.delete_output(output_file)
+                no_audio = False
+
+            #encoding completed
+            self.viewer.edit_image.close_video()
+
+            new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
+            if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
+                os.makedirs(input_file_folder+os.path.sep+'.originals')
+            new_encoded_file = input_file_folder+os.path.sep+output_filename
+
+            new_photoinfo = list(self.photoinfo)
+            #check if original file has been backed up already
+            if not os.path.isfile(new_original_file):
+                try:
+                    os.rename(input_file, new_original_file)
+                except:
+                    self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
+                    return
+                new_photoinfo[10] = new_original_file
+            else:
+                deleted = self.delete_output(input_file)
+                if not deleted:
+                    self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
+                    return
+            try:
+                os.rename(output_temp_file, new_encoded_file)
+            except:
+                self.failed_encode('Could not replace video, original file may be deleted, converted video left in "reencode" subfolder')
                 return
+
+            if not os.listdir(output_file_folder):
+                os.rmdir(output_file_folder)
+
+            #update database
+            extension = os.path.splitext(new_encoded_file)[1]
+            new_photoinfo[0] = os.path.splitext(self.photoinfo[0])[0]+extension  #fix extension
+            new_photoinfo[7] = int(os.path.getmtime(new_encoded_file))  #update modified date
+            new_photoinfo[9] = 1  #set edited
+
+            # regenerate thumbnail
+            app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
+
+            if self.photoinfo[0] != new_photoinfo[0]:
+                app.database_item_rename(self.photoinfo[0], new_photoinfo[0], new_photoinfo[1])
+            app.database_item_update(new_photoinfo)
+
+            self.dismiss_popup()
+
+            # reload video in ui
+            self.photoinfo = new_photoinfo
+            self.fullpath = local_path(new_photoinfo[0])
+            #self.photo = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
+            Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
+
+            #Clock.schedule_once(lambda *dt: self.refresh_photolist())
+            if no_audio:
+                Clock.schedule_once(lambda x: app.message("Completed encoding file, could not find audio track."))
+            else:
+                Clock.schedule_once(lambda x: app.message("Completed encoding file '"+self.photo+"'"))
+            Clock.schedule_once(lambda x: self.update_video_preview(self.photoinfo))
+
         else:
             #failed first encode, clean up
             self.failed_encode('First file not encoded, FFMPEG gave exit code '+str(exit_code))
