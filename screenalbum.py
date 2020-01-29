@@ -2524,6 +2524,7 @@ class AlbumScreen(Screen):
                 Clock.schedule_once(lambda x: app.message('Warning: Encoded file may be bad'+error_code))
 
             new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
+            new_original_file_relative = '.originals'+os.path.sep+input_filename
             if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
                 os.makedirs(input_file_folder+os.path.sep+'.originals')
             new_encoded_file = input_file_folder+os.path.sep+output_filename
@@ -2540,7 +2541,7 @@ class AlbumScreen(Screen):
                     new_photoinfo[0] = os.path.splitext(self.photoinfo[0])[0]+extension  #fix extension
                     new_photoinfo[7] = int(os.path.getmtime(new_encoded_file))  #update modified date
                     new_photoinfo[9] = 1  #set edited
-                    new_photoinfo[10] = new_original_file  #set original file
+                    new_photoinfo[10] = new_original_file_relative  #set original file
                     if self.photoinfo[0] != new_photoinfo[0]:
                         app.database_item_rename(self.photoinfo[0], new_photoinfo[0], new_photoinfo[1])
                     app.database_item_update(new_photoinfo)
@@ -2644,7 +2645,7 @@ class AlbumScreen(Screen):
         self.viewer.stop()
         app = App.get_running_app()
         edited_file = self.photo
-        original_file = local_path(self.photoinfo[10])
+        original_file = os.path.abspath(local_path(self.photoinfo[2])+os.path.sep+local_path(self.photoinfo[1])+os.path.sep+local_path(self.photoinfo[10]))
         original_filename = os.path.split(original_file)[1]
         edited_filename = os.path.split(edited_file)[1]
         new_original_file = os.path.join(os.path.split(edited_file)[0], original_filename)
@@ -3726,6 +3727,7 @@ class AlbumScreen(Screen):
             self.viewer.edit_image.close_video()
 
             new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
+            new_original_file_relative = '.originals'+os.path.sep+input_filename
             if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
                 os.makedirs(input_file_folder+os.path.sep+'.originals')
             new_encoded_file = input_file_folder+os.path.sep+output_filename
@@ -3738,7 +3740,7 @@ class AlbumScreen(Screen):
                 except:
                     self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
                     return
-                new_photoinfo[10] = new_original_file
+                new_photoinfo[10] = new_original_file_relative
             else:
                 deleted = self.delete_output(input_file)
                 if not deleted:
@@ -3822,7 +3824,7 @@ class AlbumScreen(Screen):
         self.viewer.stop()
 
         #back up old image and save new edit
-        photo_file = self.photo
+        photo_file_original = self.photo
         backup_directory = local_path(self.photoinfo[2])+os.path.sep+local_path(self.photoinfo[1])+os.path.sep+'.originals'
         if not os.path.exists(backup_directory):
             os.mkdir(backup_directory)
@@ -3830,26 +3832,29 @@ class AlbumScreen(Screen):
             app.popup_message(text='Could not create backup directory', title='Warning')
             return
         backup_photo_file = backup_directory+os.path.sep+os.path.basename(self.photo)
-        if not os.path.isfile(photo_file):
+        backup_photo_file_relative = '.originals'+os.path.sep+os.path.basename(self.photo)
+        if not os.path.isfile(photo_file_original):
             app.popup_message(text='Photo file no longer exists', title='Warning')
             return
         if not os.path.isfile(backup_photo_file):
             try:
-                os.rename(photo_file, backup_photo_file)
+                os.rename(photo_file_original, backup_photo_file)
             except Exception as e:
                 print(e)
                 pass
         if not os.path.isfile(backup_photo_file):
             app.popup_message(text='Could not create backup photo', title='Warning')
             return
-        if os.path.isfile(photo_file):
+        if os.path.isfile(photo_file_original):
             try:
-                os.remove(photo_file)
+                app.delete_file(self, photo_file_original)
+                #os.remove(photo_file_original)
             except:
                 pass
-        if os.path.isfile(photo_file):
+        if os.path.isfile(photo_file_original):
             app.popup_message(text='Could not save edited photo', title='Warning')
             return
+        photo_file = os.path.splitext(photo_file_original)[0]+'.jpg'
         edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
         if not os.path.isfile(photo_file):
             if os.path.isfile(backup_photo_file):
@@ -3860,19 +3865,21 @@ class AlbumScreen(Screen):
             return
 
         #update photo info
-        self.photoinfo[10] = agnostic_path(backup_photo_file)
-        #self.photoinfo[13] = 1
-        self.photoinfo[9] = 1
-        self.photoinfo[7] = int(os.path.getmtime(photo_file))
+        new_fullpath = os.path.splitext(self.photoinfo[0])[0]+'.jpg'
         update_photoinfo = list(self.photoinfo)
-        update_photoinfo[0] = agnostic_path(update_photoinfo[0])
+        update_photoinfo[10] = agnostic_path(backup_photo_file_relative)
+        update_photoinfo[0] = agnostic_path(new_fullpath)
         update_photoinfo[1] = agnostic_path(update_photoinfo[1])
         update_photoinfo[2] = agnostic_path(update_photoinfo[2])
+        update_photoinfo[9] = 1
+        update_photoinfo[7] = int(os.path.getmtime(photo_file))
+        if self.photoinfo[0] != new_fullpath:
+            app.database_item_rename(self.photoinfo[0], update_photoinfo[0], update_photoinfo[1])
         app.database_item_update(update_photoinfo)
-        app.save_photoinfo(target=self.photoinfo[1], save_location=os.path.join(self.photoinfo[2], self.photoinfo[1]))
+        app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
 
         #regenerate thumbnail
-        app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
+        app.database_thumbnail_update(update_photoinfo[0], update_photoinfo[2], update_photoinfo[7], update_photoinfo[13])
 
         #reload photo image in ui
         self.clear_cache()
@@ -3880,7 +3887,11 @@ class AlbumScreen(Screen):
         #close edit panel
         self.set_edit_panel('main')
 
-        #switch active photo in photo list back to image
+        #update interface and switch active photo in photo list back to image
+        self.photoinfo = update_photoinfo
+        self.fullpath = local_path(update_photoinfo[0])
+        Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
+        self.photo = photo_file
         self.show_selected()
 
         app.message("Saved edits to image")
@@ -4389,7 +4400,8 @@ class EditMain(GridLayout):
         """Checks if the current viewed photo has an original file, enables the 'Delete Original' button if so."""
 
         delete_original_button = self.ids['deleteOriginal']
-        if self.owner.photoinfo[9] == 1 and os.path.isfile(self.owner.photoinfo[10]):
+        photoinfo = self.owner.photoinfo
+        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+os.path.sep+photoinfo[1]+os.path.sep+photoinfo[10]):
             delete_original_button.disabled = False
         else:
             delete_original_button.disabled = True
@@ -4407,7 +4419,8 @@ class EditMain(GridLayout):
         """Checks if the current viewed photo has an original file, enables the 'Restore Original' button if so."""
 
         undo_button = self.ids['undoEdits']
-        if self.owner.photoinfo[9] == 1 and os.path.isfile(self.owner.photoinfo[10]):
+        photoinfo = self.owner.photoinfo
+        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+os.path.sep+photoinfo[1]+os.path.sep+photoinfo[10]):
             undo_button.disabled = False
         else:
             undo_button.disabled = True

@@ -1927,8 +1927,7 @@ class PhotoManager(App):
         photos = self.database_get_folder(folder)
         deleted_photos = []
         for photoinfo in photos:
-            original_file = local_path(photoinfo[10])
-            deleted = self.delete_file(original_file)
+            deleted, message = self.delete_photo_original(photoinfo)
             if deleted is True:
                 deleted_photos.append(photoinfo)
         return deleted_photos
@@ -1939,8 +1938,11 @@ class PhotoManager(App):
             photoinfo: List, photoinfo object.
         """
 
-        original_file = local_path(photoinfo[10])
-        if os.path.isfile(original_file):
+        if not photoinfo[10]:
+            return False, 'Could not find original file'
+        original_file = os.path.abspath(local_path(photoinfo[2])+os.path.sep+local_path(photoinfo[1])+os.path.sep+local_path(photoinfo[10]))
+        current_file = os.path.abspath(os.path.join(local_path(photoinfo[2]), local_path(photoinfo[0])))
+        if os.path.isfile(original_file) and original_file != current_file:
             deleted = self.delete_file(original_file)
             if deleted is not True:
                 return False, 'Could not delete original file: '+str(deleted)
