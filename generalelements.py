@@ -1368,9 +1368,12 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
                 temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
                 widget_coords = (temp_coords[0] - thumbnail.pos[0], temp_coords[1] - thumbnail.pos[1])
                 window_coords = self.to_window(touch.pos[0], touch.pos[1])
-                num_photos = self.owner.get_selected_photos(fullpath=True)
-                num_photos.append(self.fullpath)
-                num_photos = len(set(num_photos))
+                try:
+                    num_photos = self.owner.get_selected_photos(fullpath=True)
+                    num_photos.append(self.fullpath)
+                    num_photos = len(set(num_photos))
+                except:
+                    num_photos = 1
                 app.drag(self, 'start', window_coords, image=self.image, offset=widget_coords, fullpath=self.fullpath, photos=num_photos)
 
     def on_touch_move(self, touch):
