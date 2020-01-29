@@ -2324,6 +2324,7 @@ class CustomImage(KivyImage):
     crop_min = NumericProperty(100)
     size_multiple = NumericProperty(1)
     aspect = NumericProperty(1)
+    lock_aspect = BooleanProperty(False)
 
     #Denoising variables
     denoise = BooleanProperty(False)
@@ -2437,7 +2438,7 @@ class CustomImage(KivyImage):
         self.framerate = data['frame_rate']
         self.pixel_format = data['src_pix_fmt']
 
-    def set_aspect(self, aspect_x, aspect_y):
+    def set_aspect(self, aspect_x=None, aspect_y=None, force=None):
         """Adjusts the cropping of the image to be a given aspect ratio.
         Attempts to keep the image as large as possible
         Arguments:
@@ -2445,13 +2446,14 @@ class CustomImage(KivyImage):
             aspect_y: Vertical aspect ratio element, numerical value.
         """
 
-        self.aspect = aspect_x / aspect_y
+        if aspect_x is not None and aspect_y is not None:
+            self.aspect = aspect_x / aspect_y
         width = self.original_width - self.crop_left - self.crop_right
         height = self.original_height - self.crop_top - self.crop_bottom
         if aspect_x != width or aspect_y != height:
             current_ratio = width / height
-            target_ratio = aspect_x / aspect_y
-            if target_ratio > current_ratio:
+            target_ratio = self.aspect
+            if (force is None and target_ratio > current_ratio) or force == 'v':
                 #crop top/bottom, width is the same
                 new_height = width / target_ratio
                 height_difference = height - new_height

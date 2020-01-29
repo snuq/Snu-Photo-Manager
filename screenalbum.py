@@ -1400,24 +1400,11 @@ Builder.load_string("""
             text: 'Set Aspect Ratio...'
             id: aspectRatios
             on_release: root.aspect_dropdown.open(self)
-        GridLayout:
-            cols: 2
-            size_hint: 1, None
-            height: app.button_scale
-            NormalToggle:
-                id: horizontalToggle
-                size_hint_x: 1
-                text: 'Horizontal'
-                state: 'down' if root.orientation == 'horizontal' else 'normal'
-                group: 'orientation'
-                on_press: root.set_orientation('horizontal')
-            NormalToggle:
-                id: verticalToggle
-                size_hint_x: 1
-                text: 'Vertical'
-                state: 'down' if root.orientation == 'vertical' else 'normal'
-                group: 'orientation'
-                on_press: root.set_orientation('vertical')
+        NormalToggle:
+            text: 'Lock Aspect To ' + root.lock_aspect_name
+            state: 'down' if root.lock_aspect else 'normal'
+            on_state: root.update_lock_aspect(self.state)
+            size_hint_x: 1
 
 <EditRotateImage>:
     padding: 0, 0, int(app.button_scale / 2), 0
@@ -1804,23 +1791,38 @@ Builder.load_string("""
 
 <AspectRatioDropDown>:
     MenuButton:
-        text: 'Current Ratio'
-        on_release: root.select('current')
+        text: 'Original Ratio'
+        on_release: root.select('Current')
     MenuButton:
-        text: '6 x 4'
+        text: '6 x 4 (Wide)'
         on_release: root.select('6x4')
     MenuButton:
-        text: '7 x 5'
+        text: '4 x 6 (Tall)'
+        on_release: root.select('4x6')
+    MenuButton:
+        text: '7 x 5 (Wide)'
         on_release: root.select('7x5')
     MenuButton:
-        text: '11 x 8.5'
+        text: '5 x 7 (Tall)'
+        on_release: root.select('5x7')
+    MenuButton:
+        text: '11 x 8.5 (Wide)'
         on_release: root.select('11x8.5')
     MenuButton:
-        text: '4 x 3'
+        text: '8.5 x 11 (Tall)'
+        on_release: root.select('8.5x11')
+    MenuButton:
+        text: '4 x 3 (Wide)'
         on_release: root.select('4x3')
     MenuButton:
-        text: '16 x 9'
+        text: '3 x 4 (Tall)'
+        on_release: root.select('3x4')
+    MenuButton:
+        text: '16 x 9 (Wide)'
         on_release: root.select('16x9')
+    MenuButton:
+        text: '9 x 16 (Tall)'
+        on_release: root.select('9x16')
     MenuButton:
         text: '1 x 1'
         on_release: root.select('1x1')
@@ -5063,10 +5065,11 @@ class EditCropImage(EditPanelBase):
     owner = ObjectProperty()
     image_x = NumericProperty(0)
     image_y = NumericProperty(0)
-    orientation = StringProperty('horizontal')
     aspect_x = NumericProperty(0)
     aspect_y = NumericProperty(0)
     crop_size = StringProperty('')
+    lock_aspect = BooleanProperty(False)
+    lock_aspect_name = StringProperty('Current')
 
     def __init__(self, **kwargs):
         super(EditCropImage, self).__init__(**kwargs)
@@ -5075,12 +5078,7 @@ class EditCropImage(EditPanelBase):
         self.aspect_dropdown.bind(on_select=lambda instance, x: self.set_aspect_ratio(x))
         self.aspect_x = self.image_x
         self.aspect_y = self.image_y
-        if self.image_x >= self.image_y:
-            self.orientation = 'horizontal'
-            self.ids['horizontalToggle'].state = 'down'
-        else:
-            self.orientation = 'vertical'
-            self.ids['verticalToggle'].state = 'down'
+        self.lock_aspect_name = 'Current'
         Clock.schedule_once(self.reset_crop)  #Give the cropper overlay a frame so it can figure out its actual size
 
     def refresh_buttons(self):
@@ -5125,6 +5123,17 @@ class EditCropImage(EditPanelBase):
         self.crop_right = self.owner.crop_right
         self.crop_bottom = self.owner.crop_bottom
         self.crop_left = self.owner.crop_left
+
+    def update_lock_aspect(self, value):
+        if value == 'down':
+            self.lock_aspect = True
+        else:
+            self.lock_aspect = False
+
+    def on_lock_aspect(self, *_):
+        edit_image = self.owner.viewer.edit_image
+        if edit_image:
+            edit_image.lock_aspect = self.lock_aspect
 
     def on_crop_top(self, *_):
         edit_image = self.owner.viewer.edit_image
@@ -5180,66 +5189,44 @@ class EditCropImage(EditPanelBase):
             edit_image.reset_crop()
             self.update_crop()
 
-    def set_orientation(self, orientation):
-        if orientation != self.orientation:
-            old_x = self.aspect_x
-            old_y = self.aspect_y
-            self.aspect_x = old_y
-            self.aspect_y = old_x
-        self.orientation = orientation
-
     def set_aspect_ratio(self, method):
+        self.lock_aspect_name = method
         if method == '6x4':
-            if self.orientation == 'horizontal':
-                self.aspect_x = 6
-                self.aspect_y = 4
-            else:
-                self.aspect_x = 4
-                self.aspect_y = 6
+            self.aspect_x = 6
+            self.aspect_y = 4
+        elif method == '4x6':
+            self.aspect_x = 4
+            self.aspect_y = 6
         elif method == '7x5':
-            if self.orientation == 'horizontal':
-                self.aspect_x = 7
-                self.aspect_y = 5
-            else:
-                self.aspect_x = 5
-                self.aspect_y = 7
+            self.aspect_x = 7
+            self.aspect_y = 5
+        elif method == '5x7':
+            self.aspect_x = 5
+            self.aspect_y = 7
         elif method == '11x8.5':
-            if self.orientation == 'horizontal':
-                self.aspect_x = 11
-                self.aspect_y = 8.5
-            else:
-                self.aspect_x = 8.5
-                self.aspect_y = 11
+            self.aspect_x = 11
+            self.aspect_y = 8.5
+        elif method == '8.5x11':
+            self.aspect_x = 8.5
+            self.aspect_y = 11
         elif method == '4x3':
-            if self.orientation == 'horizontal':
-                self.aspect_x = 4
-                self.aspect_y = 3
-            else:
-                self.aspect_x = 3
-                self.aspect_y = 4
+            self.aspect_x = 4
+            self.aspect_y = 3
+        elif method == '3x4':
+            self.aspect_x = 3
+            self.aspect_y = 4
         elif method == '16x9':
-            if self.orientation == 'horizontal':
-                self.aspect_x = 16
-                self.aspect_y = 9
-            else:
-                self.aspect_x = 9
-                self.aspect_y = 16
+            self.aspect_x = 16
+            self.aspect_y = 9
+        elif method == '9x16':
+            self.aspect_x = 9
+            self.aspect_y = 16
         elif method == '1x1':
             self.aspect_x = 1
             self.aspect_y = 1
         else:
-            if self.image_x >= self.image_y:
-                width = self.image_x
-                height = self.image_y
-            else:
-                width = self.image_y
-                height = self.image_x
-            if self.orientation == 'horizontal':
-                self.aspect_x = width
-                self.aspect_y = height
-            else:
-                self.aspect_x = height
-                self.aspect_y = width
+            self.aspect_x = self.image_x
+            self.aspect_y = self.image_y
         self.recrop()
 
 
@@ -5944,6 +5931,12 @@ class CropOverlay(ResizableBehavior, RelativeLayout):
             self.set_cropper(self.start_x, self.start_y, x2, y2)
         else:
             super(CropOverlay, self).on_touch_move(touch)
+        if self.owner.lock_aspect:
+            if (self.resizing_up or self.resizing_down) and not (self.resizing_left or self.resizing_right):
+                force_dir = 'h'
+            else:
+                force_dir = 'v'
+            self.owner.set_aspect(force=force_dir)
 
     def set_cropper(self, x1, y1, x2, y2):
         #takes 4 points and sets the cropper based on them, ensures that they are only inside the texture

@@ -15,7 +15,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    Cropper needs a 'lock aspect' option
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to?
     Collage editor - add more collage modes (grids)
