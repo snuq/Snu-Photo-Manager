@@ -23,6 +23,7 @@ from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scatterlayout import ScatterLayout
 from kivy.uix.splitter import Splitter
@@ -888,19 +889,28 @@ Builder.load_string("""
     allow_stretch: True
 
 <PhotoDrag>:
-    canvas.before:
-        PushMatrix
-        Rotate:
-            angle: root.angle
-            axis: 0,0,1
-            origin: root.center
-    canvas.after:
-        PopMatrix
-
     height: (app.button_scale * 4)
     width: (app.button_scale * 4)
     size_hint_y: None
     size_hint_x: None
+    Image:
+        canvas.before:
+            PushMatrix
+            Rotate:
+                angle: root.angle
+                axis: 0,0,1
+                origin: root.center
+        canvas.after:
+            PopMatrix
+        id: image
+        pos: root.pos
+        size: root.size
+        size_hint: None, None
+        source: root.source
+        fullpath: root.fullpath
+    ShortLabel:
+        pos: root.pos
+        text: root.total_drags
 
 
 <Scroller>:
@@ -1358,7 +1368,10 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
                 temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
                 widget_coords = (temp_coords[0] - thumbnail.pos[0], temp_coords[1] - thumbnail.pos[1])
                 window_coords = self.to_window(touch.pos[0], touch.pos[1])
-                app.drag(self, 'start', window_coords, image=self.image, offset=widget_coords, fullpath=self.fullpath)
+                num_photos = self.owner.get_selected_photos(fullpath=True)
+                num_photos.append(self.fullpath)
+                num_photos = len(set(num_photos))
+                app.drag(self, 'start', window_coords, image=self.image, offset=widget_coords, fullpath=self.fullpath, photos=num_photos)
 
     def on_touch_move(self, touch):
         #super().on_touch_move(touch)
@@ -3325,13 +3338,15 @@ class AsyncThumbnail(KivyImage):
         pass
 
 
-class PhotoDrag(KivyImage):
+class PhotoDrag(FloatLayout):
     """Special image widget for displaying the drag-n-drop location."""
 
     angle = NumericProperty()
     offset = []
     opacity = .5
     fullpath = StringProperty()
+    source = StringProperty()
+    total_drags = StringProperty('')
 
 
 #Scrollers

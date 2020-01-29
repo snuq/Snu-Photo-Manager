@@ -16,16 +16,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 Todo before 1.0:
     Cropper needs a 'lock aspect' option
-    Improve dragging: should show indicator when multiple photos are dragged, should hilight where the photos are dragged into.
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to?
-    Rethink edit mode
-        As soon as user open edit panel, go into edit mode?
-        needs to have all edit features available at once without having to save the file multiple times
-        maybe have a list of different edit operations, user clicks them and they open a panel under it:
-            Brightness, Color, Curves, Tinting, Rotate, Crop, Denoise, Filters, Vignette, Edge Blur
-            How would crop and rotate work with their overlays?
-            Where would the delete/restore edits and external programs stuff go?
     Collage editor - add more collage modes (grids)
 
 Todo Possible Future:
@@ -2909,7 +2901,7 @@ class PhotoManager(App):
         self.main_layout.remove_widget(self.drag_treenode)
         self.main_layout.remove_widget(self.drag_image)
 
-    def drag(self, drag_object, mode, position, image=None, offset=list([0, 0]), fullpath=''):
+    def drag(self, drag_object, mode, position, image=None, offset=list([0, 0]), fullpath='', photos=0):
         """Updates the drag-n-drop widget for a standard photo.
         Arguments:
             drag_object: The widget that is being dragged.
@@ -2920,11 +2912,12 @@ class PhotoManager(App):
                     offset where the drag began, to make the image be placed in the correct location.
             fullpath: Needs to be provided if the mode is 'start',
                       String, the database-relative path of the image being dragged.
+            photos: Number of dragged photos
         """
 
         if mode == 'end':
             self.main_layout.remove_widget(self.drag_image)
-            self.screen_manager.current_screen.drop_widget(self.drag_image.fullpath, position, dropped_type='file', aspect=self.drag_image.image_ratio)
+            self.screen_manager.current_screen.drop_widget(self.drag_image.fullpath, position, dropped_type='file', aspect=self.drag_image.ids['image'].image_ratio)
 
         elif mode == 'start':
             orientation = drag_object.photo_orientation
@@ -2936,13 +2929,17 @@ class PhotoManager(App):
                 angle = 90
             else:
                 angle = 0
+            if photos > 1:
+                self.drag_image.total_drags = str(photos) + ' Photos'
+            else:
+                self.drag_image.total_drags = ''
             self.drag_image.width = drag_object.children[0].width
             self.drag_image.height = drag_object.height
             self.drag_image.angle = angle
             self.drag_image.offset = offset
             self.main_layout.remove_widget(self.drag_image)
             self.drag_image.pos = (position[0]-offset[0], position[1]-offset[1])
-            self.drag_image.texture = image.texture
+            self.drag_image.ids['image'].texture = image.texture
             self.drag_image.fullpath = fullpath
             self.main_layout.add_widget(self.drag_image)
 
