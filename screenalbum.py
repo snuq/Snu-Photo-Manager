@@ -1155,7 +1155,7 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_release: root.save_image()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
@@ -1166,6 +1166,11 @@ Builder.load_string("""
         text: "Load Last Settings"
         on_release: root.load_last()
     MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
@@ -1285,7 +1290,7 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_release: root.save_image()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
@@ -1296,12 +1301,17 @@ Builder.load_string("""
         text: "Load Last Settings"
         on_release: root.load_last()
     MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
         height: app.button_scale
         LeftNormalLabel:
-            text: 'Image Cropping:'
+            text: 'Cropping:'
         NormalButton:
             text: 'Reset All'
             on_release: root.reset_crop()
@@ -1420,12 +1430,17 @@ Builder.load_string("""
         height: app.button_scale
         WideButton:
             text: 'Confirm Edit'
-            on_release: root.save_image()
+            on_release: root.owner.save_edit()
         WideButton:
             text: 'Cancel Edit'
             warn: True
             on_release: root.owner.set_edit_panel('main')
     MediumBufferY:
+    GridLayout:
+        id: videoPreset
+        cols: 1
+        height: self.minimum_height
+        size_hint_y: None
     BoxLayout:
         orientation: 'horizontal'
         size_hint_y: None
@@ -4928,11 +4943,17 @@ class EditDenoiseImage(GridLayout):
     full_image = ObjectProperty()
 
     def __init__(self, **kwargs):
+        Clock.schedule_once(self.add_video_preset)
         Clock.schedule_once(self.update_preview)
         super(EditDenoiseImage, self).__init__(**kwargs)
 
     def refresh_buttons(self):
         pass
+
+    def add_video_preset(self, *_):
+        if not self.owner.view_image:
+            video_preset = self.ids['videoPreset']
+            video_preset.add_widget(VideoEncodePreset())
 
     def save_last(self):
         self.owner.edit_denoise = True
@@ -4946,13 +4967,6 @@ class EditDenoiseImage(GridLayout):
         self.color_denoise = self.owner.color_denoise
         self.search_window = self.owner.search_window
         self.block_size = self.owner.block_size
-
-    def save_image(self):
-        self.owner.viewer.edit_image.denoise = True
-        if self.owner.viewer.edit_image.video:
-            self.owner.save_video()
-        else:
-            self.owner.save_image()
 
     def reset_all(self):
         """Reset all edit values to defaults."""
@@ -5005,7 +5019,10 @@ class EditDenoiseImage(GridLayout):
         if to_bool(app.config.get("Settings", "lowmem")):
             image = self.owner.viewer.edit_image.edit_image
         else:
-            image = self.owner.viewer.edit_image.original_image
+            if self.owner.viewer.edit_image:
+                image = self.owner.viewer.edit_image.original_image
+            else:
+                return
         noise_preview = self.ids['noisePreview']
         if image.mode != 'RGB':
             image = image.convert('RGB')
@@ -5053,6 +5070,7 @@ class EditCropImage(EditPanelBase):
 
     def __init__(self, **kwargs):
         super(EditCropImage, self).__init__(**kwargs)
+        Clock.schedule_once(self.add_video_preset)
         self.aspect_dropdown = AspectRatioDropDown()
         self.aspect_dropdown.bind(on_select=lambda instance, x: self.set_aspect_ratio(x))
         self.aspect_x = self.image_x
@@ -5068,16 +5086,15 @@ class EditCropImage(EditPanelBase):
     def refresh_buttons(self):
         pass
 
-    def save_image(self, *_):
-        if self.owner.viewer.edit_image.video:
-            self.owner.save_video()
-        else:
-            self.owner.save_image()
+    def add_video_preset(self, *_):
+        if not self.owner.view_image:
+            video_preset = self.ids['videoPreset']
+            video_preset.add_widget(VideoEncodePreset())
 
     def update_crop_size_text(self):
         edit_image = self.owner.viewer.edit_image
         if edit_image:
-            edit_image.get_crop_size()
+            self.crop_size = edit_image.get_crop_size()
 
     def update_crop_values(self):
         self.ids['cropLeftSlider'].value = self.crop_left
@@ -5232,14 +5249,17 @@ class EditRotateImage(EditPanelBase):
     fine_angle = NumericProperty(0)
     owner = ObjectProperty()
 
+    def __init__(self, **kwargs):
+        super(EditRotateImage, self).__init__(**kwargs)
+        Clock.schedule_once(self.add_video_preset)
+
     def refresh_buttons(self):
         pass
 
-    def save_image(self, *_):
-        if self.owner.viewer.edit_image.video:
-            self.owner.save_video()
-        else:
-            self.owner.save_image()
+    def add_video_preset(self, *_):
+        if not self.owner.view_image:
+            video_preset = self.ids['videoPreset']
+            video_preset.add_widget(VideoEncodePreset())
 
     def save_last(self):
         pass
@@ -5596,10 +5616,11 @@ class Curves(FloatLayout):
             if self.parent.parent:
                 if self.parent.parent.parent:
                     image = self.parent.parent.parent.owner.viewer.edit_image
-                    if self.points == [[0, 0], [1, 1]]:
-                        image.curve = []
-                    else:
-                        image.curve = self.curve
+                    if image:
+                        if self.points == [[0, 0], [1, 1]]:
+                            image.curve = []
+                        else:
+                            image.curve = self.curve
 
     def relative_to_local(self, point):
         """Convert relative coordinates (0-1) into window coordinates.
