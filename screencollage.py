@@ -2,16 +2,19 @@ import os
 import copy
 import random
 import math
+import threading
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.screenmanager import Screen
+from kivy.uix.widget import Widget
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.scatterlayout import ScatterLayout
+from kivy.uix.gridlayout import GridLayout
 from colorpickercustom import ColorPickerCustom
 from filebrowser import FileBrowser
 
 from generalcommands import to_bool
-from generalelements import NormalPopup, MessagePopup, ConfirmPopup, NormalDropDown, AlbumSortDropDown, PhotoRecycleViewButton, PhotoRecycleThumbWide, AsyncThumbnail
+from generalelements import NormalPopup, ConfirmPopup, ScanningPopup, NormalLabel, NormalDropDown, AlbumSortDropDown, PhotoRecycleViewButton, PhotoRecycleThumbWide, AsyncThumbnail, StencilViewTouch
 from generalconstants import *
 
 from kivy.lang.builder import Builder
@@ -92,6 +95,16 @@ Builder.load_string("""
             root.owner.clear_collage()
             root.dismiss()
 
+<Collage>:
+    canvas.before:
+        Color:
+            rgb: self.collage_background
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    size_hint: 1, 1
+
+
 <CollageScreen>:
     canvas.before:
         Color:
@@ -163,15 +176,7 @@ Builder.load_string("""
                         size_hint: None, None
                         height: self.parent.height if (self.parent.width >= (self.parent.height * root.aspect)) else (self.parent.width / root.aspect)
                         width: int(self.height * root.aspect)
-                        StencilViewTouch:
-                            canvas.before:
-                                Color:
-                                    rgb: root.collage_background
-                                Rectangle:
-                                    pos: self.pos
-                                    size: self.size
-                            size_hint: 1, 1
-                            id: collageHolder
+                        id: collageHolder
                 Header:
                     size_hint_y: None
                     height: app.button_scale
@@ -294,56 +299,85 @@ class AddRemoveDropDown(NormalDropDown):
     owner = ObjectProperty()
 
 
-class CollageScreen(Screen):
-    #Display variables
-    selected = StringProperty('')  #The current folder/album/tag being displayed
-    type = StringProperty('None')  #'Folder', 'Album', 'Tag'
-    target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
-    photos = []  #Photoinfo of all photos in the album
-
-    sort_reverse_button = StringProperty('normal')
-    images = []
+class Collage(Widget):
     collage_background = ListProperty([0, 0, 0, 1])
-    resolution = StringProperty('Medium')
-    aspect = NumericProperty(1.3333)
-    aspect_text = StringProperty('4:3')
-    filename = StringProperty('')
-    export_scale = 1
+    images = []
 
-    #Widget holder variables
-    sort_dropdown = ObjectProperty()  #Holder for the sort method dropdown menu
-    popup = None  #Holder for the screen's popup dialog
-    resolution_select = ObjectProperty()
-    color_select = ObjectProperty()
-    aspect_select = ObjectProperty()
-    add_remove = ObjectProperty()
+    def drop_image(self, fullpath, position, aspect=1):
+        pass
 
-    #Variables relating to the photo list view on the left
-    sort_method = StringProperty('Name')  #Current album sort method
-    sort_reverse = BooleanProperty(False)
+    def clear(self):
+        pass
 
     def deselect_images(self):
-        collage = self.ids['collageHolder']
-        for image in collage.children:
-            image.selected = False
+        pass
 
     def delete_selected(self):
-        collage = self.ids['collageHolder']
-        for image in collage.children:
-            if image.selected:
-                collage.remove_widget(image)
+        pass
 
-    def clear_collage(self):
-        collage = self.ids['collageHolder']
-        collage.clear_widgets()
-        self.images = []
+    def add_photos(self, photos):
+        pass
+
+
+class ScatterCollage(Collage, StencilViewTouch):
+    def clear(self):
+        self.clear_widgets()
         self.collage_background = [0, 0, 0, 1]
+        self.images = []
 
-    def add_all(self):
+    def delete_selected(self):
+        for image in self.children:
+            if image.selected:
+                self.remove_widget(image)
+            if image in self.images:
+                self.images.remove(image)
+
+    def deselect_images(self):
+        for image in self.children:
+            image.selected = False
+
+    def add_collage_image(self, fullpath, position, size=0.5, angle=0, lowmem=False, aspect=1):
+        if not lowmem:
+            if len(self.images) > 8:
+                lowmem = True
+        if self.collide_point(*position):
+            self.deselect_images()
+            app = App.get_running_app()
+            photoinfo = app.database_exists(fullpath)
+            file = os.path.join(photoinfo[2], photoinfo[0])
+            orientation = photoinfo[13]
+            if orientation == 3 or orientation == 4:
+                angle_offset = 180
+            elif orientation == 5 or orientation == 6:
+                angle_offset = 270
+            elif orientation == 7 or orientation == 8:
+                angle_offset = 90
+            else:
+                angle_offset = 0
+            if orientation in [2, 4, 5, 7]:
+                mirror = True
+            else:
+                mirror = False
+            width = self.width
+            image_holder = ScatterImage(owner=self, source=file, rotation=angle+angle_offset, mirror=mirror, image_angle=0, photoinfo=photoinfo, lowmem=lowmem, aspect=aspect)
+            image_holder.scale = size
+            image_holder.selected = True
+            if aspect < 1:
+                image_holder.width = width * aspect
+                image_holder.height = width
+            else:
+                image_holder.width = width
+                image_holder.height = width / aspect
+            self.images.append(image_holder)
+            image_holder.pos = (position[0] - (width * size / 2), position[1] - (width * size / 2))
+            self.add_widget(image_holder)
+
+    def drop_image(self, fullpath, position, aspect=1):
+        self.add_collage_image(fullpath, position, aspect=aspect)
+
+    def add_photos(self, photos):
         #adds all photos to the collage using a fimonacci spiral pattern
-        collage = self.ids['collageHolder']
-        size = (1 / (len(self.photos) ** 0.5))  #average scale of photo
-        photos = list(self.photos)
+        size = (1 / (len(photos) ** 0.5))  #average scale of photo
         random.shuffle(photos)
 
         tau = (1+5**0.5)/2
@@ -385,14 +419,65 @@ class CollageScreen(Screen):
             #offset points to correct for photo size
             pos_x = pos_x - (size / 2)
             pos_y = pos_y - (size / 2)
-            position = (collage.width * pos_x, collage.height * pos_y)
+            position = (self.width * pos_x, self.height * pos_y)
 
             #forces lowmem mode if more than a certain number of photos
             if len(photos) > 8:
                 lowmem = True
             else:
                 lowmem = False
-            self.add_collage_image(collage, photo[0], position, size=size, angle=rand_angle, lowmem=lowmem)
+            self.add_collage_image(photo[0], position, size=size, angle=rand_angle, lowmem=lowmem)
+
+
+class GridCollage(Collage, GridLayout):
+    pass
+
+
+class CollageScreen(Screen):
+    #Display variables
+    selected = StringProperty('')  #The current folder/album/tag being displayed
+    type = StringProperty('None')  #'Folder', 'Album', 'Tag'
+    target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
+    photos = []  #Photoinfo of all photos in the album
+    collage_type = StringProperty('scatter')
+
+    sort_reverse_button = StringProperty('normal')
+    resolution = StringProperty('Medium')
+    aspect = NumericProperty(1.3333)
+    aspect_text = StringProperty('4:3')
+    filename = StringProperty('')
+    export_scale = 1
+    collage_background = ListProperty([0, 0, 0, 1])
+
+    #Widget holder variables
+    sort_dropdown = ObjectProperty()  #Holder for the sort method dropdown menu
+    popup = None  #Holder for the screen's popup dialog
+    resolution_select = ObjectProperty()
+    color_select = ObjectProperty()
+    aspect_select = ObjectProperty()
+    add_remove = ObjectProperty()
+    collage = ObjectProperty()
+    exportthread = ObjectProperty()
+
+    #Variables relating to the photo list view on the left
+    sort_method = StringProperty('Name')  #Current album sort method
+    sort_reverse = BooleanProperty(False)
+
+    def on_collage_background(self, *_):
+        self.collage.collage_background = self.collage_background
+
+    def deselect_images(self):
+        self.collage.deselect_images()
+
+    def delete_selected(self):
+        self.collage.delete_selected()
+
+    def clear_collage(self):
+        self.collage.clear()
+        self.images = []
+
+    def add_all(self):
+        self.collage.add_photos(list(self.photos))
 
     def export(self):
         self.deselect_images()
@@ -429,18 +514,23 @@ class CollageScreen(Screen):
 
     def export_finish(self):
         app = App.get_running_app()
-        content = MessagePopup(text='Exporting Collage')
-        if len(self.images) > 8:
+        #content = NormalLabel(text='Exporting Collage')
+        if len(self.collage.images) > 8:
             message = 'Exporting Collage, This May Take Several Minutes, Please Wait...'
         else:
             message = 'Exporting Collage, Please Wait...'
-        self.popup = NormalPopup(title=message, content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
+        self.popup = ScanningPopup(title=message, auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
+        self.popup.scanning_text = ''
+        self.popup.button_text = 'Ok'
         self.popup.open()
 
         #Wait a cycle so the popup can display
-        Clock.schedule_once(self.export_process)
+        self.exportthread = threading.Thread(target=self.export_process)
+        self.exportthread.start()
+        #Clock.schedule_once(self.export_process)
 
     def export_process(self, *_):
+        scanning = 0
         if self.resolution == 'High':
             self.export_scale = 4
         elif self.resolution == 'Low':
@@ -451,7 +541,11 @@ class CollageScreen(Screen):
         #wait for full sized images to load
         check_images = []
         if self.export_scale > 1:
-            for image in self.images:
+            for image in self.collage.images:
+                scanning = scanning + 10
+                if scanning > 100:
+                    scanning = 0
+                self.popup.scanning_percentage = scanning
                 async_image = image.children[0].children[0]
                 if not async_image.is_full_size:
                     async_image.loadfullsize = True
@@ -459,6 +553,10 @@ class CollageScreen(Screen):
                     check_images.append(async_image)
         while check_images:
             for image in check_images:
+                scanning = scanning + 10
+                if scanning > 100:
+                    scanning = 0
+                self.popup.scanning_percentage = scanning
                 if image.is_full_size:
                     check_images.remove(image)
 
@@ -466,10 +564,11 @@ class CollageScreen(Screen):
         Clock.schedule_once(self.export_collage_as_image)
 
     def export_collage_as_image(self, *_):
-        collage = self.ids['collageHolder']
+        collage = self.collage
         exported = self.export_scaled_jpg(collage, self.filename, image_scale=self.export_scale)
         app = App.get_running_app()
-        self.dismiss_popup()
+        self.popup.dismiss()
+        self.popup = None
         if exported is True:
             app.message("Exported "+self.filename)
         else:
@@ -515,7 +614,7 @@ class CollageScreen(Screen):
         return exported
 
     def change_transform(self, transform_mode):
-        for container in self.images:
+        for container in self.collage.images:
             if transform_mode == 'rotscale':
                 container.do_rotation = True
                 container.do_scale = True
@@ -542,45 +641,8 @@ class CollageScreen(Screen):
     def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
         """Called when a widget is dropped.  Determine photo dragged, and where it needs to go."""
 
-        collage = self.ids['collageHolder']
-        position = collage.to_widget(*position)
-        self.add_collage_image(collage, fullpath, position, aspect=aspect)
-
-    def add_collage_image(self, collage, fullpath, position, size=0.5, angle=0, lowmem=False, aspect=1):
-        if not lowmem:
-            if len(self.images) > 8:
-                lowmem = True
-        if collage.collide_point(*position):
-            self.deselect_images()
-            app = App.get_running_app()
-            photoinfo = app.database_exists(fullpath)
-            file = os.path.join(photoinfo[2], photoinfo[0])
-            orientation = photoinfo[13]
-            if orientation == 3 or orientation == 4:
-                angle_offset = 180
-            elif orientation == 5 or orientation == 6:
-                angle_offset = 270
-            elif orientation == 7 or orientation == 8:
-                angle_offset = 90
-            else:
-                angle_offset = 0
-            if orientation in [2, 4, 5, 7]:
-                mirror = True
-            else:
-                mirror = False
-            width = collage.width
-            image_holder = ScatterImage(owner=self, source=file, rotation=angle+angle_offset, mirror=mirror, image_angle=0, photoinfo=photoinfo, lowmem=lowmem, aspect=aspect)
-            image_holder.scale = size
-            image_holder.selected = True
-            if aspect < 1:
-                image_holder.width = width * aspect
-                image_holder.height = width
-            else:
-                image_holder.width = width
-                image_holder.height = width / aspect
-            self.images.append(image_holder)
-            image_holder.pos = (position[0] - (width * size / 2), position[1] - (width * size / 2))
-            collage.add_widget(image_holder)
+        position = self.collage.to_widget(*position)
+        self.collage.drop_image(fullpath, position, aspect=aspect)
 
     def show_selected(self):
         """Scrolls the treeview to the currently selected folder"""
@@ -625,6 +687,8 @@ class CollageScreen(Screen):
         """Close a currently open popup for this screen."""
 
         if self.popup:
+            if self.popup.title.startswith('Exporting Collage'):
+                return False
             self.popup.dismiss()
             self.popup = None
 
@@ -765,18 +829,30 @@ class CollageScreen(Screen):
         self.refresh_all()
         Clock.schedule_once(lambda *dt: self.scroll_photolist())
 
+    def set_collage(self):
+        collage_holder = self.ids['collageHolder']
+        collage_holder.clear_widgets()
+        if self.collage_type == 'scatter':
+            self.collage = ScatterCollage()
+        elif self.collage_type == 'grid':
+            self.collage = GridCollage()
+        collage_holder.add_widget(self.collage)
+
     def on_leave(self):
         """Called when the screen is left.  Clean up some things."""
 
         app = App.get_running_app()
         app.clear_drags()
         self.clear_collage()
+        collage_holder = self.ids['collageHolder']
+        collage_holder.clear_widgets()
         self.clear_photolist()
 
     def on_enter(self):
         """Called when the screen is entered.  Set up variables and widgets, and prepare to view images."""
 
         app = App.get_running_app()
+        self.set_collage()
         self.ids['leftpanel'].width = app.left_panel_width()
         self.ids['moveButton'].state = 'down'
         self.ids['rotateButton'].state = 'normal'

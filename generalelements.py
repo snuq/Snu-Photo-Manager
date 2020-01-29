@@ -609,7 +609,7 @@ Builder.load_string("""
             max: 100
         WideButton:
             id: scanningButton
-            text: 'Cancel'
+            text: root.button_text
 
 <ConfirmPopup>:
     cols:1
@@ -2071,6 +2071,8 @@ class MoveConfirmPopup(NormalPopup):
 
 class ScanningPopup(NormalPopup):
     """Popup for displaying database scanning progress."""
+
+    button_text = StringProperty('Cancel')
     scanning_percentage = NumericProperty(0)
     scanning_text = StringProperty('Building File List...')
 
@@ -2444,6 +2446,7 @@ class CustomImage(KivyImage):
         Arguments:
             aspect_x: Horizontal aspect ratio element, numerical value.
             aspect_y: Vertical aspect ratio element, numerical value.
+            force: Forces the recrop function to horizontal or vertical.  Must be None, 'h' or 'v'
         """
 
         if aspect_x is not None and aspect_y is not None:
