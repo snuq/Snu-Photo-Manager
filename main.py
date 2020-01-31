@@ -17,9 +17,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Todo before 1.0:
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to?
-    Collage editor - add more collage modes (grids)
+    Is there any way to do a right-click standalone thing with linux? How to register file types with linux?
 
 Todo Possible Future:
+    Implement a free-form collage grid creator
     Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
     export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working

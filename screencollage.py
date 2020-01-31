@@ -8,13 +8,13 @@ from kivy.clock import Clock
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
-from kivy.uix.scatterlayout import ScatterLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.boxlayout import BoxLayout
 from colorpickercustom import ColorPickerCustom
 from filebrowser import FileBrowser
 
 from generalcommands import to_bool
-from generalelements import NormalPopup, ConfirmPopup, ScanningPopup, NormalLabel, NormalDropDown, AlbumSortDropDown, PhotoRecycleViewButton, PhotoRecycleThumbWide, AsyncThumbnail, StencilViewTouch
+from generalelements import LimitedScatterLayout, NormalPopup, ConfirmPopup, ScanningPopup, NormalDropDown, AlbumSortDropDown, PhotoRecycleViewButton, PhotoRecycleThumbWide, AsyncThumbnail, StencilViewTouch
 from generalconstants import *
 
 from kivy.lang.builder import Builder
@@ -104,6 +104,42 @@ Builder.load_string("""
             size: self.size
     size_hint: 1, 1
 
+<CollageTypeDropDown>:
+    MenuButton:
+        text: 'Photo Pile'
+        on_release: 
+            root.owner.collage_type = 'Pile'
+            root.dismiss()
+    MenuButton:
+        text: 'Grid 3'
+        on_release:
+            root.owner.collage_type = '3'
+            root.dismiss()
+    MenuButton:
+        text: 'Grid 2x2'
+        on_release: 
+            root.owner.collage_type = '2x2'
+            root.dismiss()
+    MenuButton:
+        text: 'Grid 2x3'
+        on_release:
+            root.owner.collage_type = '2x3'
+            root.dismiss()
+    MenuButton:
+        text: 'Grid 2:1:2'
+        on_release:
+            root.owner.collage_type = '5'
+            root.dismiss()
+    MenuButton:
+        text: 'Grid 3x2'
+        on_release:
+            root.owner.collage_type = '3x2'
+            root.dismiss()
+    MenuButton:
+        text: 'Grid 3x3'
+        on_release:
+            root.owner.collage_type = '3x3'
+            root.dismiss()
 
 <CollageScreen>:
     canvas.before:
@@ -213,6 +249,9 @@ Builder.load_string("""
                     MenuStarterButtonWide:
                         text: '  Export Size: '+root.resolution+'  '
                         on_release: root.resolution_select.open(self)
+                    MenuStarterButtonWide:
+                        text: '  Collage Type: '+root.collage_type+'  '
+                        on_release: root.collage_type_select.open(self)
                     NormalButton:
                         text: '  Export  '
                         on_release: root.export()
@@ -235,10 +274,99 @@ Builder.load_string("""
         lowmem: root.lowmem
         source: root.source
 
+<GridImage>:
+    canvas.before:
+        Color: 
+            rgba: 1, 1, 1, .5 if root.show_guides else 0
+        Rectangle:
+            pos: [root.pos[0] + (root.width/20), root.pos[1] + (root.width/20)]
+            size: [root.size[0] - (root.width/10), root.size[1] - (root.width/10)]
+
+<GridCollage3>:
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+    GridImage:
+
+<GridCollage2x2>:
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+
+<GridCollage2x3>:
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+        GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+        GridImage:
+
+<GridCollage5>:
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+    GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+
+<GridCollage3x2>:
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+
+<GridCollage3x3>:
+    orientation: 'horizontal'
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+        GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+        GridImage:
+    BoxLayout:
+        orientation: 'vertical'
+        GridImage:
+        GridImage:
+        GridImage:
+
 """)
 
 
-class ScatterImage(ScatterLayout):
+class GridImage(StencilViewTouch):
+    show_guides = BooleanProperty(True)
+
+
+class ScatterImage(LimitedScatterLayout):
     source = StringProperty()
     mirror = BooleanProperty(False)
     loadfullsize = BooleanProperty(False)
@@ -250,12 +378,31 @@ class ScatterImage(ScatterLayout):
     lowmem = BooleanProperty(False)
     aspect = NumericProperty(1)
 
+    def set_transform_mode(self, transform_mode):
+        if transform_mode == 'rotscale':
+            self.do_rotation = True
+            self.do_scale = True
+            self.do_translation = False
+        elif transform_mode == 'rotate':
+            self.do_rotation = True
+            self.do_scale = False
+            self.do_translation = False
+        elif transform_mode == 'scale':
+            self.do_rotation = False
+            self.do_scale = True
+            self.do_translation = False
+        else:
+            self.do_rotation = True
+            self.do_scale = True
+            self.do_translation = True
+
     def on_scale(self, *_):
         app = App.get_running_app()
         if (self.width * self.scale) > app.thumbsize:
             self.loadfullsize = True
 
     def on_touch_down(self, touch):
+        self.set_transform_mode(self.owner.transform_mode)
         if self.collide_point(*touch.pos):
             self.owner.deselect_images()
             self.selected = True
@@ -283,6 +430,10 @@ class ScatterImage(ScatterLayout):
         super().transform_with_touch(touch)
 
 
+class CollageTypeDropDown(NormalDropDown):
+    owner = ObjectProperty()
+
+
 class ColorDropDown(NormalDropDown):
     owner = ObjectProperty()
 
@@ -302,6 +453,11 @@ class AddRemoveDropDown(NormalDropDown):
 class Collage(Widget):
     collage_background = ListProperty([0, 0, 0, 1])
     images = []
+    transform_mode = StringProperty('')
+    show_guides = BooleanProperty(True)
+
+    def show_guides(self, show):
+        pass
 
     def drop_image(self, fullpath, position, aspect=1):
         pass
@@ -427,9 +583,122 @@ class ScatterCollage(Collage, StencilViewTouch):
             else:
                 lowmem = False
             self.add_collage_image(photo[0], position, size=size, angle=rand_angle, lowmem=lowmem)
+        self.deselect_images()
 
 
-class GridCollage(Collage, GridLayout):
+class GridCollage(Collage, BoxLayout):
+    image_widgets = []
+
+    def show_guides(self, show):
+        for child in self.walk(restrict=True, loopback=True):
+            if isinstance(child, GridImage):
+                child.show_guides = show
+
+    def drop_image(self, fullpath, position, aspect=1):
+        for child in self.walk(restrict=True, loopback=True):
+            #check for GridImage children, and find which one the position collides with.
+            if isinstance(child, GridImage):
+                if child.collide_point(*position):
+                    self.add_collage_image(child, fullpath, aspect=aspect)
+                    return
+
+    def add_collage_image(self, widget, fullpath, size=1, angle=0, lowmem=False, aspect=1):
+        widget.clear_widgets()
+        if not lowmem:
+            if len(self.images) > 8:
+                lowmem = True
+        self.deselect_images()
+        app = App.get_running_app()
+        photoinfo = app.database_exists(fullpath)
+        file = os.path.join(photoinfo[2], photoinfo[0])
+        orientation = photoinfo[13]
+        if orientation == 3 or orientation == 4:
+            angle_offset = 180
+        elif orientation == 5 or orientation == 6:
+            angle_offset = 270
+        elif orientation == 7 or orientation == 8:
+            angle_offset = 90
+        else:
+            angle_offset = 0
+        if orientation in [2, 4, 5, 7]:
+            mirror = True
+        else:
+            mirror = False
+        image_holder = ScatterImage(owner=self, source=file, rotation=angle+angle_offset, mirror=mirror, image_angle=0, photoinfo=photoinfo, lowmem=lowmem, aspect=aspect)
+        image_holder.scale = size
+        image_holder.selected = True
+        if angle_offset in [90, 270]:
+            image_holder.width = widget.height
+            image_holder.height = widget.width
+        else:
+            image_holder.width = widget.width
+            image_holder.height = widget.height
+        self.images.append(image_holder)
+        image_holder.pos = widget.pos
+        widget.add_widget(image_holder)
+
+    def clear(self):
+        for child in self.walk(restrict=True, loopback=True):
+            if isinstance(child, GridImage):
+                child.clear_widgets()
+        self.collage_background = [0, 0, 0, 1]
+        self.images = []
+
+    def deselect_images(self):
+        for child in self.walk(restrict=True, loopback=True):
+            if isinstance(child, GridImage):
+                for image in child.children:
+                    image.selected = False
+
+    def delete_selected(self):
+        for child in self.walk(restrict=True, loopback=True):
+            if isinstance(child, GridImage):
+                for image in child.children:
+                    if image.selected:
+                        child.clear_widgets()
+                        break
+
+    def add_photos(self, photos):
+        image_slots = []
+        for child in self.walk(restrict=True, loopback=True):
+            if isinstance(child, GridImage):
+                image_slots.append(child)
+
+        #forces lowmem mode if more than a certain number of photos
+        if len(image_slots) > 8:
+            lowmem = True
+        else:
+            lowmem = False
+
+        random.shuffle(photos)
+        for image_slot in image_slots:
+            if photos:
+                photo = photos.pop(0)
+                self.add_collage_image(image_slot, photo[0], lowmem=lowmem)
+        self.deselect_images()
+
+
+class GridCollage3(GridCollage):
+    pass
+
+
+class GridCollage2x2(GridCollage):
+    pass
+
+
+class GridCollage2x3(GridCollage):
+    pass
+
+
+class GridCollage3x3(GridCollage):
+    pass
+
+
+class GridCollage3x2(GridCollage):
+    pass
+
+
+class GridCollage5(GridCollage):
     pass
 
 
@@ -439,7 +708,7 @@ class CollageScreen(Screen):
     type = StringProperty('None')  #'Folder', 'Album', 'Tag'
     target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
     photos = []  #Photoinfo of all photos in the album
-    collage_type = StringProperty('scatter')
+    collage_type = StringProperty('Pile')
 
     sort_reverse_button = StringProperty('normal')
     resolution = StringProperty('Medium')
@@ -455,6 +724,7 @@ class CollageScreen(Screen):
     resolution_select = ObjectProperty()
     color_select = ObjectProperty()
     aspect_select = ObjectProperty()
+    collage_type_select = ObjectProperty()
     add_remove = ObjectProperty()
     collage = ObjectProperty()
     exportthread = ObjectProperty()
@@ -474,7 +744,6 @@ class CollageScreen(Screen):
 
     def clear_collage(self):
         self.collage.clear()
-        self.images = []
 
     def add_all(self):
         self.collage.add_photos(list(self.photos))
@@ -514,7 +783,6 @@ class CollageScreen(Screen):
 
     def export_finish(self):
         app = App.get_running_app()
-        #content = NormalLabel(text='Exporting Collage')
         if len(self.collage.images) > 8:
             message = 'Exporting Collage, This May Take Several Minutes, Please Wait...'
         else:
@@ -524,10 +792,8 @@ class CollageScreen(Screen):
         self.popup.button_text = 'Ok'
         self.popup.open()
 
-        #Wait a cycle so the popup can display
         self.exportthread = threading.Thread(target=self.export_process)
         self.exportthread.start()
-        #Clock.schedule_once(self.export_process)
 
     def export_process(self, *_):
         scanning = 0
@@ -560,6 +826,8 @@ class CollageScreen(Screen):
                 if image.is_full_size:
                     check_images.remove(image)
 
+        self.collage.show_guides(False)
+
         #wait a cycle so kivy can finish displaying the textures
         Clock.schedule_once(self.export_collage_as_image)
 
@@ -573,6 +841,7 @@ class CollageScreen(Screen):
             app.message("Exported "+self.filename)
         else:
             app.message('Export error: '+exported)
+        self.collage.show_guides(True)
 
     def export_scaled_jpg(self, widget, filename, image_scale=1):
         from kivy.graphics import (Translate, Fbo, ClearColor, ClearBuffers, Scale)
@@ -614,23 +883,7 @@ class CollageScreen(Screen):
         return exported
 
     def change_transform(self, transform_mode):
-        for container in self.collage.images:
-            if transform_mode == 'rotscale':
-                container.do_rotation = True
-                container.do_scale = True
-                container.do_translation = False
-            elif transform_mode == 'rotate':
-                container.do_rotation = True
-                container.do_scale = False
-                container.do_translation = False
-            elif transform_mode == 'scale':
-                container.do_rotation = False
-                container.do_scale = True
-                container.do_translation = False
-            else:
-                container.do_rotation = True
-                container.do_scale = True
-                container.do_translation = True
+        self.collage.transform_mode = transform_mode
 
     def on_sort_reverse(self, *_):
         """Updates the sort reverse button's state variable, since kivy doesnt just use True/False for button states."""
@@ -829,13 +1082,29 @@ class CollageScreen(Screen):
         self.refresh_all()
         Clock.schedule_once(lambda *dt: self.scroll_photolist())
 
+    def on_collage_type(self, *_):
+        self.set_collage()
+
     def set_collage(self):
+        if self.collage:
+            self.collage.clear()
         collage_holder = self.ids['collageHolder']
         collage_holder.clear_widgets()
-        if self.collage_type == 'scatter':
+        if self.collage_type == 'Pile':
             self.collage = ScatterCollage()
-        elif self.collage_type == 'grid':
-            self.collage = GridCollage()
+        elif self.collage_type == '3':
+            self.collage = GridCollage3()
+        elif self.collage_type == '2x2':
+            self.collage = GridCollage2x2()
+        elif self.collage_type == '5':
+            self.collage = GridCollage5()
+        elif self.collage_type == '2x3':
+            self.collage = GridCollage2x3()
+        elif self.collage_type == '3x2':
+            self.collage = GridCollage3x2()
+        elif self.collage_type == '3x3':
+            self.collage = GridCollage3x3()
+        self.collage.collage_background = self.collage_background
         collage_holder.add_widget(self.collage)
 
     def on_leave(self):
@@ -860,6 +1129,7 @@ class CollageScreen(Screen):
         self.resolution_select = ResolutionDropDown(owner=self)
         self.aspect_select = ExportAspectRatioDropDown(owner=self)
         self.add_remove = AddRemoveDropDown(owner=self)
+        self.collage_type_select = CollageTypeDropDown(owner=self)
 
         #import variables
         self.target = app.export_target
