@@ -293,16 +293,19 @@ def list_folders(folder):
     Returns: A list of strings, full paths to each subfolder.
     """
 
+    walk = os.walk
+    join = os.path.join
+    relpath = os.path.relpath
     folder_list = []
     firstroot = False
-    for root, directories, files in os.walk(folder, topdown=True):
+    for root, directories, files in walk(folder, topdown=True):
         if not firstroot:
             firstroot = root
-        filefolder = os.path.relpath(root, firstroot)
+        filefolder = relpath(root, firstroot)
         if filefolder == '.':
             filefolder = ''
         for directory in directories:
-            folder_list.append(os.path.join(filefolder, directory))
+            folder_list.append(join(filefolder, directory))
     return folder_list
 
 

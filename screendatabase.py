@@ -53,6 +53,13 @@ Builder.load_string("""
                 text: '  Database Transfer  '
                 on_release: app.show_transfer()
                 disabled: app.single_database or app.database_scanning
+            NormalButton:
+                text: '  Video Editing  '
+                on_release: app.show_video_converter(from_database=True)
+                size_hint_x: None
+                disabled: not app.ffmpeg
+                opacity: 0 if self.disabled else 1
+                width: 0 if self.disabled else self.texture_size[0] + 20
             HeaderLabel:
                 text: 'Photo Database'
             InfoLabel:
@@ -447,6 +454,10 @@ class DatabaseScreen(Screen):
     scale_min = .5
     scale_max = 3
 
+    def rescale_screen(self):
+        app = App.get_running_app()
+        self.ids['leftpanel'].width = app.left_panel_width()
+
     def open_browser(self):
         if self.can_browse:
             try:
@@ -671,17 +682,13 @@ class DatabaseScreen(Screen):
         """Scrolls the treeview to the currently selected folder"""
 
         database = self.ids['database']
-        database_interior = self.ids['databaseInterior']
         selected = self.selected
         data = database.data
-        current_folder = None
         for i, node in enumerate(data):
             if node['target'] == selected and node['type'] == self.type:
-                current_folder = node
+                node['selected'] = True
+                database.scroll_to_selected()
                 break
-        if current_folder is not None:
-            database_interior.selected = current_folder
-            database.scroll_to_selected()
 
     def delete(self):
         """Begins the file delete process.  Will call 'delete_selected_confirm' if an album is active."""
@@ -1016,7 +1023,8 @@ class DatabaseScreen(Screen):
             'subtext': '',
             'height': app.button_scale + int(app.button_scale * 0.1),
             'end': True,
-            'dragable': False
+            'dragable': False,
+            'selected': False
         }
         data.append(database_favorites)
 
@@ -1037,7 +1045,8 @@ class DatabaseScreen(Screen):
             'subtext': '',
             'height': app.button_scale,
             'end': False,
-            'dragable': False
+            'dragable': False,
+            'selected': False
         }
         data.append(tag_root)
         self.tag_menu.clear_widgets()
@@ -1068,7 +1077,8 @@ class DatabaseScreen(Screen):
                     'subtext': '',
                     'end': False,
                     'height': app.button_scale,
-                    'dragable': False
+                    'dragable': False,
+                    'selected': False
                 }
                 data.append(tag_item)
         data[-1]['end'] = True
@@ -1091,7 +1101,8 @@ class DatabaseScreen(Screen):
             'subtext': '',
             'height': app.button_scale,
             'end': False,
-            'dragable': False
+            'dragable': False,
+            'selected': False
         }
         data.append(album_root)
         self.album_menu.clear_widgets()
@@ -1119,7 +1130,8 @@ class DatabaseScreen(Screen):
                     'subtext': '',
                     'height': app.button_scale,
                     'end': False,
-                    'dragable': False
+                    'dragable': False,
+                    'selected': False
                 }
                 data.append(album_item)
         data[-1]['end'] = True
@@ -1142,7 +1154,8 @@ class DatabaseScreen(Screen):
             'subtext': '',
             'height': app.button_scale,
             'end': False,
-            'dragable': False
+            'dragable': False,
+            'selected': False
         }
         data.append(folder_root)
 
@@ -1223,7 +1236,8 @@ class DatabaseScreen(Screen):
                 'subtext': subtext,
                 'height': app.button_scale * (1.5 if subtext else 1),
                 'end': False,
-                'dragable': True
+                'dragable': True,
+                'selected': False
             }
             folders.append(folder_element)
             if is_expanded:

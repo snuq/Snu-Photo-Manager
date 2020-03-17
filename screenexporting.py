@@ -1125,7 +1125,8 @@ class ExportPresetArea(GridLayout):
     def select_watermark(self):
         """Open a filebrowser to select the watermark image."""
 
-        content = FileBrowser(ok_text='Select', filters=['*.png'])
+        app = App.get_running_app()
+        content = FileBrowser(ok_text='Select', path=app.last_browse_folder, filters=['*.png'])
         content.bind(on_cancel=self.owner.owner.dismiss_popup)
         content.bind(on_ok=self.select_watermark_confirm)
         self.owner.owner.popup = filepopup = NormalPopup(title='Select Watermark PNG Image', content=content, size_hint=(0.9, 0.9))
@@ -1134,10 +1135,14 @@ class ExportPresetArea(GridLayout):
     def select_watermark_confirm(self, *_):
         """Called when the watermark file browse dialog is closed."""
 
-        self.watermark_image = self.owner.owner.popup.content.filename
-        self.owner.owner.dismiss_popup()
-        self.update_preset()
-        self.update_test_image()
+        popup = self.owner.owner.popup
+        if popup:
+            app = App.get_running_app()
+            app.last_browse_folder = popup.content.path
+            self.watermark_image = popup.content.filename
+            self.owner.owner.dismiss_popup()
+            self.update_preset()
+            self.update_test_image()
 
     def set_scale_size(self, instance):
         """Apply the scale size setting, only when the input area loses focus."""
@@ -1283,7 +1288,8 @@ class ExportPresetArea(GridLayout):
     def select_export(self):
         """Activates a popup folder browser dialog to select the export folder."""
 
-        content = FileBrowser(ok_text='Select', directory_select=True)
+        app = App.get_running_app()
+        content = FileBrowser(ok_text='Select', path=app.last_browse_folder, directory_select=True, export_mode=True)
         content.bind(on_cancel=self.owner.owner.dismiss_popup)
         content.bind(on_ok=self.select_export_confirm)
         self.owner.owner.popup = filepopup = NormalPopup(title='Select An Export Folder', content=content, size_hint=(0.9, 0.9))
@@ -1292,9 +1298,13 @@ class ExportPresetArea(GridLayout):
     def select_export_confirm(self, *_):
         """Called when the export folder select dialog is closed successfully."""
 
-        self.export_folder = self.owner.owner.popup.content.filename
-        self.owner.owner.dismiss_popup()
-        self.update_preset()
+        popup = self.owner.owner.popup
+        if popup:
+            app = App.get_running_app()
+            app.last_browse_folder = popup.content.path
+            self.export_folder = popup.content.path
+            self.owner.owner.dismiss_popup()
+            self.update_preset()
 
 
 class ExportPreset(ExpandableButton):
@@ -1307,7 +1317,6 @@ class ExportPreset(ExpandableButton):
 
     def on_expanded(self, *_):
         if self.content:
-            content_container = self.ids['contentContainer']
             if self.expanded:
                 Clock.schedule_once(self.content.update_test_image)
         super(ExportPreset, self).on_expanded()

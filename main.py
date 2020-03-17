@@ -15,15 +15,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
+    Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
     Need to think of a way to divide up years abstractly
-        Maybe manually added 'markers' that can be jumped to?
-    Is there any way to do a right-click standalone thing with linux? How to register file types with linux?
+        Maybe manually added 'markers' that can be jumped to
+        Maybe add import to year subfolders option
+    Is there any way to do a right-click standalone thing with linux? 
+    How to register file types with linux?
+    Bug: audio from video files will keep playing back after video ends
 
 Todo Possible Future:
-    Implement a free-form collage grid creator
-    Rework database, album, exporting and collage screens to use/set the app display variables rather than their own variables
-    export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
-    RAW import if possible - https://github.com/photoshell/rawkit , need to get libraw working
+    Export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
+    RAW import - https://github.com/photoshell/rawkit , need to get libraw working
 
 """
 
@@ -75,7 +77,7 @@ except:
 
 from generalconstants import *
 from generalcommands import list_folders, get_folder_info, local_thumbnail, isfile2, naming, to_bool, local_path, local_paths, agnostic_path, local_photoinfo, agnostic_photoinfo, get_file_info
-from generalelements import PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu
+from generalelements import ClickFade, EncodingSettings, PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu
 from screendatabase import DatabaseScreen, DatabaseRestoreScreen, TransferScreen
 from screensettings import PhotoManagerSettings, AboutPopup
 print('Startup Time: '+str(time.perf_counter() - start))
@@ -88,8 +90,8 @@ lock = threading.Lock()
 if desktop:
     Config.set('input', 'mouse', 'mouse,disable_multitouch')
     #Config.set('kivy', 'keyboard_mode', 'system')
-    Window.minimum_height = 600
-    Window.minimum_width = 800
+    Window.minimum_height = 768
+    Window.minimum_width = 1024
     Window.maximize()
 else:
     Window.softinput_mode = 'below_target'
@@ -200,6 +202,10 @@ class MultiThreadOK(threading.Thread):
 class PhotoManager(App):
     """Main class of the app."""
 
+    #Global variables
+    ffmpeg = BooleanProperty(False)
+    opencv = BooleanProperty(False)
+
     #Display variables
     photosinfo = ListProperty()  #List of all photoinfo from currently displayed photos
     photoinfo = ListProperty()  #Photoinfo list for the currently selected/viewed photo
@@ -207,6 +213,9 @@ class PhotoManager(App):
     folder_path = StringProperty('')  #The current folder/album/tag being displayed
     folder_name = StringProperty()  #The identifier of the album/folder/tag that is being viewed
 
+    last_browse_folder = ''
+
+    first_rescale = True
     standalone = False
     standalone_file = ''
     standalone_in_database = False
@@ -264,8 +273,10 @@ class PhotoManager(App):
     cancel_scanning = BooleanProperty(False)
     export_target = StringProperty()
     export_type = StringProperty()
+    encoding_settings = ObjectProperty()
     encoding_presets = ListProperty()
-    selected_encoder_preset = StringProperty()
+    encoding_presets_extra = ListProperty()
+    encoding_presets_user = ListProperty()
 
     #Widget holders
     drag_image = ObjectProperty()
@@ -274,12 +285,14 @@ class PhotoManager(App):
     screen_manager = ObjectProperty()
     database_screen = ObjectProperty()
     album_screen = ObjectProperty()
+    video_converter_screen = ObjectProperty()
     importing_screen = ObjectProperty()
     database_restore_screen = ObjectProperty()
     scanningthread = None
     scanningpopup = None
     popup = None
     bubble = None
+    clickfade_object = ObjectProperty(allownone=True)
 
     #Databases
     photos_name = 'photos.db'
@@ -294,16 +307,34 @@ class PhotoManager(App):
 
     about_text = StringProperty()
 
+    def clickfade(self, widget, mode='opacity'):
+        try:
+            self.main_layout.remove_widget(self.clickfade_object)
+        except:
+            pass
+        self.clickfade_object.size = widget.size
+        self.clickfade_object.pos = widget.to_window(*widget.pos)
+        self.clickfade_object.begin(mode)
+        self.main_layout.add_widget(self.clickfade_object)
+
+    def save_log(self, log, log_name):
+        logfile_name = os.path.realpath(os.path.join(self.data_directory, log_name+".txt"))
+        if os.path.isfile(logfile_name):
+            os.remove(logfile_name)
+        logfile = open(logfile_name, 'w')
+        logfile.write(log)
+        logfile.close()
+
     def timer(self, *_):
         start_time = time.perf_counter()
         timed = start_time - self.timer_value
         self.timer_value = start_time
         return timed
 
-    def popup_bubble(self, text_input, pos):
+    def popup_bubble(self, text_input, pos, edit=True):
         self.close_bubble()
         text_input.unfocus_on_touch = False
-        self.bubble = InputMenu(owner=text_input)
+        self.bubble = InputMenu(owner=text_input, edit=edit)
         window = self.root_window
         window.add_widget(self.bubble)
         posx = pos[0]
@@ -377,7 +408,7 @@ class PhotoManager(App):
             A thumbnail jpeg
         """
 
-        thumbnail = ''
+        thumbnail = None
         full_filename = os.path.join(database_folder, fullpath)
         extension = os.path.splitext(fullpath)[1].lower()
 
@@ -438,7 +469,7 @@ class PhotoManager(App):
     def clear_database_update_text(self, *_):
         self.database_update_text = ''
 
-    def refresh_photo(self, fullpath, force=False, no_photoinfo=False, data=False, skip_isfile=False):
+    def refresh_photo(self, fullpath, force=False, no_photoinfo=False, data=False, skip_isfile=False, modified_date=None):
         """Checks if a file's modified date has changed, updates photoinfo and thumbnail if it has"""
 
         if data:
@@ -450,7 +481,8 @@ class PhotoManager(App):
             photo_filename = os.path.join(old_photoinfo[2], old_photoinfo[0])
             if skip_isfile or os.path.isfile(photo_filename):
                 #file still exists
-                modified_date = int(os.path.getmtime(photo_filename))
+                if modified_date is None:
+                    modified_date = int(os.path.getmtime(photo_filename))
                 if modified_date != old_photoinfo[7] or force:
                     #file has been modified somehow, need to update data
                     new_photoinfo = get_file_info([old_photoinfo[0], old_photoinfo[2]], import_mode=True, modified_date=modified_date)
@@ -664,13 +696,15 @@ class PhotoManager(App):
             folders: List containing Strings for database-relative paths to each folder.
         """
 
+        join = os.path.join
+        isdir = os.path.isdir
         if self.config.get("Settings", "photoinfo"):
             databases = self.get_database_directories()
             folders = list(set(folders))
             for folder in folders:
                 for database in databases:
-                    full_path = os.path.join(database, folder)
-                    if os.path.isdir(full_path):
+                    full_path = join(database, folder)
+                    if isdir(full_path):
                         self.save_photoinfo(target=folder, save_location=full_path)
 
     def in_database(self, photo_info):
@@ -746,7 +780,8 @@ class PhotoManager(App):
                 'backupdatabase': 1,
                 'rescanstartup': 0,
                 'animations': 1,
-                'databasescale': 100
+                'databasescale': 100,
+                'editvideo': 0
             })
         config.setdefaults(
             'Database Directories', {
@@ -779,11 +814,11 @@ class PhotoManager(App):
             "section": "Settings",
             "key": "photoinfo"
         })
+
+        #Database settings
         settingspanel.append({
-            "type": "themescreen",
-            "title": "",
-            "section": "Settings",
-            "key": "photoinfo"
+            "type": "label",
+            "title": "        Database Settings"
         })
         settingspanel.append({
             "type": "multidirectory",
@@ -821,6 +856,39 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "numeric",
+            "title": "Auto-Rescan Database Interval In Minutes",
+            "desc": "Auto-rescan database every number of minutes.  0 will never auto-scan.  Setting this too low will slow the system down.",
+            "section": "Settings",
+            "key": "autoscan"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Rescan Photo Database On Startup",
+            "desc": "Automatically scan and update the photo database on each restart.  Prevents editing functions from being done until finished.",
+            "section": "Settings",
+            "key": "rescanstartup"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Backup Photo Database On Startup",
+            "desc": "Automatically make a copy of the photo database on each restart.  Will increase startup time when large databases are loaded.",
+            "section": "Settings",
+            "key": "backupdatabase"
+        })
+
+        #Visual Settings
+        settingspanel.append({
+            "type": "label",
+            "title": "        Visual Settings"
+        })
+        settingspanel.append({
+            "type": "themescreen",
+            "title": "",
+            "section": "Settings",
+            "key": "photoinfo"
+        })
+        settingspanel.append({
+            "type": "numeric",
             "title": "Button Size Percent",
             "desc": "Scale Percentage Of Interface Buttons",
             "section": "Settings",
@@ -849,10 +917,37 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "bool",
+            "title": "Simplify Interface For Smaller Screens",
+            "desc": "Removes some components of the interface.  Intended for phones or touch screen devices.",
+            "section": "Settings",
+            "key": "simpleinterface"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Animate Interface",
+            "desc": "Animate various elements of the interface.  Disable this on slow computers.",
+            "section": "Settings",
+            "key": "animations"
+        })
+
+        #Browsing settings
+        settingspanel.append({
+            "type": "label",
+            "title": "        Browsing Settings"
+        })
+        settingspanel.append({
+            "type": "bool",
             "title": "Save .photoinfo.ini Files",
             "desc": "Auto-save .photoinfo.ini files in album folders when photos or albums are changed",
             "section": "Settings",
             "key": "photoinfo"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Auto-Edit Video Files",
+            "desc": "Go to video editng screen when loading a video file from the OS",
+            "section": "Settings",
+            "key": "editvideo"
         })
         settingspanel.append({
             "type": "bool",
@@ -877,46 +972,12 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "bool",
-            "title": "Simplify Interface For Smaller Screens",
-            "desc": "Removes some components of the interface.  Intended for phones or touch screen devices.",
-            "section": "Settings",
-            "key": "simpleinterface"
-        })
-        settingspanel.append({
-            "type": "bool",
-            "title": "Animate Interface",
-            "desc": "Animate various elements of the interface.  Disable this on slow computers.",
-            "section": "Settings",
-            "key": "animations"
-        })
-        settingspanel.append({
-            "type": "bool",
             "title": "Low Memory Mode",
             "desc": "For older computers that show larger images as black, display all images at a smaller size",
             "section": "Settings",
             "key": "lowmem"
         })
-        settingspanel.append({
-            "type": "numeric",
-            "title": "Auto-Rescan Database Interval In Minutes",
-            "desc": "Auto-rescan database every number of minutes.  0 will never auto-scan.  Setting this too low will slow the system down.",
-            "section": "Settings",
-            "key": "autoscan"
-        })
-        settingspanel.append({
-            "type": "bool",
-            "title": "Rescan Photo Database On Startup",
-            "desc": "Automatically scan and update the photo database on each restart.  Prevents editing functions from being done until finished.",
-            "section": "Settings",
-            "key": "rescanstartup"
-        })
-        settingspanel.append({
-            "type": "bool",
-            "title": "Backup Photo Database On Startup",
-            "desc": "Automatically make a copy of the photo database on each restart.  Will increase startup time when large databases are loaded.",
-            "section": "Settings",
-            "key": "backupdatabase"
-        })
+
         settings.add_json_panel('App', self.config, data=json.dumps(settingspanel))
 
     def has_database(self, *_):
@@ -946,6 +1007,17 @@ class PhotoManager(App):
         self.database_auto_rescanner = Clock.schedule_interval(self.database_auto_rescan, 60)
         Window.bind(on_draw=self.rescale_interface)
 
+    def start_screen_layout(self, *_):
+        #Show correct screen layout:
+        if ffmpeg:
+            if self.config.getboolean("Settings", "editvideo"):
+                if self.photo:
+                    extension = os.path.splitext(self.photo)[1].lower()
+                    if extension in movietypes:
+                        Clock.schedule_once(self.show_video_converter)
+                        return
+        Clock.schedule_once(self.show_database)
+
     def on_pause(self):
         """Function called when the app is paused or suspended on a mobile platform.
         Saves all settings and data.
@@ -970,6 +1042,7 @@ class PhotoManager(App):
         if self.database_scanning:
             self.cancel_database_import()
             self.scanningthread.join()
+        self.encoding_settings.store_current_encoding_preset()
         self.config.write()
         self.tempthumbnails.close()
         self.tempthumbnails.join()
@@ -1067,13 +1140,10 @@ class PhotoManager(App):
                     self.screen_manager.current_screen.dismiss_popup()
                     return True
                 elif self.screen_manager.current != match_screen:
-                    if self.screen_manager.current == 'photo':
-                        self.show_album()
+                    if self.screen_manager.current in ['photo', 'video']:
+                        self.show_album(back=True)
                     else:
-                        if self.standalone:
-                            self.show_album()
-                        else:
-                            self.show_database()
+                        self.show_database()
                     return True
 
     def setup_import_presets(self):
@@ -1630,50 +1700,112 @@ class PhotoManager(App):
     def load_encoding_presets(self):
         """Loads the video encoding presets from the 'encoding_presets.ini' file."""
 
-        try:
-            configfile = ConfigParser(interpolation=None)
-            configfile.read(kivy.resources.resource_find('data/encoding_presets.ini'))
-            preset_names = configfile.sections()
-            for preset_name in preset_names:
-                if preset_name == 'Automatic':
-                    preset = {'name': 'Automatic',
-                              'file_format': 'auto',
-                              'video_codec': '',
-                              'audio_codec': '',
-                              'resize': False,
-                              'width': '',
-                              'height': '',
-                              'video_bitrate': '',
-                              'audio_bitrate': '',
-                              'encoding_speed': '',
-                              'deinterlace': False,
-                              'command_line': ''}
-                    self.encoding_presets.append(preset)
-                try:
-                    preset = {'name': preset_name,
-                              'file_format': configfile.get(preset_name, 'file_format'),
-                              'video_codec': configfile.get(preset_name, 'video_codec'),
-                              'audio_codec': configfile.get(preset_name, 'audio_codec'),
-                              'resize': to_bool(configfile.get(preset_name, 'resize')),
-                              'width': configfile.get(preset_name, 'width'),
-                              'height': configfile.get(preset_name, 'height'),
-                              'video_bitrate': configfile.get(preset_name, 'video_bitrate'),
-                              'audio_bitrate': configfile.get(preset_name, 'audio_bitrate'),
-                              'encoding_speed': configfile.get(preset_name, 'encoding_speed'),
-                              'deinterlace': to_bool(configfile.get(preset_name, 'deinterlace')),
-                              'command_line': configfile.get(preset_name, 'command_line')}
-                    self.encoding_presets.append(preset)
-                except:
-                    pass
-        except:
-            self.encoding_presets = [{'name': 'Automatic', 'file_format': 'auto', 'video_codec': '', 'audio_codec': '', 'resize': False, 'width': '', 'height': '', 'video_bitrate': '', 'audio_bitrate': '', 'encoding_speed': '', 'deinterlace': False, 'command_line': ''}]
-        try:
-            self.selected_encoder_preset = self.config.get("Presets", "selected_preset")
-        except:
-            self.selected_encoder_preset = self.encoding_presets[0]['name']
+        presets = self.parse_encoding_presets_file('data/encoding_presets.ini')
+        self.encoding_presets = [EncodingSettings(name='Automatic')] + presets
+        self.encoding_presets_extra = self.parse_encoding_presets_file('data/encoding_presets_extra.ini')
+        self.encoding_presets_user = self.parse_encoding_presets_file(self.data_directory+os.path.sep+'encoding_presets_user.ini')
 
-    def save_encoding_preset(self):
-        self.config.set("Presets", "selected_preset", self.selected_encoder_preset)
+    def new_user_encoding_preset(self):
+        current_preset = self.encoding_settings
+        if not current_preset.name:
+            current_preset.name = 'User Preset'
+        for preset in self.encoding_presets_user:
+            if preset.name == current_preset.name:
+                preset.copy_from(current_preset)
+                self.save_user_encoding_presets()
+                return
+        self.encoding_presets_user.append(current_preset)
+        self.save_user_encoding_presets()
+        self.message('Saved encoding preset: '+current_preset.name)
+
+    def remove_user_encoding_preset(self, preset):
+        try:
+            self.encoding_presets_user.remove(preset)
+            self.save_user_encoding_presets()
+            self.message('Deleted encoding preset: '+preset.name)
+        except:
+            pass
+
+    def save_user_encoding_presets(self):
+        user_preset_file = self.data_directory+os.path.sep+'encoding_presets_user.ini'
+        configfile = ConfigParser(interpolation=None)
+        for index, preset in enumerate(self.encoding_presets_user):
+            section = preset.name
+            configfile.add_section(section)
+            configfile.set(section, 'file_format', preset.file_format)
+            configfile.set(section, 'video_codec', preset.video_codec)
+            configfile.set(section, 'audio_codec', preset.audio_codec)
+            configfile.set(section, 'resize', str(preset.resize))
+            configfile.set(section, 'resize_width', preset.resize_width)
+            configfile.set(section, 'resize_height', preset.resize_height)
+            configfile.set(section, 'video_bitrate', preset.video_bitrate)
+            configfile.set(section, 'audio_bitrate', preset.audio_bitrate)
+            configfile.set(section, 'encoding_speed', preset.encoding_speed)
+            configfile.set(section, 'deinterlace', str(preset.deinterlace))
+            configfile.set(section, 'command_line', preset.command_line)
+            configfile.set(section, 'video_quality', preset.video_quality)
+
+        with open(user_preset_file, 'w') as config:
+            configfile.write(config)
+
+    def parse_encoding_presets_file(self, preset_file):
+        try:
+            presets = []
+            configfile = ConfigParser(interpolation=None)
+            configfile.read(kivy.resources.resource_find(preset_file))
+            preset_names = configfile.sections()
+        except:
+            return []
+
+        for preset_name in preset_names:
+            preset = EncodingSettings()
+            preset.name = preset_name
+            try:
+                preset.file_format = configfile.get(preset_name, 'file_format')
+            except:
+                pass
+            try:
+                preset.video_codec = configfile.get(preset_name, 'video_codec')
+            except:
+                pass
+            try:
+                preset.audio_codec = configfile.get(preset_name, 'audio_codec')
+            except:
+                pass
+            try:
+                preset.resize = to_bool(configfile.get(preset_name, 'resize'))
+            except:
+                pass
+            try:
+                preset.resize_width = configfile.get(preset_name, 'width')
+            except:
+                pass
+            try:
+                preset.resize_height = configfile.get(preset_name, 'height')
+            except:
+                pass
+            try:
+                preset.video_bitrate = configfile.get(preset_name, 'video_bitrate')
+            except:
+                pass
+            try:
+                preset.audio_bitrate = configfile.get(preset_name, 'audio_bitrate')
+            except:
+                pass
+            try:
+                preset.encoding_speed = configfile.get(preset_name, 'encoding_speed')
+            except:
+                pass
+            try:
+                preset.deinterlace = to_bool(configfile.get(preset_name, 'deinterlace'))
+            except:
+                pass
+            try:
+                preset.command_line = configfile.get(preset_name, 'command_line')
+            except:
+                pass
+            presets.append(preset)
+        return presets
 
     def rescale_interface(self, *_, force=False):
         if self.last_width == 0:
@@ -1693,10 +1825,13 @@ class PhotoManager(App):
             self.button_scale = int((Window.height / interface_multiplier) * int(self.config.get("Settings", "buttonsize")) / 100) * button_multiplier
             self.padding = self.button_scale / 4
             self.text_scale = int((self.button_scale / 3) * int(self.config.get("Settings", "textsize")) / 100)
-            if self.standalone:
-                Clock.schedule_once(lambda x: self.show_album())
-            else:
-                Clock.schedule_once(self.show_database)
+            if self.first_rescale:
+                self.first_rescale = False
+                self.start_screen_layout()
+            try:
+                self.screen_manager.current_screen.rescale_screen()
+            except:
+                pass
 
     def set_transition(self):
         if self.animations:
@@ -1705,6 +1840,8 @@ class PhotoManager(App):
             self.screen_manager.transition = NoTransition()
 
     def scan_folder(self, database_folder, folder):
+        #Full scan of files in the folder, used when in standalone mode
+
         files = []
         full_folder = os.path.join(database_folder, folder)
         for (dirpath, dirnames, filenames) in os.walk(full_folder):
@@ -1720,8 +1857,30 @@ class PhotoManager(App):
 
         self.photos.commit()
 
+    def file_in_database(self, file):
+        """Checks if the given file is in the database, returns the photoinfo if it is"""
+
+        databases = self.get_database_directories(real=True)
+        abspath = os.path.abspath(file)
+
+        #Check if path begins with any of the databases
+        for database_path in databases:
+            if abspath.startswith(database_path):
+                fullpath = os.path.relpath(abspath, database_path)
+                photoinfo = self.database_exists(fullpath)
+                if photoinfo:
+                    #File is in database, use current database
+                    return photoinfo
+        return None
+
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
+
+        self.ffmpeg = ffmpeg
+        self.opencv = opencv
+
+        self.encoding_settings = EncodingSettings()
+        self.encoding_settings.load_current_encoding_preset()
 
         self.theme = Theme()
         self.theme_default()
@@ -1776,23 +1935,17 @@ class PhotoManager(App):
 
         #check if standalone file is in database
         if self.standalone:
-            databases = self.get_database_directories(real=True)
             abspath = os.path.abspath(self.standalone_file)
-            self.standalone_in_database = False
-            #Check if path begins with any of the databases
-            for database_path in databases:
-                if abspath.startswith(database_path):
-                    fullpath = os.path.relpath(abspath, database_path)
-                    photoinfo = self.database_exists(fullpath)
-                    if photoinfo:
-                        #File is in database, use current database
-                        self.standalone_in_database = True
-                        self.photo = self.standalone_file
-                        self.fullpath = photoinfo[0]
-                        self.target = photoinfo[1]
-                        self.type = 'Folder'
-                        self.standalone_text = 'Stand-Alone Mode, Using Database'
-                        break
+            photoinfo = self.file_in_database(self.standalone_file)
+            if photoinfo:
+                self.standalone_in_database = True
+                self.photo = abspath
+                self.fullpath = photoinfo[0]
+                self.target = photoinfo[1]
+                self.type = 'Folder'
+                self.standalone_text = 'Stand-Alone Mode, Using Database'
+            else:
+                self.standalone_in_database = False
 
             if not self.standalone_in_database:
                 #File/folder is not in database, use temp databases
@@ -1818,7 +1971,7 @@ class PhotoManager(App):
                 database_path, folder = os.path.split(full_folder)
                 self.standalone_in_database = False
                 self.standalone_database = database_path
-                self.photo = self.standalone_file
+                self.photo = abspath
                 self.fullpath = os.path.relpath(abspath, database_path)
                 self.target = folder
                 self.type = 'Folder'
@@ -1847,6 +2000,7 @@ class PhotoManager(App):
         self.main_layout = MainWindow()
         self.drag_image = PhotoDrag()
         self.drag_treenode = TreenodeDrag()
+        self.clickfade_object = ClickFade()
 
         #Set up screens
         self.screen_manager = ScreenManager()
@@ -2295,7 +2449,7 @@ class PhotoManager(App):
             folders.append([local_path(item[0]), item[1], item[2]])
         return folders
 
-    def database_get_folders(self, database_folder=False, quick=False):
+    def database_get_folders(self, database_folder=False, quick=False, real_folders=None):
         """Get all folders from the photo database.
         Returns: List of folder database-relative paths.
         """
@@ -2319,9 +2473,10 @@ class PhotoManager(App):
                 directories = self.config.get('Database Directories', 'paths')
                 directories = local_path(directories)
                 databases = directories.split(';')
-                real_folders = []
-                for database in databases:
-                    real_folders = real_folders + list_folders(database)
+                if real_folders is None:
+                    real_folders = []
+                    for database in databases:
+                        real_folders = real_folders + list_folders(database)
                 for folder in real_folders:
                     if folder not in folders:
                         folders.append(folder)
@@ -2398,7 +2553,7 @@ class PhotoManager(App):
 
         return ['data/null.jpg', '', '', 0, 0, 'data/null.jpg', 0, 0, '', 0, 'data/null.jpg', '', 0, 1]
 
-    def database_clean(self, deep=False):
+    def database_clean(self, deep=False, photo_filenames=[]):
         """Clean the databases of redundant or missing data.
         Argument:
             deep: Boolean. If True, will remove all files that are currently not found.
@@ -2419,8 +2574,9 @@ class PhotoManager(App):
                 photos = list(self.photos.select('SELECT * FROM photos WHERE DatabaseFolder = ?', (database_renamed, )))
                 for photo in photos:
                     photo_file = os.path.join(local_path(photo[2]), local_path(photo[0]))
-                    if not isfile2(photo_file):
-                        self.database_item_delete(photo[0])
+                    if photo_file not in photo_filenames:
+                        if not isfile2(photo_file):  #Takes a lot of time
+                            self.database_item_delete(photo[0])
 
         #remove folder references if the folder is not in any database folder
         folders = list(self.folders.select('SELECT * FROM folders'))
@@ -2509,6 +2665,8 @@ class PhotoManager(App):
             if modified_date <= matches[1] and not force:
                 return False
         thumbnail = self.generate_thumbnail(local_path(fullpath), local_path(database))
+        if thumbnail is None:
+            return False
         thumbnail = sqlite3.Binary(thumbnail)
         self.database_thumbnail_write(fullpath=fullpath, modified_date=modified_date, thumbnail=thumbnail, orientation=orientation, temporary=temporary)
         return True
@@ -2592,7 +2750,7 @@ class PhotoManager(App):
                     databases_cleaned.append(database)
             return databases_cleaned
 
-    def list_files(self, folder):
+    def list_files_folders(self, folder):
         """Function that returns a list of every nested file within a folder.
         Argument:
             folder: The folder name to look in
@@ -2600,17 +2758,21 @@ class PhotoManager(App):
             Full path to the file, relative to the root directory.
             Root directory for all files.
         """
-
-        file_list = []
-        firstroot = False
+        join = os.path.join
+        getmtime = os.path.getmtime
+        relpath = os.path.relpath
         walk = os.walk
+        file_list = []
+        filenames = []
+        folder_list = []
+        firstroot = False
         for root, dirs, files in walk(folder, topdown=True):
             dir_files = []
             if self.cancel_scanning:
                 return []
             if not firstroot:
                 firstroot = root
-            filefolder = os.path.relpath(root, firstroot)
+            filefolder = relpath(root, firstroot)
             if filefolder == '.':
                 filefolder = ''
             for file in files:
@@ -2620,9 +2782,15 @@ class PhotoManager(App):
                     break
                 if self.cancel_scanning:
                     return []
-                dir_files.append([os.path.join(filefolder, file), firstroot])
+                fullpath = join(filefolder, file)
+                full_filename = join(folder, fullpath)
+                filenames.append(full_filename)
+                modified_date = int(getmtime(full_filename))
+                dir_files.append([fullpath, firstroot, modified_date])
+            for directory in dirs:
+                folder_list.append(join(filefolder, directory))
             file_list.extend(dir_files)
-        return file_list
+        return [file_list, folder_list, filenames]
 
     def database_find_file(self, file_info):
         #search the database for a file that has been moved to a new directory, returns the updated info or None if not found.
@@ -2651,10 +2819,15 @@ class PhotoManager(App):
 
         #Get the file list
         files = []
+        real_folders = []
+        filenames = []
         for directory in databases:
             if self.cancel_scanning:
                 break
-            files = files + self.list_files(directory)
+            database_files, database_folders, database_filenames = self.list_files_folders(directory)
+            files = files + database_files
+            real_folders = real_folders + database_folders
+            filenames = filenames + database_filenames
 
         total = len(files)
         self.database_update_text = 'Rescanning Database (5%)'
@@ -2681,15 +2854,14 @@ class PhotoManager(App):
                 else:
                     #photo is already in the database
                     #check modified date to see if it needs to be updated and look for duplicates
-                    refreshed = self.refresh_photo(file_info[0], no_photoinfo=True, data=exists, skip_isfile=True)
+                    refreshed = self.refresh_photo(file_info[0], no_photoinfo=True, data=exists, skip_isfile=True, modified_date=file_info[2])
                     if refreshed:
                         update_folders.append(refreshed[1])
 
             self.database_update_text = 'Rescanning Database ('+str(int(90*(float(index+1)/float(total))))+'%)'
         self.photos.commit()
-
         #Update folders
-        folders = self.database_get_folders()
+        folders = self.database_get_folders(real_folders=real_folders)
         for folder in folders:
             if self.cancel_scanning:
                 break
@@ -2698,13 +2870,13 @@ class PhotoManager(App):
                 folderinfo = get_folder_info(folder, databases)
                 self.database_folder_add(folderinfo)
                 update_folders.append(folderinfo[0])
-        self.update_photoinfo(folders=folders)
+        update_folders = list(set(update_folders))
+        #self.update_photoinfo(folders=folders)  #Doesnt need to run on all folders
         self.folders.commit()
-
         #Clean up database
         if not self.cancel_scanning:
             self.database_update_text = 'Cleaning Database...'
-            self.database_clean()
+            self.database_clean(photo_filenames=filenames)
             self.database_update_text = "Database scanned "+str(total)+" files"
 
         self.update_photoinfo(folders=update_folders)
@@ -2813,7 +2985,17 @@ class PhotoManager(App):
             self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'collage'
 
-    def show_album(self, button=None):
+    def show_video_converter(self, from_database=False):
+        if 'video' not in self.screen_manager.screen_names:
+            from screenalbum import VideoConverterScreen
+            self.video_converter_screen = VideoConverterScreen(name='video')
+            self.screen_manager.add_widget(self.video_converter_screen)
+        if self.animations:
+            self.screen_manager.transition.direction = 'left'
+        self.video_converter_screen.from_database = from_database
+        self.screen_manager.current = 'video'
+
+    def show_album(self, button=None, back=False):
         """Switch to the album screen layout.
         Argument:
             button: Optional, the widget that called this function. Allows the function to get a specific album to view.
@@ -2824,7 +3006,10 @@ class PhotoManager(App):
             self.album_screen = AlbumScreen(name='album')
             self.screen_manager.add_widget(self.album_screen)
         if self.animations:
-            self.screen_manager.transition.direction = 'left'
+            if back:
+                self.screen_manager.transition.direction = 'right'
+            else:
+                self.screen_manager.transition.direction = 'left'
 
         if button:
             if button.type != 'None':
@@ -2955,7 +3140,6 @@ class PhotoManager(App):
             offset: Needs to be provided if mode is 'start',
                     offset where the drag began, to make the image be placed in the correct location.
         """
-
         if mode == 'end':
             self.main_layout.remove_widget(self.drag_treenode)
             self.screen_manager.current_screen.drop_widget(drag_object.fullpath, position, dropped_type=drag_object.droptype, aspect=1)

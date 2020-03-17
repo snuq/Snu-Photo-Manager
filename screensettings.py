@@ -1,6 +1,6 @@
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.uix.settings import SettingsWithNoMenu, SettingItem
+from kivy.uix.settings import SettingsWithNoMenu, SettingItem, SettingTitle, SettingSpacer
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.core.window import Window
@@ -76,6 +76,33 @@ Builder.load_string("""
                 size_hint_x: .33
         Widget:
             size_hint_x: .2
+
+<-SettingTitle>:
+    size_hint_y: None
+    height: max(dp(20), self.texture_size[1] + dp(40))
+    color: (.9, .9, .9, 1)
+    font_size: '15sp'
+    canvas:
+        Color:
+            rgba: .15, .15, .15, .5
+        Rectangle:
+            pos: self.x, self.y + 2
+            size: self.width, self.height - 2
+        Color:
+            rgb: .2, .2, .2
+        Rectangle:
+            pos: self.x, self.y - 2
+            size: self.width, 1
+    Label:
+        size_hint: None, None
+        size: root.size
+        color: app.theme.text
+        text: root.title
+        text_size: self.size
+        halign: 'left'
+        valign: 'bottom'
+        pos: root.pos
+        font_size: '15sp'
 
 <SettingAboutButton>:
     WideButton:
@@ -272,6 +299,7 @@ class PhotoManagerSettings(SettingsWithNoMenu):
         self.register_type('aboutbutton', SettingAboutButton)
         self.register_type('databaserestore', SettingDatabaseRestore)
         self.register_type('databasebackup', SettingDatabaseBackup)
+        self.register_type('label', SettingTitle)
 
 
 class SettingAboutButton(SettingItem):
@@ -375,7 +403,8 @@ class SettingMultiDirectory(SettingItem):
         self._create_popup(self)
 
     def filechooser_popup(self):
-        content = FileBrowser(ok_text='Add', directory_select=True)
+        app = App.get_running_app()
+        content = FileBrowser(ok_text='Add', path=app.last_browse_folder, directory_select=True)
         content.bind(on_cancel=self.filepopup_dismiss)
         content.bind(on_ok=self.add_directory)
         self.filepopup = filepopup = NormalPopup(title=self.title, content=content, size_hint=(0.9, 0.9))
@@ -387,13 +416,16 @@ class SettingMultiDirectory(SettingItem):
         self.filepopup = None
 
     def add_directory(self, *_):
-        self.modified = True
-        all_folders = self.value.split(';')
-        all_folders.append(agnostic_path(self.filepopup.content.filename))
-        all_folders = self.remove_empty(all_folders)
-        self.value = u';'.join(all_folders)
-        self.filepopup_dismiss()
-        self.refresh()
+        if self.filepopup:
+            app = App.get_running_app()
+            app.last_browse_folder = self.filepopup.content.path
+            self.modified = True
+            all_folders = self.value.split(';')
+            all_folders.append(agnostic_path(self.filepopup.content.path))
+            all_folders = self.remove_empty(all_folders)
+            self.value = u';'.join(all_folders)
+            self.filepopup_dismiss()
+            self.refresh()
 
 
 class SettingDatabaseImport(SettingItem):

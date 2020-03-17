@@ -16,6 +16,7 @@ from kivy.clock import Clock
 from kivy.animation import Animation
 from kivy.cache import Cache
 from kivy.graphics.transformation import Matrix
+from kivy.uix.widget import Widget
 from kivy.uix.bubble import Bubble
 from kivy.uix.behaviors import ButtonBehavior, DragBehavior
 from kivy.uix.textinput import TextInput
@@ -51,6 +52,16 @@ from generalcommands import to_bool, isfile2, rotated_rect_with_max_area
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
+<ClickFade>:
+    canvas:
+        Color:
+            rgba: 1, 1, 1, .5
+        Rectangle:
+            size: self.size
+            pos: root.pos
+    size_hint: None, None
+    opacity: 0
+
 <SmallBufferY@Widget>:
     size_hint_y: None
     height: int(app.button_scale / 4)
@@ -108,6 +119,12 @@ Builder.load_string("""
             size: self.size
             pos: self.pos
             source: 'data/mainbg.png'
+
+<ExpandablePanel>:
+    cols: 1
+    height: 0
+    opacity: 0
+    size_hint: 1, None
 
 <NormalSlider>:
     #:set sizing 18
@@ -191,7 +208,7 @@ Builder.load_string("""
     size_hint_y: None
     height: app.button_scale
 
-<LeftNormalLabel@NormalLabel>:
+<LeftNormalLabel>:
     mipmap: True
     shorten: True
     shorten_from: 'right'
@@ -265,14 +282,36 @@ Builder.load_string("""
         text: 'Select All'
         on_release: root.select_all()
     MenuButton:
+        disabled: not root.edit
         text: 'Cut'
         on_release: root.cut()
     MenuButton:
         text: 'Copy'
         on_release: root.copy()
     MenuButton:
+        disabled: not root.edit
         text: 'Paste'
         on_release: root.paste()
+
+<-TextInput>:
+    canvas.before:
+        Color:
+            rgba: self.background_color
+        BorderImage:
+            border: self.border
+            pos: self.pos[0] + 3, self.pos[1] + 3
+            size: self.size[0] -6, self.size[1] - 6
+            source: self.background_active if self.focus else (self.background_disabled_normal if self.disabled else self.background_normal)
+        Color:
+            rgba:
+                (self.cursor_color
+                if self.focus and not self._cursor_blink
+                else (0, 0, 0, 0))
+        Rectangle:
+            pos: self._cursor_visual_pos
+            size: root.cursor_width, -self._cursor_visual_height
+        Color:
+            rgba: self.disabled_foreground_color if self.disabled else (self.hint_text_color if not self.text else self.foreground_color)
 
 <NormalInput>:
     mipmap: True
@@ -321,15 +360,18 @@ Builder.load_string("""
     font_size: app.text_scale
 
 <WideButton>:
+    font_size: app.text_scale
     text_size: self.size
     halign: 'center'
     valign: 'middle'
 
 <MenuButton>:
+    font_size: app.text_scale
     menu: True
     size_hint_x: 1
 
 <RemoveButton>:
+    font_size: app.text_scale
     mipmap: True
     size_hint: None, None
     height: app.button_scale
@@ -435,7 +477,9 @@ Builder.load_string("""
     size_hint_x: 1
 
 <NormalToggle@ToggleBase>:
+    always_release: True
     toggle: True
+    font_size: app.text_scale
     size_hint_x: None
     width: self.texture_size[0] + 20
 
@@ -448,6 +492,7 @@ Builder.load_string("""
             size: self.size
             source: 'data/arrowdown.png' if self.state == 'normal' else 'data/arrowup.png'
     menu: True
+    font_size: app.text_scale
     size_hint: None, None
     height: app.button_scale
     width: app.button_scale
@@ -461,13 +506,13 @@ Builder.load_string("""
 
 <VerticalButton>:
     size_hint_y: None
+    size_hint: None, None
     width: app.button_scale
-    size_hint_x: None
-    font_size: app.text_scale
     height: textArea.texture_size[0] + 100
     background_down: 'data/buttonright.png'
     Label:
         id: textArea
+        font_size: app.text_scale
         center: self.parent.center
         canvas.before:
             PushMatrix
@@ -875,6 +920,13 @@ Builder.load_string("""
 
 
 <CustomImage>:
+    canvas.after:
+        Color:
+            rgba: [0, 0, 0, 0.5]
+        Mesh:
+            vertices: self.crop_verts
+            indices: self.crop_indices
+            mode: 'triangles'
     allow_stretch: True
 
 <AsyncThumbnail>:
@@ -915,7 +967,7 @@ Builder.load_string("""
 
 <Scroller>:
     scroll_distance: 10
-    scroll_timeout: 200
+    scroll_timeout: 100
     bar_width: int(app.button_scale * .5)
     bar_color: app.theme.scroller_selected
     bar_inactive_color: app.theme.scroller
@@ -1025,10 +1077,264 @@ Builder.load_string("""
 
 
 #Misc ELements
+class ClickFade(Widget):
+    animation = None
+
+    def begin(self, mode='opacity'):
+        app = App.get_running_app()
+        self.opacity = 0
+
+        if app.animations:
+            if self.animation:
+                self.animation.cancel(self)
+            if mode == 'height':
+                self.animation = Animation(opacity=1, duration=(app.animation_length / 4)) + Animation(height=0, pos=(self.pos[0], self.pos[1]+self.height), duration=(app.animation_length / 2))
+            else:
+                self.animation = Animation(opacity=1, duration=(app.animation_length / 4)) + Animation(opacity=0, duration=(app.animation_length / 2))
+            self.animation.start(self)
+            self.animation.bind(on_complete=self.finish_animation)
+        else:
+            self.finish_animation()
+
+    def finish_animation(self, *_):
+        self.animation = None
+        try:
+            self.parent.remove_widget(self)
+        except:
+            pass
+
+
+class EncodingSettings(Widget):
+    name = StringProperty('User Preset')
+
+    file_format = StringProperty('Auto')
+    video_codec = StringProperty('Auto')
+    audio_codec = StringProperty('Auto')
+    resize = BooleanProperty(False)
+    resize_width = StringProperty('')
+    resize_height = StringProperty('')
+    video_bitrate = StringProperty('')
+    audio_bitrate = StringProperty('')
+    encoding_speed = StringProperty('Auto')
+    deinterlace = BooleanProperty(False)
+    command_line = StringProperty('')
+    video_quality = StringProperty('Auto')
+
+    def on_file_format(self, *_):
+        if self.file_format not in containers_friendly+['Auto']:
+            self.file_format = 'Auto'
+
+    def on_video_codec(self, *_):
+        if self.video_codec not in video_codecs_friendly+['Auto']:
+            self.video_codec = 'Auto'
+            self.video_bitrate = ''
+
+    def on_audio_codec(self, *_):
+        if self.audio_codec not in audio_codecs_friendly+['Auto']:
+            self.audio_codec = 'Auto'
+            self.audio_bitrate = ''
+
+    def on_resize(self, *_):
+        if not self.resize:
+            self.resize_width = ''
+            self.resize_height = ''
+
+    def on_resize_width(self, *_):
+        if self.resize_width:
+            try:
+                width = str(abs(int(self.resize_width)))
+                if width == '0':
+                    self.resize_width = ''
+                elif width != self.resize_width:
+                    self.resize_width = width
+            except:
+                self.resize_width = ''
+
+    def on_resize_height(self, *_):
+        if self.resize_height:
+            try:
+                height = str(abs(int(self.resize_height)))
+                if height == '0':
+                    self.resize_height = ''
+                elif height != self.resize_height:
+                    self.resize_height = height
+            except:
+                self.resize_height = ''
+
+    def on_video_bitrate(self, *_):
+        if self.video_bitrate:
+            try:
+                bitrate = str(abs(int(self.video_bitrate)))
+                if bitrate == '0':
+                    self.video_bitrate = ''
+                elif bitrate != self.video_bitrate:
+                    self.video_bitrate = bitrate
+            except:
+                self.video_bitrate = ''
+
+    def on_audio_bitrate(self, *_):
+        if self.audio_bitrate:
+            try:
+                bitrate = str(abs(int(self.audio_bitrate)))
+                if bitrate == '0':
+                    self.audio_bitrate = ''
+                elif bitrate != self.audio_bitrate:
+                    self.audio_bitrate = bitrate
+            except:
+                self.audio_bitrate = ''
+
+    def on_encoding_speed(self, *_):
+        if self.encoding_speed not in encoding_speeds_friendly+['Auto']:
+            self.encoding_speed = 'Auto'
+
+    def get_encoding_preset(self, replace_auto=False):
+        encoding_settings = {}
+        if replace_auto and self.file_format == 'Auto':
+            encoding_settings['file_format'] = containers_friendly[0]
+        else:
+            encoding_settings['file_format'] = self.file_format
+        if replace_auto and self.video_codec == 'Auto':
+            encoding_settings['video_codec'] = video_codecs_friendly[0]
+        else:
+            encoding_settings['video_codec'] = self.video_codec
+        if replace_auto and self.audio_codec == 'Auto':
+            encoding_settings['audio_codec'] = audio_codecs_friendly[0]
+        else:
+            encoding_settings['audio_codec'] = self.audio_codec
+
+        if not self.resize or (not self.resize_width or not self.resize_height):
+            encoding_settings['height'] = ''
+            encoding_settings['width'] = ''
+            encoding_settings['resize'] = False
+        else:
+            encoding_settings['height'] = self.resize_height
+            encoding_settings['width'] = self.resize_width
+            encoding_settings['resize'] = True
+        encoding_settings['video_bitrate'] = self.video_bitrate
+        encoding_settings['audio_bitrate'] = self.audio_bitrate
+
+        if replace_auto and self.encoding_speed == 'Auto':
+            encoding_settings['encoding_speed'] = 'Fast'
+        else:
+            encoding_settings['encoding_speed'] = self.encoding_speed
+        encoding_settings['command_line'] = self.command_line
+        encoding_settings['deinterlace'] = self.deinterlace
+        return encoding_settings
+
+    def store_current_encoding_preset(self):
+        app = App.get_running_app()
+        file_format = self.file_format
+        video_codec = self.video_codec
+        audio_codec = self.audio_codec
+        resize = str(self.resize)
+        resize_width = self.resize_width
+        resize_height = self.resize_height
+        video_bitrate = self.video_bitrate
+        audio_bitrate = self.audio_bitrate
+        encoding_speed = self.encoding_speed
+        deinterlace = str(self.deinterlace)
+        command_line = self.command_line
+        encoding_preset = file_format+','+video_codec+','+audio_codec+','+resize+','+resize_width+','+resize_height+','+video_bitrate+','+audio_bitrate+','+encoding_speed+','+deinterlace+','+command_line
+        app.config.set('Presets', 'encoding', encoding_preset)
+
+    def load_current_encoding_preset(self):
+        app = App.get_running_app()
+        encoding_preset_text = app.config.get('Presets', 'encoding')
+        if encoding_preset_text:
+            encoding_settings = encoding_preset_text.split(',', 10)
+            try:
+                self.file_format = encoding_settings[0]
+                self.video_codec = encoding_settings[1]
+                self.audio_codec = encoding_settings[2]
+                self.resize = to_bool(encoding_settings[3])
+                self.resize_width = encoding_settings[4]
+                self.resize_height = encoding_settings[5]
+                self.video_bitrate = encoding_settings[6]
+                self.audio_bitrate = encoding_settings[7]
+                self.encoding_speed = encoding_settings[8]
+                self.deinterlace = to_bool(encoding_settings[9])
+                self.command_line = encoding_settings[10]
+            except:
+                pass
+
+    def copy_from(self, preset):
+        self.name = preset.name
+        self.file_format = preset.file_format
+        self.video_codec = preset.video_codec
+        self.audio_codec = preset.audio_codec
+        self.resize = preset.resize
+        self.resize_width = preset.resize_width
+        self.resize_height = preset.resize_height
+        self.video_bitrate = preset.video_bitrate
+        self.audio_bitrate = preset.audio_bitrate
+        self.encoding_speed = preset.encoding_speed
+        self.deinterlace = preset.deinterlace
+        self.command_line = preset.command_line
+        self.video_quality = preset.video_quality
+
+
+class ExpandablePanel(GridLayout):
+    animation = None
+    expanded = BooleanProperty(False)
+    target_size_hint_y = NumericProperty(0)
+
+    def on_expanded(self, *_):
+        if self.expanded:
+            self.animate_expand()
+        else:
+            self.animate_close()
+
+    def animate_close(self, instant=False, *_):
+        app = App.get_running_app()
+        self.unbind(minimum_height=self.set_content_height)
+        self.disabled = True
+        if app.animations and not instant:
+            if self.animation:
+                self.animation.cancel(self)
+            if self.target_size_hint_y != 0:
+                self.size_hint_y = self.target_size_hint_y
+                self.animation = Animation(size_hint_y=0, opacity=0, duration=app.animation_length)
+            else:
+                self.animation = Animation(height=0, opacity=0, duration=app.animation_length)
+            self.animation.start(self)
+        else:
+            self.opacity = 0
+            self.height = 0
+
+    def animate_expand(self, instant=False, *_):
+        app = App.get_running_app()
+        self.disabled = False
+        if app.animations and not instant:
+            if self.animation:
+                self.animation.cancel(self)
+            if self.target_size_hint_y != 0:
+                self.size_hint_y = 0
+                self.animation = Animation(size_hint_y=self.target_size_hint_y, opacity=1, duration=app.animation_length)
+            else:
+                self.animation = Animation(height=self.minimum_height, opacity=1, duration=app.animation_length)
+            self.animation.start(self)
+            self.animation.bind(on_complete=self.finish_expand)
+        else:
+            self.finish_expand()
+            self.opacity = 1
+
+    def finish_expand(self, *_):
+        self.animation = None
+        if self.target_size_hint_y != 0:
+            self.size_hint_y = self.target_size_hint_y
+        else:
+            self.height = self.minimum_height
+            self.bind(minimum_height=self.set_content_height)
+
+    def set_content_height(self, *_):
+        self.height = self.minimum_height
+
+
 class SpecialSlider(Slider):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos) and touch.is_double_tap:
-            self.reset_value()
+            #self.reset_value()
+            Clock.schedule_once(self.reset_value, 0.15)  #need to delay this more than the scrollview scroll_timeout so it actually works
             return
         super(SpecialSlider, self).on_touch_down(touch)
 
@@ -1046,6 +1352,7 @@ class NormalSlider(SpecialSlider):
 
 class InputMenu(Bubble):
     owner = ObjectProperty()
+    edit = BooleanProperty(True)
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
@@ -1053,6 +1360,7 @@ class InputMenu(Bubble):
             app.close_bubble()
         else:
             super(InputMenu, self).on_touch_down(touch)
+            return True
 
     def select_all(self, *_):
         if self.owner:
@@ -1098,14 +1406,13 @@ class NormalInput(TextInput):
             self.long_press_pos = pos
             if touch.button == 'right':
                 app = App.get_running_app()
-
-                app.popup_bubble(self, pos)
+                app.popup_bubble(self, pos, edit=not self.disabled)
                 return
         super(NormalInput, self).on_touch_down(touch)
 
     def do_long_press(self, *_):
         app = App.get_running_app()
-        app.popup_bubble(self, self.long_press_pos)
+        app.popup_bubble(self, self.long_press_pos, edit=not self.disabled)
 
 
 class HalfSliderLimited(SpecialSlider):
@@ -1182,6 +1489,11 @@ class ShortLabel(NormalLabel):
     pass
 
 
+class LeftNormalLabel(NormalLabel):
+    """Label widget that displays text left-justified"""
+    pass
+
+
 class PhotoThumbLabel(NormalLabel):
     pass
 
@@ -1235,7 +1547,8 @@ class RecycleItem(RecycleDataViewBehavior, BoxLayout):
     owner = ObjectProperty()
     text = StringProperty()
     selected = BooleanProperty(False)
-    index = None
+    selectable = BooleanProperty(True)
+    index = NumericProperty(0)
     data = {}
 
     def on_selected(self, *_):
@@ -1265,11 +1578,10 @@ class RecycleItem(RecycleDataViewBehavior, BoxLayout):
         if super(RecycleItem, self).on_touch_down(touch):
             return True
         if self.collide_point(*touch.pos):
-            self.parent.selected = self.data
-            try:
-                self.owner.select(self)
-            except:
-                pass
+            app = App.get_running_app()
+            self.parent.click_node(self)
+            if app.shift_pressed:
+                self.parent.select_range(self.index, touch)
             return True
 
 
@@ -1466,6 +1778,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
                 temp_coords = self.to_parent(touch.opos[0], touch.opos[1])
                 widget_coords = (temp_coords[0]-self.pos[0], temp_coords[1]-self.pos[1])
                 window_coords = self.to_window(touch.opos[0], touch.opos[1])
+                touch.grab(self, exclusive=True)  #Enuser that on_touch_up and on_touch_move are called even if this widget is dragged out of the treeview
                 app.drag_treeview(self, 'start', window_coords, offset=widget_coords)
 
     def on_press(self):
@@ -1474,6 +1787,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
         #self.owner.set_selected(self.target)
         self.owner.selected = ''
         self.owner.selected = self.target
+        self.parent.click_node(self)
 
     def on_release(self):
         if self.expandable:
@@ -1513,76 +1827,106 @@ class TreenodeDrag(BoxLayout):
 
 class SelectableRecycleBoxLayout(RecycleBoxLayout, LayoutSelectionBehavior):
     """Adds selection and focus behavior to the view."""
+    owner = ObjectProperty()
     selected = DictProperty()
     selects = ListProperty()
     multiselect = BooleanProperty(False)
 
+    def clear_selects(self):
+        self.selects = []
+
+    def refresh_selection(self):
+        for node in self.children:
+            data = self.parent.data[node.index]
+            node.selected = data['selected']
+
+    def deselect_all(self):
+        for data in self.parent.data:
+            data['selected'] = False
+        self.refresh_selection()
+        self.selects = []
+        self.selected = {}
+
+    def select_all(self):
+        self.selects = []
+        for data in self.parent.data:
+            if data['selectable']:
+                data['selected'] = True
+                self.selects.append(data)
+                self.selected = data
+        self.refresh_selection()
+
+    def select_node(self, node):
+        super().select_node(node)
+        if not self.multiselect:
+            self.deselect_all()
+        node.selected = True
+        self.selects.append(node.data)
+        self.parent.data[self.parent.data.index(node.data)]['selected'] = True
+        node.data['selected'] = True
+        self.selected = node.data
+
+    def deselect_node(self, node):
+        super().deselect_node(node)
+        if node.data in self.selects:
+            self.selects.remove(node.data)
+        if self.selected == node.data:
+            if self.selects:
+                self.selected = self.selects[-1]
+            else:
+                self.selected = {}
+        if node.data in self.parent.data:
+            parent_index = self.parent.data.index(node.data)
+            parent_data = self.parent.data[parent_index]
+            parent_data['selected'] = False
+        node.selected = False
+        node.data['selected'] = False
+
+    def click_node(self, node):
+        #Called by a child widget when it is clicked on
+        if node.selected:
+            if self.multiselect:
+                self.deselect_node(node)
+            else:
+                pass
+                #self.deselect_all()
+        else:
+            if not self.multiselect:
+                self.deselect_all()
+            self.select_node(node)
+            self.selected = node.data
+
     def select_range(self, *_):
-        if self.multiselect:
+        if self.multiselect and self.selected and self.selected['selectable']:
             select_index = self.parent.data.index(self.selected)
             selected_nodes = []
             if self.selects:
                 for select in self.selects:
-                    selected_nodes.append(self.parent.data.index(select))
+                    if select['selectable']:
+                        index = self.parent.data.index(select)
+                        if index != select_index:
+                            selected_nodes.append(index)
             else:
                 selected_nodes = [0, len(self.parent.data)]
             closest_node = min(selected_nodes, key=lambda x: abs(x-select_index))
 
             for index in range(min(select_index, closest_node), max(select_index, closest_node)):
                 selected = self.parent.data[index]
+                selected['selected'] = True
                 if selected not in self.selects:
                     self.selects.append(selected)
-            self.selects.append(self.selected)
+
+            self.parent.refresh_from_data()
 
     def toggle_select(self, *_):
         if self.multiselect:
             if self.selects:
-                self.selects = []
+                self.deselect_all()
             else:
-                all_selects = self.parent.data
-                for select in all_selects:
-                    self.selects.append(select)
+                self.select_all()
         else:
             if self.selected:
                 self.selected = {}
-        self.update_selected()
-
-    def check_selected(self):
-        temp_selects = []
-        for select in self.selects:
-            if select in self.parent.data:
-                temp_selects.append(select)
-        self.selects = temp_selects
-
-    def on_selected(self, *_):
-        app = App.get_running_app()
-        if self.selected:
-            if self.multiselect:
-                self.check_selected()
-                if self.selected in self.selects:
-                    self.selects.remove(self.selected)
-                else:
-                    if app.shift_pressed:
-                        self.select_range()
-                    else:
-                        self.selects.append(self.selected)
-            self.update_selected()
-
-    def on_children(self, *_):
-        self.update_selected()
-
-    def update_selected(self):
-        for child in self.children:
-            if self.multiselect:
-                if child.data in self.selects:
-                    child.selected = True
-                else:
-                    child.selected = False
-            else:
-                if child.data == self.selected:
-                    child.selected = True
-                else:
-                    child.selected = False
 
 
 class SelectableRecycleLayout(LayoutSelectionBehavior):
@@ -1639,12 +1983,7 @@ class SelectableRecycleGrid(SelectableRecycleLayout, RecycleGridLayout):
 
 
 class NormalRecycleView(RecycleView):
-    def get_selected(self):
-        selected = []
-        for item in self.data:
-            if item['selected']:
-                selected.append(item)
-        return selected
+    pass
 
 
 class PhotoListRecycleView(RecycleView):
@@ -1807,7 +2146,8 @@ class WideButton(ButtonBase):
 
 class MenuButton(ButtonBase):
     """Basic class for a drop-down menu button item."""
-    pass
+
+    remember = None
 
 
 class RemoveButton(ButtonBase):
@@ -1842,8 +2182,7 @@ class ExpandableButton(GridLayout):
     def on_expanded(self, *_):
         if self.content:
             if self.expanded:
-                content_container = self.ids['contentContainer']
-                self.animate_expand()
+                Clock.schedule_once(lambda x: self.animate_expand())
             else:
                 self.animate_close()
 
@@ -1914,6 +2253,7 @@ class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
     droptype = StringProperty('folder')
 
     def on_touch_down(self, touch):
+        super().on_touch_down(touch)
         if self.collide_point(*touch.pos):
             if touch.is_double_tap:
                 if self.view_album:
@@ -1953,13 +2293,14 @@ class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
                 app.drag_treeview(self, 'move', window_coords)
 
     def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos):
-            self.on_release()
+        super().on_touch_up(touch)
         if self.drag:
             app = App.get_running_app()
             window_coords = self.to_window(touch.pos[0], touch.pos[1])
             app.drag_treeview(self, 'end', window_coords)
             self.drag = False
+        if self.collide_point(*touch.pos):
+            self.on_release()
 
 
 class PhotoRecycleViewButton(RecycleItem):
@@ -2103,9 +2444,12 @@ class NormalDropDown(DropDown):
     basic_animation = BooleanProperty(False)
 
     def open(self, *args, **kwargs):
-        app = App.get_running_app()
         super(NormalDropDown, self).open(*args, **kwargs)
+        self.opacity = 0
+        Clock.schedule_once(self.open_animation)
 
+    def open_animation(self, *_):
+        app = App.get_running_app()
         if app.animations:
             if self.basic_animation:
                 #Dont do fancy child opacity animation
@@ -2115,7 +2459,8 @@ class NormalDropDown(DropDown):
                 anim.start(self)
             else:
                 #determine if we opened up or down
-                if self.attach_to.y > self.y:
+                attach_to_window = self.attach_to.to_window(*self.attach_to.pos)
+                if attach_to_window[1] > self.pos[1]:
                     self.invert = True
                     children = reversed(self.container.children)
                 else:
@@ -2223,7 +2568,7 @@ class SplitterPanelLeft(SplitterPanel):
         del instance
         if self.animating:
             return
-        if width > 0:
+        if width > 0 and not self.hidden:
             app = App.get_running_app()
             widthpercent = (width/Window.width)
             app.config.set('Settings', 'leftpanel', widthpercent)
@@ -2250,7 +2595,7 @@ class SplitterPanelRight(SplitterPanel):
         del instance
         if self.animating:
             return
-        if width > 0:
+        if width > 0 and not self.hidden:
             app = App.get_running_app()
             widthpercent = (width/Window.width)
             app.config.set('Settings', 'rightpanel', widthpercent)
@@ -2265,6 +2610,18 @@ class CustomImage(KivyImage):
     All editing variables are watched by the widget and it will automatically update the preview when they are changed.
     """
 
+    norm_image_pos = ListProperty([100, 100])
+    o_a = NumericProperty(0)
+    o_b = NumericProperty(0)
+    o_c = NumericProperty(0)
+    o_d = NumericProperty(0)
+    i_a = NumericProperty(0)
+    i_b = NumericProperty(0)
+    i_c = NumericProperty(0)
+    i_d = NumericProperty(0)
+    crop_verts = ListProperty()
+    crop_indices = ListProperty()
+
     exif = ''
     pixel_format = ''
     length = NumericProperty(0)
@@ -2274,7 +2631,7 @@ class CustomImage(KivyImage):
     position = NumericProperty(0.0)
     start_point = NumericProperty(0.0)
     end_point = NumericProperty(1.0)
-    original_image = ObjectProperty()
+    original_image = ObjectProperty(allownone=True)
     photoinfo = ListProperty()
     original_width = NumericProperty(0)
     original_height = NumericProperty(0)
@@ -2301,7 +2658,7 @@ class CustomImage(KivyImage):
     autocontrast = BooleanProperty(False)
     equalize = NumericProperty(0)
     histogram = ListProperty()
-    edit_image = ObjectProperty()
+    edit_image = ObjectProperty(allownone=True)
     cropping = BooleanProperty(False)
     touch_point = ObjectProperty()
     active_cropping = BooleanProperty(False)
@@ -2315,8 +2672,9 @@ class CustomImage(KivyImage):
     edge_blur_amount = NumericProperty(0)
     edge_blur_size = NumericProperty(.5)
     edge_blur_intensity = NumericProperty(.5)
-    cropper = ObjectProperty()  #Holder for the cropper overlay
-    crop_controls = ObjectProperty()  #Holder for the cropper edit panel object
+    cropper = ObjectProperty(allownone=True)  #Holder for the cropper overlay
+    crop_controls = ObjectProperty(allownone=True)  #Holder for the cropper edit panel object
+    crop_text = StringProperty('')
     adaptive_clip = NumericProperty(0)
     border_opacity = NumericProperty(1)
     border_image = ListProperty()
@@ -2340,6 +2698,45 @@ class CustomImage(KivyImage):
     start_seconds = 0
     first_frame = None
 
+    def update_norm_image_pos(self, *_):
+        self.norm_image_pos = [self.pos[0] + ((self.width - self.norm_image_size[0]) / 2), self.pos[1] + ((self.height - self.norm_image_size[1]) / 2)]
+
+    def on_norm_image_size(self, *_):
+        self.update_norm_image_pos()
+        self.update_crop_rectangle()
+
+    def update_crop_rectangle(self, *_):
+        self.o_a = self.norm_image_pos[0]
+        self.o_b = self.norm_image_pos[1]
+        self.o_c = self.norm_image_pos[0] + self.norm_image_size[0]
+        self.o_d = self.norm_image_pos[1] + self.norm_image_size[1]
+
+        self.i_a = self.o_a + (self.norm_image_size[0] * self.crop_left)
+        self.i_b = self.o_b + (self.norm_image_size[1] * self.crop_bottom)
+        self.i_c = self.o_c - (self.norm_image_size[0] * self.crop_right)
+        self.i_d = self.o_d - (self.norm_image_size[1] * self.crop_top)
+
+        v_1 = [self.o_a, self.o_b, 0, 0]
+        v_2 = [self.o_c, self.o_b, 0, 0]
+        v_3 = [self.o_a, self.o_d, 0, 0]
+        v_4 = [self.o_c, self.o_d, 0, 0]
+        v_5 = [self.i_a, self.i_b, 0, 0]
+        v_6 = [self.i_c, self.i_b, 0, 0]
+        v_7 = [self.i_a, self.i_d, 0, 0]
+        v_8 = [self.i_c, self.i_d, 0, 0]
+
+        t_1 = [0, 1, 5]
+        t_2 = [0, 5, 4]
+        t_3 = [0, 4, 2]
+        t_4 = [4, 6, 2]
+        t_5 = [2, 6, 3]
+        t_6 = [6, 7, 3]
+        t_7 = [7, 3, 1]
+        t_8 = [7, 5, 1]
+
+        self.crop_verts = v_1 + v_2 + v_3 + v_4 + v_5 + v_6 + v_7 + v_8
+        self.crop_indices = t_1 + t_2 + t_3 + t_4 + t_5 + t_6 + t_7 + t_8
+
     def start_video_convert(self):
         self.close_video()
         self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 0.0, 'an': True})
@@ -2356,7 +2753,7 @@ class CustomImage(KivyImage):
 
         if self.start_point > 0:
             self.start_seconds = self.length * self.start_point
-            self.first_frame = self.seek_player(self.start_seconds)
+            self.first_frame = self.seek_player(self.start_seconds, precise=True)
 
     def wait_frame(self):
         #Ensures that a frame is gotten
@@ -2371,7 +2768,13 @@ class CustomImage(KivyImage):
         self.player.seek(pts=seek, relative=False, accurate=True)
         self.player.set_pause(True)
 
-    def seek_player(self, seek):
+    def seek_player(self, seek, precise=False):
+        if precise:
+            max_loops = 60
+            seek_distance = 1
+        else:
+            max_loops = 30
+            seek_distance = 2
         self.start_seek(seek)
 
         framerate = self.framerate[0] / self.framerate[1]
@@ -2391,23 +2794,21 @@ class CustomImage(KivyImage):
             current_seek = frame[1]
             current_seek_frame = current_seek * framerate
             frame_distance = abs(target_seek_frame - current_seek_frame)
-            if frame_distance < 2 or total_loops >= 30:
+            if frame_distance < seek_distance or total_loops >= max_loops:
                 #seek has finished, or give up after a lot of tries to not freeze the program...
                 break
+            time.sleep(0.05)
         return frame
 
     def get_converted_frame(self):
-        if self.first_frame:
-            frame = self.first_frame
-            self.first_frame = None
-        else:
-            self.player.set_pause(False)
-            frame = None
-            while not frame:
-                frame, value = self.player.get_frame(force_refresh=False)
-                if value == 'eof':
-                    return None
-            self.player.set_pause(True)
+        self.first_frame = None
+        self.player.set_pause(False)
+        frame = None
+        while not frame:
+            frame, value = self.player.get_frame()
+            if value == 'eof':
+                return None
+        self.player.set_pause(True)
         self.frame_number = self.frame_number + 1
         if self.max_frames:
             if self.frame_number > self.max_frames:
@@ -2422,7 +2823,11 @@ class CustomImage(KivyImage):
         image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
         if image.mode != 'RGB':
             image = image.convert('RGB')
-        image = self.adjust_image(image, preview=False)
+        try:
+            image = self.adjust_image(image, preview=False)
+        except Exception as e:
+            #image creation may not succeed for various reasons.
+            return [None, e]
         return [image, frame[1]]
 
     def close_video(self):
@@ -2449,87 +2854,80 @@ class CustomImage(KivyImage):
             force: Forces the recrop function to horizontal or vertical.  Must be None, 'h' or 'v'
         """
 
+        width = 1 - self.crop_left - self.crop_right
+        height = 1 - self.crop_top - self.crop_bottom
+        if height == 0:
+            return
         if aspect_x is not None and aspect_y is not None:
             self.aspect = aspect_x / aspect_y
-        width = self.original_width - self.crop_left - self.crop_right
-        height = self.original_height - self.crop_top - self.crop_bottom
-        if aspect_x != width or aspect_y != height:
-            current_ratio = width / height
-            target_ratio = self.aspect
-            if (force is None and target_ratio > current_ratio) or force == 'v':
-                #crop top/bottom, width is the same
-                new_height = width / target_ratio
-                height_difference = height - new_height
-                crop_right = 0
-                crop_left = 0
-                crop_top = height_difference / 2
-                crop_bottom = crop_top
-            else:
-                #crop sides, height is the same
-                new_width = height * target_ratio
-                width_difference = width - new_width
-                crop_top = 0
-                crop_bottom = 0
-                crop_left = width_difference / 2
-                crop_right = crop_left
-        else:
-            crop_top = 0
+        current_ratio = width / height
+        image_ratio = self.original_width / self.original_height
+        target_ratio = self.aspect / image_ratio
+        if (force is None and target_ratio > current_ratio) or force == 'v':
+            #crop top/bottom, width is the same
+            new_height = width / target_ratio
+            height_difference = height - new_height
             crop_right = 0
-            crop_bottom = 0
             crop_left = 0
+            crop_top = height_difference / 2
+            crop_bottom = crop_top
+        else:
+            #crop sides, height is the same
+            new_width = height * target_ratio
+            width_difference = width - new_width
+            crop_top = 0
+            crop_bottom = 0
+            crop_left = width_difference / 2
+            crop_right = crop_left
         self.crop_top = self.crop_top + crop_top
         self.crop_right = self.crop_right + crop_right
         self.crop_bottom = self.crop_bottom + crop_bottom
         self.crop_left = self.crop_left + crop_left
-        self.reset_cropper()
+        self.update_cropper()
 
-    def crop_percent(self, side, percent):
-        texture_width = self.original_width
-        texture_height = self.original_height
-        crop_min = self.crop_min
-
-        if side == 'top':
-            crop_amount = texture_height * percent
-            if (texture_height - crop_amount - self.crop_bottom) < crop_min:
-                crop_amount = texture_height - self.crop_bottom - crop_min
-            self.crop_top = crop_amount
-        elif side == 'right':
-            crop_amount = texture_width * percent
-            if (texture_width - crop_amount - self.crop_left) < crop_min:
-                crop_amount = texture_width - self.crop_left - crop_min
-            self.crop_right = crop_amount
-        elif side == 'bottom':
-            crop_amount = texture_height * percent
-            if (texture_height - crop_amount - self.crop_top) < crop_min:
-                crop_amount = texture_height - self.crop_top - crop_min
-            self.crop_bottom = crop_amount
+    def on_crop_top(self, *_):
+        if (self.crop_top + self.crop_bottom) > 0.9:
+            self.crop_top = 0.9 - self.crop_bottom
+            self.update_crop_controls()
         else:
-            crop_amount = texture_width * percent
-            if (texture_width - crop_amount - self.crop_right) < crop_min:
-                crop_amount = texture_width - self.crop_right - crop_min
-            self.crop_left = crop_amount
-        self.reset_cropper()
-        self.update_crop_controls()
+            self.update_cropper()
 
-    def update_crop_controls(self):
-        if self.crop_controls:
-            self.crop_controls.update_crop()
+    def on_crop_right(self, *_):
+        if (self.crop_left + self.crop_right) > 0.9:
+            self.crop_right = 0.9 - self.crop_left
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
 
-    def get_crop_percent(self):
-        width = self.original_width
-        height = self.original_height
-        top_percent = self.crop_top / height
-        right_percent = self.crop_right / width
-        bottom_percent = self.crop_bottom / height
-        left_percent = self.crop_left / width
-        return [top_percent, right_percent, bottom_percent, left_percent]
+    def on_crop_bottom(self, *_):
+        if (self.crop_top + self.crop_bottom) > 0.9:
+            self.crop_bottom = 0.9 - self.crop_top
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
 
-    def get_crop_size(self):
-        new_width = self.original_width - self.crop_left - self.crop_right
-        new_height = self.original_height - self.crop_top - self.crop_bottom
-        new_aspect = new_width / new_height
+    def on_crop_left(self, *_):
+        if (self.crop_left + self.crop_right) > 0.9:
+            self.crop_left = 0.9 - self.crop_right
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
+
+    def set_crop_text(self):
+        #Sets some text that describes the current crop settings
+
+        crop_left = self.original_width * self.crop_left
+        crop_right = self.original_width * self.crop_right
+        crop_top = self.original_height * self.crop_top
+        crop_bottom = self.original_height * self.crop_bottom
+        new_width = self.original_width - crop_left - crop_right
+        new_height = self.original_height - crop_top - crop_bottom
+        if new_height != 0:
+            new_aspect = new_width / new_height
+        else:
+            new_aspect = 0
         old_aspect = self.original_width / self.original_height
-        return "Size: "+str(int(new_width))+"x"+str(int(new_height))+", Aspect: "+str(round(new_aspect, 2))+" (Original: "+str(round(old_aspect, 2))+")"
+        self.crop_text = "Size: "+str(int(new_width))+"x"+str(int(new_height))+", Aspect: "+str(round(new_aspect, 2))+" (Original: "+str(round(old_aspect, 2))+")"
 
     def reset_crop(self):
         """Sets the crop values back to 0 for all sides"""
@@ -2538,9 +2936,12 @@ class CustomImage(KivyImage):
         self.crop_bottom = 0
         self.crop_left = 0
         self.crop_right = 0
-        self.reset_cropper(setup=True)
+        self.update_cropper(setup=True)
 
-    def reset_cropper(self, setup=False):
+    def on_cropper(self, *_):
+        self.update_cropper(setup=True)
+
+    def update_cropper(self, setup=False):
         """Updates the position and size of the cropper overlay object."""
 
         if self.cropper:
@@ -2551,13 +2952,12 @@ class CustomImage(KivyImage):
             texture_left_edge = texture_size[3]
 
             texture_width = (texture_right_edge - texture_left_edge)
-            #texture_height = (texture_top_edge - texture_bottom_edge)
+            texture_height = (texture_top_edge - texture_bottom_edge)
 
-            divisor = self.original_width / texture_width
-            top_edge = texture_top_edge - (self.crop_top / divisor)
-            bottom_edge = texture_bottom_edge + (self.crop_bottom / divisor)
-            left_edge = texture_left_edge + (self.crop_left / divisor)
-            right_edge = texture_right_edge - (self.crop_right / divisor)
+            top_edge = texture_top_edge - (self.crop_top * texture_height)
+            bottom_edge = texture_bottom_edge + (self.crop_bottom * texture_height)
+            left_edge = texture_left_edge + (self.crop_left * texture_width)
+            right_edge = texture_right_edge - (self.crop_right * texture_width)
             width = right_edge - left_edge
             height = top_edge - bottom_edge
 
@@ -2566,6 +2966,8 @@ class CustomImage(KivyImage):
             if setup:
                 self.cropper.max_resizable_width = width
                 self.cropper.max_resizable_height = height
+        self.set_crop_text()
+        self.update_crop_rectangle()
 
     def get_texture_size(self):
         """Returns a list of the texture size coordinates.
@@ -2639,25 +3041,29 @@ class CustomImage(KivyImage):
         top_crop = texture_top_edge - height - posy
 
         texture_width = (texture_right_edge - texture_left_edge)
-        divisor = self.original_width / texture_width
+        texture_height = (texture_top_edge - texture_bottom_edge)
         if left_crop < 0:
             self.crop_left = 0
         else:
-            self.crop_left = left_crop * divisor
+            self.crop_left = left_crop / texture_width
         if right_crop < 0:
             self.crop_right = 0
         else:
-            self.crop_right = right_crop * divisor
+            self.crop_right = right_crop / texture_width
         if top_crop < 0:
             self.crop_top = 0
         else:
-            self.crop_top = top_crop * divisor
+            self.crop_top = top_crop / texture_height
         if bottom_crop < 0:
             self.crop_bottom = 0
         else:
-            self.crop_bottom = bottom_crop * divisor
+            self.crop_bottom = bottom_crop / texture_height
         #self.update_preview(recrop=False)
         self.update_crop_controls()
+
+    def update_crop_controls(self):
+        if self.crop_controls:
+            self.crop_controls.update_crop_sliders()
 
     def on_sharpen(self, *_):
         self.update_preview()
@@ -2747,7 +3153,8 @@ class CustomImage(KivyImage):
         self.update_preview()
 
     def on_size(self, *_):
-        self.reset_cropper(setup=True)
+        self.update_cropper(setup=True)
+        self.update_norm_image_pos()
 
     def on_source(self, *_):
         """The source file has been changed, reload image and regenerate preview."""
@@ -2768,46 +3175,48 @@ class CustomImage(KivyImage):
         frame = self.seek_player(location)
         Clock.schedule_once(self.reload_edit_image)
 
-    def reload_edit_image(self, *_):
-        """Regenerate the edit preview image."""
-        if self.video:
-            if not self.player:
-                return
-            location = self.length * self.position
-            frame = self.seek_player(location)
-            frame = frame[0]
-            frame_size = frame.get_size()
-            pixel_format = frame.get_pixel_format()
-            frame_converter = SWScale(frame_size[0], frame_size[1], pixel_format, ofmt='rgb24')
-            new_frame = frame_converter.scale(frame)
-            image_data = bytes(new_frame.to_bytearray()[0])
-
-            original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
-            #for some reason, video frames are read upside-down? fix it here...
-            original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+    def get_original_image(self, reload=False):
+        if reload or self.original_image is None:
+            if self.video:
+                if not self.player:
+                    return
+                location = self.length * self.position
+                frame = self.seek_player(location)
+                frame = frame[0]
+                frame_size = frame.get_size()
+                pixel_format = frame.get_pixel_format()
+                if pixel_format != 'rgb24':
+                    frame_converter = SWScale(frame_size[0], frame_size[1], pixel_format, ofmt='rgb24')
+                    frame = frame_converter.scale(frame)
+                image_data = bytes(frame.to_bytearray()[0])
+                original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+                #for some reason, video frames are read upside-down? fix it here...
+                original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            else:
+                original_image = Image.open(self.source)
+                try:
+                    self.exif = original_image.info.get('exif', b'')
+                except:
+                    self.exif = ''
+                if self.angle != 0:
+                    if self.angle == 90:
+                        original_image = original_image.transpose(PIL.Image.ROTATE_90)
+                    if self.angle == 180:
+                        original_image = original_image.transpose(PIL.Image.ROTATE_180)
+                    if self.angle == 270:
+                        original_image = original_image.transpose(PIL.Image.ROTATE_270)
             self.original_width = original_image.size[0]
             self.original_height = original_image.size[1]
             self.original_image = original_image
-            image = original_image.copy()
-
         else:
-            original_image = Image.open(self.source)
-            try:
-                self.exif = original_image.info.get('exif', b'')
-            except:
-                self.exif = ''
-            if self.angle != 0:
-                if self.angle == 90:
-                    original_image = original_image.transpose(PIL.Image.ROTATE_90)
-                if self.angle == 180:
-                    original_image = original_image.transpose(PIL.Image.ROTATE_180)
-                if self.angle == 270:
-                    original_image = original_image.transpose(PIL.Image.ROTATE_270)
-            self.original_width = original_image.size[0]
-            self.original_height = original_image.size[1]
-            image = original_image.copy()
-            self.original_image = original_image.copy()
-            original_image.close()
+            original_image = self.original_image
+        return original_image
+
+    def reload_edit_image(self, *_):
+        """Regenerate the edit preview image."""
+
+        original_image = self.get_original_image(reload=True)
+        image = original_image.copy()
         image_width = Window.width * .75
         width = int(image_width)
         height = int(image_width*(image.size[1]/image.size[0]))
@@ -2837,11 +3246,12 @@ class CustomImage(KivyImage):
             self.texture.flip_horizontal()
 
     def denoise_preview(self, width, height, pos_x, pos_y):
+
         left = pos_x
         right = pos_x + width
         lower = pos_y + width
         upper = pos_y
-        original_image = self.original_image
+        original_image = self.get_original_image()
         preview = original_image.crop(box=(left, upper, right, lower))
         if preview.mode != 'RGB':
             preview = preview.convert('RGB')
@@ -2867,7 +3277,7 @@ class CustomImage(KivyImage):
         self.update_texture(image)
         self.histogram = image.histogram()
         if recrop:
-            self.reset_cropper(setup=True)
+            self.update_cropper(setup=True)
 
     def adjust_image(self, image, preview=True):
         """Applies all current editing opterations to an image.
@@ -2877,7 +3287,7 @@ class CustomImage(KivyImage):
         Returns: A PIL image.
         """
 
-        if not preview:
+        if not preview and self.photoinfo:
             orientation = self.photoinfo[13]
             if orientation == 3 or orientation == 4:
                 image = image.transpose(PIL.Image.ROTATE_180)
@@ -2891,118 +3301,6 @@ class CustomImage(KivyImage):
         else:
             size_multiple = 1
 
-        if self.sharpen != 0:
-            enhancer = ImageEnhance.Sharpness(image)
-            image = enhancer.enhance(self.sharpen+1)
-        if self.median_blur != 0 and opencv:
-            max_median = 10 * size_multiple
-            median = int(self.median_blur * max_median)
-            if median % 2 == 0:
-                median = median + 1
-            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
-            open_cv_image = cv2.medianBlur(open_cv_image, median)
-            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(open_cv_image)
-        if self.bilateral != 0 and self.bilateral_amount != 0 and opencv:
-            diameter = int(self.bilateral * 10 * size_multiple)
-            if diameter < 1:
-                diameter = 1
-            sigma_color = self.bilateral_amount * 100 * size_multiple
-            if sigma_color < 1:
-                sigma_color = 1
-            sigma_space = sigma_color
-            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
-            open_cv_image = cv2.bilateralFilter(open_cv_image, diameter, sigma_color, sigma_space)
-            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(open_cv_image)
-        if self.vignette_amount > 0 and self.vignette_size > 0:
-            vignette = Image.new(mode='RGB', size=image.size, color=(0, 0, 0))
-            filter_color = int((1-self.vignette_amount)*255)
-            vignette_mixer = Image.new(mode='L', size=image.size, color=filter_color)
-            draw = ImageDraw.Draw(vignette_mixer)
-            shrink_x = int((self.vignette_size * (image.size[0]/2)) - (image.size[0]/4))
-            shrink_y = int((self.vignette_size * (image.size[1]/2)) - (image.size[1]/4))
-            draw.ellipse([0+shrink_x, 0+shrink_y, image.size[0]-shrink_x, image.size[1]-shrink_y], fill=255)
-            vignette_mixer = vignette_mixer.filter(ImageFilter.GaussianBlur(radius=(self.vignette_amount*60)+60))
-            image = Image.composite(image, vignette, vignette_mixer)
-        if self.edge_blur_amount > 0 and self.edge_blur_intensity > 0 and self.edge_blur_size > 0:
-            blur_image = image.filter(ImageFilter.GaussianBlur(radius=(self.edge_blur_amount*30)))
-            filter_color = int((1-self.edge_blur_intensity)*255)
-            blur_mixer = Image.new(mode='L', size=image.size, color=filter_color)
-            draw = ImageDraw.Draw(blur_mixer)
-            shrink_x = int((self.edge_blur_size * (image.size[0]/2)) - (image.size[0]/4))
-            shrink_y = int((self.edge_blur_size * (image.size[1]/2)) - (image.size[1]/4))
-            draw.ellipse([0+shrink_x, 0+shrink_y, image.size[0]-shrink_x, image.size[1]-shrink_y], fill=255)
-            blur_mixer = blur_mixer.filter(ImageFilter.GaussianBlur(radius=(self.edge_blur_amount*30)))
-            image = Image.composite(image, blur_image, blur_mixer)
-        if self.crop_top != 0 or self.crop_bottom != 0 or self.crop_left != 0 or self.crop_right != 0:
-            if preview:
-                overlay = Image.new(mode='RGB', size=image.size, color=(0, 0, 0))
-                divisor = self.original_width / image.size[0]
-                draw = ImageDraw.Draw(overlay)
-                draw.rectangle([0, 0, (self.crop_left / divisor), image.size[1]], fill=(255, 255, 255))
-                draw.rectangle([0, 0, image.size[0], (self.crop_top / divisor)], fill=(255, 255, 255))
-                draw.rectangle([(image.size[0] - (self.crop_right / divisor)), 0, (image.size[0]), image.size[1]],
-                               fill=(255, 255, 255))
-                draw.rectangle([0, (image.size[1] - (self.crop_bottom / divisor)), image.size[0], image.size[1]],
-                               fill=(255, 255, 255))
-                bright = ImageEnhance.Brightness(overlay)
-                overlay = bright.enhance(.333)
-                image = ImageChops.subtract(image, overlay)
-            else:
-                if self.crop_left >= image.size[0]:
-                    crop_left = 0
-                else:
-                    crop_left = int(self.crop_left)
-                if self.crop_top >= image.size[1]:
-                    crop_top = 0
-                else:
-                    crop_top = int(self.crop_top)
-                if self.crop_right >= image.size[0]:
-                    crop_right = image.size[0]
-                else:
-                    crop_right = int(image.size[0] - self.crop_right)
-                if self.crop_bottom >= image.size[1]:
-                    crop_bottom = image.size[1]
-                else:
-                    crop_bottom = int(image.size[1] - self.crop_bottom)
-                if self.video:
-                    #ensure that image size is divisible by 2
-                    new_width = crop_right - crop_left
-                    new_height = crop_bottom - crop_top
-                    if new_width % 2 == 1:
-                        if crop_right < image.size[0]:
-                            crop_right = crop_right + 1
-                        else:
-                            crop_right = crop_right - 1
-                    if new_height % 2 == 1:
-                        if crop_bottom < image.size[1]:
-                            crop_bottom = crop_bottom + 1
-                        else:
-                            crop_bottom = crop_bottom - 1
-                image = image.crop((crop_left, crop_top, crop_right, crop_bottom))
-        if self.flip_horizontal:
-            image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
-        if self.flip_vertical:
-            image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        if self.rotate_angle != 0:
-            if self.rotate_angle == 90:
-                image = image.transpose(PIL.Image.ROTATE_270)
-            if self.rotate_angle == 180:
-                image = image.transpose(PIL.Image.ROTATE_180)
-            if self.rotate_angle == 270:
-                image = image.transpose(PIL.Image.ROTATE_90)
-        if self.fine_angle != 0:
-            total_angle = -self.fine_angle*10
-            angle_radians = math.radians(abs(total_angle))
-            width, height = rotated_rect_with_max_area(image.size[0], image.size[1], angle_radians)
-            x = int((image.size[0] - width) / 2)
-            y = int((image.size[1] - height) / 2)
-            if preview:
-                image = image.rotate(total_angle, expand=False)
-            else:
-                image = image.rotate(total_angle, resample=PIL.Image.BICUBIC, expand=False)
-            image = image.crop((x, y, image.size[0] - x, image.size[1] - y))
         if self.autocontrast:
             image = ImageOps.autocontrast(image)
         if self.equalize != 0:
@@ -3088,6 +3386,51 @@ class CustomImage(KivyImage):
             open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_Lab2RGB)
             image = Image.fromarray(open_cv_image)
 
+        if self.sharpen != 0:
+            enhancer = ImageEnhance.Sharpness(image)
+            image = enhancer.enhance(self.sharpen+1)
+        if self.median_blur != 0 and opencv:
+            max_median = 10 * size_multiple
+            median = int(self.median_blur * max_median)
+            if median % 2 == 0:
+                median = median + 1
+            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
+            open_cv_image = cv2.medianBlur(open_cv_image, median)
+            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(open_cv_image)
+        if self.bilateral != 0 and self.bilateral_amount != 0 and opencv:
+            diameter = int(self.bilateral * 10 * size_multiple)
+            if diameter < 1:
+                diameter = 1
+            sigma_color = self.bilateral_amount * 100 * size_multiple
+            if sigma_color < 1:
+                sigma_color = 1
+            sigma_space = sigma_color
+            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
+            open_cv_image = cv2.bilateralFilter(open_cv_image, diameter, sigma_color, sigma_space)
+            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(open_cv_image)
+        if self.vignette_amount > 0 and self.vignette_size > 0:
+            vignette = Image.new(mode='RGB', size=image.size, color=(0, 0, 0))
+            filter_color = int((1-self.vignette_amount)*255)
+            vignette_mixer = Image.new(mode='L', size=image.size, color=filter_color)
+            draw = ImageDraw.Draw(vignette_mixer)
+            shrink_x = int((self.vignette_size * (image.size[0]/2)) - (image.size[0]/4))
+            shrink_y = int((self.vignette_size * (image.size[1]/2)) - (image.size[1]/4))
+            draw.ellipse([0+shrink_x, 0+shrink_y, image.size[0]-shrink_x, image.size[1]-shrink_y], fill=255)
+            vignette_mixer = vignette_mixer.filter(ImageFilter.GaussianBlur(radius=(self.vignette_amount*60)+60))
+            image = Image.composite(image, vignette, vignette_mixer)
+        if self.edge_blur_amount > 0 and self.edge_blur_intensity > 0 and self.edge_blur_size > 0:
+            blur_image = image.filter(ImageFilter.GaussianBlur(radius=(self.edge_blur_amount*30)))
+            filter_color = int((1-self.edge_blur_intensity)*255)
+            blur_mixer = Image.new(mode='L', size=image.size, color=filter_color)
+            draw = ImageDraw.Draw(blur_mixer)
+            shrink_x = int((self.edge_blur_size * (image.size[0]/2)) - (image.size[0]/4))
+            shrink_y = int((self.edge_blur_size * (image.size[1]/2)) - (image.size[1]/4))
+            draw.ellipse([0+shrink_x, 0+shrink_y, image.size[0]-shrink_x, image.size[1]-shrink_y], fill=255)
+            blur_mixer = blur_mixer.filter(ImageFilter.GaussianBlur(radius=(self.edge_blur_amount*30)))
+            image = Image.composite(image, blur_image, blur_mixer)
+
         if self.border_image:
             image_aspect = image.size[0]/image.size[1]
             closest_aspect = min(self.border_image[1], key=lambda x: abs(x-image_aspect))
@@ -3100,8 +3443,7 @@ class CustomImage(KivyImage):
             border_image = Image.open(image_file)
             border_crop_x = int(border_image.size[0] * ((self.border_x_scale + 1) / 15))
             border_crop_y = int(border_image.size[1] * ((self.border_y_scale + 1) / 15))
-            border_image = border_image.crop((border_crop_x, border_crop_y, border_image.size[0] - border_crop_x,
-                                              border_image.size[1] - border_crop_y))
+            border_image = border_image.crop((border_crop_x, border_crop_y, border_image.size[0] - border_crop_x, border_image.size[1] - border_crop_y))
             border_image = border_image.resize(image.size, resample)
 
             if os.path.splitext(image_file)[1].lower() == '.jpg':
@@ -3110,8 +3452,7 @@ class CustomImage(KivyImage):
                     alpha_file = image_file
                 alpha = Image.open(alpha_file)
                 alpha = alpha.convert('L')
-                alpha = alpha.crop((border_crop_x, border_crop_y, alpha.size[0] - border_crop_x,
-                                    alpha.size[1] - border_crop_y))
+                alpha = alpha.crop((border_crop_x, border_crop_y, alpha.size[0] - border_crop_x, alpha.size[1] - border_crop_y))
                 alpha = alpha.resize(image.size, resample)
             else:
                 alpha = border_image.split()[-1]
@@ -3125,6 +3466,66 @@ class CustomImage(KivyImage):
             enhancer = ImageEnhance.Brightness(alpha)
             alpha = enhancer.enhance(self.border_opacity)
             image = Image.composite(border_image, image, alpha)
+
+        if self.flip_horizontal:
+            image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+        if self.flip_vertical:
+            image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        if self.rotate_angle != 0:
+            if self.rotate_angle == 90:
+                image = image.transpose(PIL.Image.ROTATE_270)
+            if self.rotate_angle == 180:
+                image = image.transpose(PIL.Image.ROTATE_180)
+            if self.rotate_angle == 270:
+                image = image.transpose(PIL.Image.ROTATE_90)
+        if self.fine_angle != 0:
+            total_angle = -self.fine_angle*10
+            angle_radians = math.radians(abs(total_angle))
+            width, height = rotated_rect_with_max_area(image.size[0], image.size[1], angle_radians)
+            x = int((image.size[0] - width) / 2)
+            y = int((image.size[1] - height) / 2)
+            if preview:
+                image = image.rotate(total_angle, expand=False)
+            else:
+                image = image.rotate(total_angle, resample=PIL.Image.BICUBIC, expand=False)
+            image = image.crop((x, y, image.size[0] - x, image.size[1] - y))
+
+        if self.crop_top != 0 or self.crop_bottom != 0 or self.crop_left != 0 or self.crop_right != 0:
+            if preview:
+                pass
+                """
+                #Draw a darkened overlay on cropped out edges
+                overlay = Image.new(mode='RGB', size=image.size, color=(0, 0, 0))
+                draw = ImageDraw.Draw(overlay)
+                draw.rectangle([0, 0, (self.crop_left * image.size[0]), image.size[1]], fill=(255, 255, 255))
+                draw.rectangle([0, 0, image.size[0], (self.crop_top * image.size[1])], fill=(255, 255, 255))
+                draw.rectangle([(image.size[0] - (self.crop_right * image.size[0])), 0, (image.size[0]), image.size[1]], fill=(255, 255, 255))
+                draw.rectangle([0, (image.size[1] - (self.crop_bottom * image.size[1])), image.size[0], image.size[1]], fill=(255, 255, 255))
+                bright = ImageEnhance.Brightness(overlay)
+                overlay = bright.enhance(.333)
+                image = ImageChops.subtract(image, overlay)
+                """
+            else:
+                #actually crop the image
+                crop_left = int(self.crop_left * image.size[0])
+                crop_right = int(image.size[0] - (self.crop_right * image.size[0]))
+                crop_top = int(self.crop_top * image.size[1])
+                crop_bottom = int(image.size[1] - (self.crop_bottom * image.size[1]))
+                if self.video:
+                    #ensure that image size is divisible by 2
+                    new_width = crop_right - crop_left
+                    new_height = crop_bottom - crop_top
+                    if new_width % 2 == 1:
+                        if crop_right < image.size[0]:
+                            crop_right = crop_right + 1
+                        else:
+                            crop_right = crop_right - 1
+                    if new_height % 2 == 1:
+                        if crop_bottom < image.size[1]:
+                            crop_bottom = crop_bottom + 1
+                        else:
+                            crop_bottom = crop_bottom - 1
+                image = image.crop((crop_left, crop_top, crop_right, crop_bottom))
 
         return image
 
@@ -3145,7 +3546,8 @@ class CustomImage(KivyImage):
         Returns: A PIL image.
         """
 
-        image = self.original_image.copy()
+        original_image = self.get_original_image()
+        image = original_image.copy()
         #if not self.video:
         #    if self.angle != 0:
         #        if self.angle == 90:
@@ -3160,7 +3562,19 @@ class CustomImage(KivyImage):
         return image
 
     def close_image(self):
-        self.original_image.close()
+        try:
+            self.original_image.close()
+        except:
+            pass
+        self.original_image = None
+
+    def clear_image(self):
+        self.close_video()
+        self.close_image()
+        self.cropper = None
+        self.crop_controls = None
+        self.first_frame = None
+        self.edit_image = None
 
 
 class AsyncThumbnail(KivyImage):

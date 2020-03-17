@@ -1,9 +1,3 @@
-try:
-    import numpy
-    import cv2
-    opencv = True
-except:
-    opencv = False
 import sys
 import PIL
 from PIL import Image, ImageEnhance, ImageOps, ImageChops, ImageDraw, ImageFilter, ImageFile
@@ -16,6 +10,7 @@ import subprocess
 import time
 from operator import itemgetter
 from functools import partial
+import multiprocessing
 
 #all these are needed to get ffpyplayer working on linux
 import ffpyplayer.threading
@@ -38,12 +33,14 @@ from kivy.animation import Animation
 from kivy.graphics.transformation import Matrix
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.screenmanager import Screen
-from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty
+from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.treeview import TreeViewNode
+from kivy.uix.widget import Widget
+from kivy.uix.screenmanager import ScreenManager
 from kivy.uix.image import Image as KivyImage
 from kivy.core.image import Image as CoreImage
 from kivy.uix.video import Video
@@ -60,11 +57,14 @@ from colorpickercustom import ColorPickerCustom
 
 from generalcommands import interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
 from filebrowser import FileBrowser
-from generalelements import CustomImage, NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
+from generalelements import EncodingSettings, ExpandablePanel, ScrollerContainer, CustomImage, NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, LeftNormalLabel, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
 from generalconstants import *
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
+#:import os os
+#:import SlideTransition kivy.uix.screenmanager.SlideTransition
+
 <AlbumScreen>:
     canvas.before:
         Color:
@@ -91,7 +91,6 @@ Builder.load_string("""
             orientation: 'horizontal'
             SplitterPanelLeft:
                 id: leftpanel
-                #width: app.leftpanel_width
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_x: .25
@@ -178,7 +177,7 @@ Builder.load_string("""
                         disabled: app.database_scanning
             SplitterPanelRight:
                 id: rightpanel
-                width: 0
+                #width: 0
                 opacity: 0
                 PanelTabs:
                     tab: root.view_panel
@@ -198,20 +197,14 @@ Builder.load_string("""
                     BoxLayout:
                         tab: 'edit'
                         opacity: 0
-                        id: editPanelContainer
                         pos: self.parent.pos
                         size: self.parent.size
                         padding: app.padding
-                        ScrollerContainer:
+                        GridLayout:
+                            disabled: app.database_scanning
+                            id: panelEdit
                             cols: 1
-                            id: editScroller
-                            do_scroll_x: False
-                            EditPanelContainer:
-                                disabled: app.database_scanning
-                                id: panelEdit
-                                cols: 1
-                                size_hint: 1, None
-                                height: self.minimum_height
+                            size_hint: 1, 1
                     BoxLayout:
                         tab: 'tags'
                         opacity: 0
@@ -317,6 +310,244 @@ Builder.load_string("""
                     disabled: True if (app.standalone and not app.standalone_in_database) else False
                     opacity: 0 if (app.standalone and not app.standalone_in_database) else 1
 
+<VideoConverterScreen>:
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    BoxLayout:
+        orientation: 'vertical'
+        MainHeader:
+            NormalButton:
+                text: 'Back To Album' if not root.from_database else 'Back To Library'
+                on_release: root.back()
+            ShortLabel:
+                text: app.standalone_text
+            HeaderLabel:
+                text: "Editing "+root.target
+            InfoLabel:
+            DatabaseLabel:
+            SettingsButton:
+        BoxLayout:
+            orientation: 'horizontal'
+            MainArea:
+                size_hint_x: .5
+                orientation: 'vertical'
+                Header:
+                    NormalToggle:
+                        text: '   Batch Conversion   '
+                        state: 'down' if root.use_batch else 'normal'
+                        on_release: root.use_batch = not root.use_batch
+                    NormalToggle:
+                        text: '   Replace/Add Audio   '
+                        state: 'down' if root.use_audio else 'normal'
+                        on_release: root.use_audio = not root.use_audio
+                        disabled: root.use_batch
+                    NormalToggle:
+                        text: '   Use Custom Command   '
+                        state: 'down' if root.use_command else 'normal'
+                        on_release: root.use_command = not root.use_command
+                    NormalLabel:
+                    NormalButton:
+                        text: 'Browse Export Folder'
+                        on_release: root.browse_export_folder()
+                        disabled: root.export_folder == ''
+                    #NormalButton:
+                    #    text: 'Test Conversion Settings'
+                    NormalButton:
+                        text: 'Convert Video'
+                        disabled: False if (root.photo or (root.use_batch and root.batch_list)) else True
+                        on_release: root.save_edit()
+                ExpandablePanel:
+                    expanded: not root.use_batch
+                    Header:
+                        ShortLabel:
+                            text: "File: "
+                        NormalInput:
+                            disabled: True
+                            text: root.photo
+                        NormalButton:
+                            text: 'Load Video...'
+                            on_release: root.load_video_begin()
+                Header:
+                    ShortLabel:
+                        text: "Export To: "
+                    NormalInput:
+                        id: exportInput
+                        hint_text: root.photo if not root.use_batch else ''
+                        multiline: False
+                        text: root.export_file
+                        on_text: root.export_file = self.text
+                    NormalButton:
+                        text: 'Select File... '
+                        on_release: root.browse_export_begin()
+                ExpandablePanel:
+                    id: addAudioPanel
+                    expanded: root.use_audio and not root.use_batch
+                    disabled: True
+                    Header:
+                        ShortLabel:
+                            text: "Replace Audio With: "
+                        NormalInput:
+                            id: audioInput
+                            hint_text: "Path\\To\\Audio File.wav"
+                            multiline: False
+                            text: root.audio_file
+                            on_text: root.audio_file = self.text
+                        NormalButton:
+                            text: 'Select File... '
+                            on_release: root.load_audio_begin()
+                ExpandablePanel:
+                    id: customCommandPanel
+                    expanded: root.use_command
+                    disabled: True
+                    Header:
+                        ShortLabel:
+                            text: "Manual Command: ffmpeg.exe "
+                        NormalInput:
+                            id: commandInput
+                            hint_text: '-sn %c %v %a %f %p %b %d'
+                            multiline: False
+                            text: app.encoding_settings.command_line
+                            on_text: app.encoding_settings.command_line = self.text
+                BoxLayout:
+                    orientation: 'horizontal'
+                    ScreenManager:
+                        transition: SlideTransition(direction='down', duration=app.animation_length)
+                        current: root.photo_viewer_current
+                        size_hint: 1, 1
+                        Screen:
+                            name: 'edit'
+                            RelativeLayout:
+                                size_hint: 1, 1
+                                id: photoViewerContainer
+                        Screen:
+                            name: 'batch'
+                            BoxLayout:
+                                orientation: 'vertical'
+                                Header:
+                                    size_hint_y: None
+                                    height: app.button_scale
+                                    WideButton:
+                                        text: 'Add Files...'
+                                        on_release: root.add_batch()
+                                    WideButton:
+                                        text: 'Remove Selected'
+                                        on_release: root.remove_selected_batch()
+                                        disabled: not photos.selects
+                                    WideButton:
+                                        text: 'Clear All'
+                                        on_release: root.clear_batch()
+                                        disabled: not root.batch_list
+                                PhotoListRecycleView:
+                                    canvas.before:
+                                        Color:
+                                            rgba: app.theme.sidebar_background
+                                        Rectangle:
+                                            size: self.size
+                                            pos: self.pos
+                                            source: 'data/panelbg.png'
+                                    scroll_distance: 10
+                                    scroll_timeout: 200
+                                    bar_width: int(app.button_scale * .5)
+                                    bar_color: app.theme.scroller_selected
+                                    bar_inactive_color: app.theme.scroller
+                                    scroll_type: ['bars', 'content']
+                                    data: root.batch_list
+                                    id: photosContainer
+                                    viewclass: 'BatchPhoto'
+                                    SelectableRecycleBoxLayout:
+                                        default_size: self.width, None
+                                        multiselect: True
+                                        id: photos
+                    BoxLayout:
+                        disabled: not root.encode_log_text
+                        opacity: 1 if root.encode_log_text else 0
+                        size_hint_x: 1 if root.encode_log_text else 0
+                        size_hint_y: 1
+                        GridLayout:
+                            cols: 1
+                            size_hint_y: 1
+                            id: extra
+                            BoxLayout:
+                                orientation: 'horizontal'
+                                size_hint_y: None
+                                height: app.button_scale
+                                LeftNormalLabel:
+                                    text: 'Conversion Log:'
+                                NormalButton:
+                                    text: 'Clear Log'
+                                    on_release: root.encode_log_text = ''
+                            Scroller:
+                                size_hint_y: 1
+                                NormalInput:
+                                    id: logviewer
+                                    size_hint: 1, None
+                                    height: self.minimum_height
+                                    text: root.encode_log_text
+                                    multiline: True
+                                    on_text: self.text = root.encode_log_text
+            SplitterPanelRight:
+                id: rightpanel
+                width: app.right_panel_width()
+                PanelTabs:
+                    size_hint_y: 1
+                    tab: root.view_panel
+                    BoxLayout:
+                        tab: 'conversion'
+                        opacity: 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        EditPanelVideo:
+                            size_hint_y: 1
+                            owner: root
+                            advanced: True
+                            name: 'video'
+                    BoxLayout:
+                        tab: 'info'
+                        opacity: 0
+                        orientation: 'vertical'
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        Scroller:
+                            NormalTreeView:
+                                id: panelInfo
+                        WideButton:
+                            text: 'Refresh Video Info'
+                            on_release: root.refresh_photoinfo()
+                    BoxLayout:
+                        tab: 'edit'
+                        opacity: 0
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        padding: app.padding
+                        GridLayout:
+                            disabled: app.database_scanning
+                            id: panelEdit
+                            cols: 1
+                            size_hint: 1, 1
+            StackLayout:
+                size_hint_x: None
+                width: app.button_scale
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'conversion' else 'normal'
+                    vertical_text: "Conversion"
+                    on_press: root.show_conversion_panel()
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'info' else 'normal'
+                    vertical_text: "Video Info"
+                    on_press: root.show_info_panel()
+                    disabled: root.use_batch
+                VerticalButton:
+                    state: 'down' if root.view_panel == 'edit' else 'normal'
+                    vertical_text: "Editing"
+                    on_press: root.show_edit_panel()
+                    disabled: root.use_batch
+
 <TreeViewInfo>:
     color_selected: app.selected_color
     odd_color: app.list_background_odd
@@ -372,8 +603,8 @@ Builder.load_string("""
                     canvas.before:
                         PushMatrix
                         Scale:
-                            x: 1 if root.angle == 0 or self.width == 0 else ((self.height/self.width) if (self.height/self.width) > .75 else .75)
-                            y: 1 if root.angle == 0 or self.width == 0 else ((self.height/self.width) if (self.height/self.width) > .75 else .75)
+                            x: 1 if (root.angle == 0 or root.angle == 180) or self.width == 0 else ((self.height/self.width) if (self.height/self.width) > .75 else .75)
+                            y: 1 if (root.angle == 0 or root.angle == 180) or self.width == 0 else ((self.height/self.width) if (self.height/self.width) > .75 else .75)
                             origin: photoStencil.center
                     canvas.after:
                         PopMatrix
@@ -458,745 +689,32 @@ Builder.load_string("""
             NormalButton:
                 text: 'Set End Point'
                 on_release: root.set_end_point()
-        HalfSliderLimited:
-            disabled: True if self.parent.opacity == 0 else False
-            size_hint_y: None
+        FloatLayout:
             width: root.width
-            value: root.position
-            start: root.start_point
-            end: root.end_point
-            on_value: root.position = self.value
+            size_hint: None, None
             height: app.button_scale
+            HalfSliderLimited:
+                size_hint: 1, 1
+                pos: self.parent.pos
+                disabled: True if self.parent.opacity == 0 else False
+                value: root.position
+                start: root.start_point
+                end: root.end_point
+                on_value: root.position = self.value
+            ShortLabel:
+                text: root.position_time_index
+                pos: (self.parent.pos[0] + (self.parent.width * root.position - (self.width * root.position)), self.parent.pos[1])
 
 <ExitFullscreenButton>:
     text: 'Back'
 
-<EditNone>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    size_hint: 1, None
-    height: self.minimum_height
-
-<EditMain>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    size_hint: 1, None
-    height: self.minimum_height
-    WideButton:
-        text: 'Color Adjustments'
-        on_release: root.owner.set_edit_panel('color')
-        disabled: not root.owner.view_image and not root.owner.ffmpeg
-    SmallBufferY:
-    WideButton:
-        text: 'Filters'
-        on_release: root.owner.set_edit_panel('filter')
-        disabled: not root.owner.view_image and not root.owner.ffmpeg
-    SmallBufferY:
-    WideButton:
-        text: 'Image Borders'
-        on_release: root.owner.set_edit_panel('border')
-        disabled: not root.owner.view_image and not root.owner.ffmpeg
-    SmallBufferY:
-    WideButton:
-        height: app.button_scale if root.owner.opencv else 0
-        opacity: 1 if root.owner.opencv else 0
-        text: 'Denoise'
-        on_release: root.owner.set_edit_panel('denoise')
-        disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
-    SmallBufferY:
-        height: int(app.button_scale / 4) if root.owner.opencv else 0
-    WideButton:
-        text: 'Rotate'
-        on_release: root.owner.set_edit_panel('rotate')
-        disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
-    SmallBufferY:
-    WideButton:
-        text: 'Crop'
-        on_release: root.owner.set_edit_panel('crop')
-        disabled: (not root.owner.view_image and not root.owner.ffmpeg) or not root.owner.opencv
-    SmallBufferY:
-    WideButton:
-        text: 'Convert'
-        on_release: root.owner.set_edit_panel('convert')
-        disabled: root.owner.view_image or not root.owner.ffmpeg
-    LargeBufferY:
-    WideButton:
-        id: deleteOriginal
-        text: 'Delete Unedited Original File'
-        warn: True
-        on_release: root.owner.delete_original()
-    SmallBufferY:
-    WideButton:
-        id: deleteOriginalAll
-        text: 'Delete All Originals In Folder'
-        warn: True
-        on_release: root.owner.delete_original_all()
-    SmallBufferY:
-    WideButton:
-        id: undoEdits
-        text: 'Restore Original Unedited File'
-        on_release: root.owner.restore_original()
-    LargeBufferY:
+<EditPanelConvert>:
+    orientation: 'vertical'
     GridLayout:
-        cols: 2
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            size_hint_x: 1
-            text: 'External Programs:'
-        NormalButton:
-            size_hint_x: None
-            text: 'New'
-            on_release: root.owner.add_program()
-    GridLayout:
-        id: externalPrograms
-        height: self.minimum_height
-        size_hint_y: None
-        cols: 1
-
-<EditColor>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    id: editColor
-    size_hint: 1, None
-    cols: 1
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Confirm Edit'
-            on_release: root.owner.save_edit()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    WideButton:
-        id: loadLast
-        disabled: not root.owner.edit_color
-        text: "Load Last Settings"
-        on_release: root.load_last()
-    MediumBufferY:
-    GridLayout:
-        id: videoPreset
-        cols: 1
-        height: self.minimum_height
-        size_hint_y: None
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Color Adjustments:'
-        NormalButton:
-            text: 'Reset All'
-            on_release: root.reset_all()
-    BoxLayout:
-        canvas.before:
-            Color:
-                rgba:0,0,0,1
-            Rectangle:
-                size: self.size
-                pos: self.pos
-        size_hint_y: None
-        height: self.width * .5
-        Image:
-            id: histogram
-            allow_stretch: True
-            keep_ratio: False
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        NormalToggle:
-            text: "Auto Contrast"
-            id: autocontrastToggle
-            state: 'down' if root.autocontrast else 'normal'
-            on_state: root.update_autocontrast(self.state)
-            size_hint_x: 1
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Equalize Histogram:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_equalize()
-    HalfSlider:
-        id: equalizeSlider
-        on_value: root.equalize = self.value
-        reset_value: root.reset_equalize
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale if root.owner.opencv else 0
-        disabled: not root.owner.opencv
-        opacity: 1 if root.owner.opencv else 0
-        LeftNormalLabel:
-            text: 'Adaptive Histogram Equalize:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_adaptive()
-    HalfSlider:
-        disabled: not root.owner.opencv
-        opacity: 1 if root.owner.opencv else 0
-        height: app.button_scale if root.owner.opencv else 0
-        id: adaptiveSlider
-        on_value: root.adaptive = self.value
-        reset_value: root.reset_adaptive
-    SmallBufferY:
-        height: int(app.button_scale / 4) if root.owner.opencv else 0
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Highs:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_brightness()
-    NormalSlider:
-        id: brightnessSlider
-        on_value: root.brightness = self.value
-        reset_value: root.reset_brightness
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Mids:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_gamma()
-    NormalSlider:
-        id: gammaSlider
-        on_value: root.gamma = self.value
-        reset_value: root.reset_gamma
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Lows:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_shadow()
-    NormalSlider:
-        id: shadowSlider
-        on_value: root.shadow = self.value
-        reset_value: root.reset_shadow
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Color Temperature:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_temperature()
-    NormalSlider:
-        id: temperatureSlider
-        on_value: root.temperature = self.value
-        reset_value: root.reset_temperature
-    SmallBufferY:
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Saturation:'
-        NormalButton:
-            text: 'Reset'
-            on_release: root.reset_saturation()
-    NormalSlider:
-        id: saturationSlider
-        on_value: root.saturation = self.value
-        reset_value: root.reset_saturation
-
-    SmallBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
         size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Curves:'
-            NormalButton:
-                text: 'Remove Point'
-                on_release: root.remove_point()
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_curves()
-        BoxLayout:
-            size_hint_y: None
-            height: self.width * .66
-            Curves:
-                id: curves
-        #BoxLayout:
-        #    orientation: 'horizontal'
-        #    size_hint_y: None
-        #    height: app.button_scale
-        #    LeftNormalLabel:
-        #        text: 'Interpolation Mode:'
-        #    MenuStarterButton:
-        #        size_hint_x: 1
-        #        id: interpolation
-        #        text: app.interpolation
-    SmallBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Tinting:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_tint()
-        BoxLayout:
-            size_hint_y: None
-            height: sp(33)*10
-            ColorPickerCustom:
-                id: tint
-                color: root.tint
-                on_color: root.tint = self.color
-
-<EditFilterImage>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    size_hint: 1, None
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Confirm Edit'
-            on_release: root.owner.save_edit()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    WideButton:
-        id: loadLast
-        disabled: not root.owner.edit_filter
-        text: "Load Last Settings"
-        on_release: root.load_last()
-    MediumBufferY:
-    GridLayout:
-        id: videoPreset
         cols: 1
         height: self.minimum_height
-        size_hint_y: None
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Filter Image:'
-        NormalButton:
-            text: 'Reset All'
-            on_release: root.reset_all()
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
         BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Soften/Sharpen:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_sharpen()
-        NormalSlider:
-            id: sharpenSlider
-            on_value: root.sharpen = self.value
-            reset_value: root.reset_sharpen
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale if root.owner.opencv else 0
-            opacity: 1 if root.owner.opencv else 0
-            LeftNormalLabel:
-                text: 'Median Blur (Despeckle):'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_median()
-                disabled: not root.owner.opencv
-        HalfSlider:
-            height: app.button_scale if root.owner.opencv else 0
-            opacity: 1 if root.owner.opencv else 0
-            id: medianSlider
-            on_value: root.median = self.value
-            disabled: not root.owner.opencv
-            reset_value: root.reset_median
-    MediumBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height if root.owner.opencv else 0
-        disabled: not root.owner.opencv
-        opacity: 1 if root.owner.opencv else 0
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Edge-Preserve Blur:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_bilateral_amount()
-        HalfSlider:
-            id: bilateralAmountSlider
-            on_value: root.bilateral_amount = self.value
-            reset_value: root.reset_bilateral_amount
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Blur Size:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_bilateral()
-        HalfSlider:
-            id: bilateralSlider
-            on_value: root.bilateral = self.value
-            reset_value: root.reset_bilateral
-    MediumBufferY:
-        height: int(app.button_scale / 2) if root.owner.opencv else 0
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Vignette:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_vignette_amount()
-        HalfSlider:
-            id: vignetteAmountSlider
-            on_value: root.vignette_amount = self.value
-            reset_value: root.reset_vignette_amount
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Size:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_vignette_size()
-        HalfSlider:
-            value: .5
-            id: vignetteSizeSlider
-            on_value: root.vignette_size = self.value
-            reset_value: root.reset_vignette_size
-    MediumBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Edge Blur:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_edge_blur_amount()
-        HalfSlider:
-            id: edgeBlurAmountSlider
-            on_value: root.edge_blur_amount = self.value
-            reset_value: root.reset_edge_blur_amount
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Size:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_edge_blur_size()
-        HalfSlider:
-            value: .5
-            id: edgeBlurSizeSlider
-            on_value: root.edge_blur_size = self.value
-            reset_value: root.reset_edge_blur_size
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Intensity:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_edge_blur_intensity()
-        HalfSlider:
-            value: .5
-            id: edgeBlurIntensitySlider
-            on_value: root.edge_blur_intensity = self.value
-            reset_value: root.reset_edge_blur_intensity
-
-<EditBorderImage>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    id: editBorder
-    size_hint: 1, None
-    cols: 1
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Confirm Edit'
-            on_release: root.owner.save_edit()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    WideButton:
-        id: loadLast
-        disabled: not root.owner.edit_border
-        text: "Load Last Settings"
-        on_release: root.load_last()
-    MediumBufferY:
-    GridLayout:
-        id: videoPreset
-        cols: 1
-        height: self.minimum_height
-        size_hint_y: None
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Border Overlays:'
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Border Opacity:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_border_opacity()
-        HalfSlider:
-            id: opacitySlider
-            on_value: root.border_opacity = self.value
-            reset_value: root.reset_border_opacity
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'X Size:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_border_x_scale()
-        NormalSlider:
-            id: borderXScale
-            on_value: root.border_x_scale = self.value
-            reset_value: root.reset_border_x_scale
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Y Size:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_border_y_scale()
-        NormalSlider:
-            id: borderYScale
-            on_value: root.border_y_scale = self.value
-            reset_value: root.reset_border_y_scale
-        SmallBufferY:
-        LeftNormalLabel:
-            text: 'Select A Border:'
-            height: app.button_scale
-            size_hint_y: None
-        BoxLayout:
-            canvas.before:
-                Color:
-                    rgba: app.theme.area_background
-                BorderImage:
-                    pos: self.pos
-                    size: self.size
-                    source: 'data/buttonflat.png'
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: int(app.button_scale * 10)
-            Scroller:
-                id: wrapper
-                NormalTreeView:
-                    id: borders
-    SmallBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Border Tinting:'
-            NormalButton:
-                text: 'Reset'
-                on_release: root.reset_tint()
-        BoxLayout:
-            size_hint_y: None
-            height: sp(33)*10
-            ColorPickerCustom:
-                id: tint
-                color: root.tint
-                on_color: root.tint = self.color
-
-<EditDenoiseImage>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    size_hint: 1, None
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Confirm Edit'
-            on_release: root.owner.save_edit()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    WideButton:
-        id: loadLast
-        disabled: not root.owner.edit_denoise
-        text: "Load Last Settings"
-        on_release: root.load_last()
-    MediumBufferY:
-    GridLayout:
-        id: videoPreset
-        cols: 1
-        height: self.minimum_height
-        size_hint_y: None
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Denoise Image:'
-        NormalButton:
-            text: 'Reset All'
-            on_release: root.reset_all()
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        #NormalButton:
-        #    size_hint_x: 1
-        #    text: 'Generate Full Preview'
-        #    on_release: root.denoise()
-        FloatLayout:
             canvas.before:
                 Color:
                     rgba:0,0,0,1
@@ -1204,590 +722,1338 @@ Builder.load_string("""
                     size: self.size
                     pos: self.pos
             size_hint_y: None
-            height: self.width
-            ScrollViewCentered:
-                canvas.after:
-                    Color:
-                        rgba: self.bar_color[:3] + [self.bar_color[3] * 1 if self.do_scroll_y else 0]
-                    Rectangle:
-                        pos: self.right - self.bar_width - self.bar_margin, self.y + self.height * self.vbar[0]
-                        size: self.bar_width, self.height * self.vbar[1]
-                    Color:
-                        rgba: self.bar_color[:3] + [self.bar_color[3] * 1 if self.do_scroll_x else 0]
-                    Rectangle:
-                        pos: self.x + self.width * self.hbar[0], self.y + self.bar_margin
-                        size: self.width * self.hbar[1], self.bar_width
-                on_scroll_stop: root.update_preview()
-                pos: self.parent.pos
-                size: self.parent.size
-                scroll_type: ['bars', 'content']
-                id: wrapper
-                size_hint: 1, 1
-                bar_width: int(app.button_scale * .75)
-                bar_color: app.theme.scroller_selected
-                bar_inactive_color: app.theme.scroller
-                RelativeLayout:
-                    owner: root
-                    size_hint: None, None
-                    size: root.image_x, root.image_y
-                    Image:
-                        allow_stretch: True
-                        size: root.image_x, root.image_y
-                        size_hint: None, None
-                        id: noisePreview
-                        mipmap: True
-                        #source: root.imagefile
-                    Image:
-                        id: denoiseOverlay
-                        size: self.parent.parent.size
-                        size_hint: None, None
-                        opacity: 0
-
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            NormalLabel:
-                text: 'Luminance: '
-            IntegerInput:
-                text: root.luminance_denoise
-                on_text: root.luminance_denoise = self.text
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            NormalLabel:
-                text: 'Color: '
-            IntegerInput:
-                text: root.color_denoise
-                on_text: root.color_denoise = self.text
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            NormalLabel:
-                text: 'Search Size: '
-            IntegerInput:
-                text: root.search_window
-                on_text: root.search_window = self.text
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            NormalLabel:
-                text: 'Noise Size: '
-            IntegerInput:
-                text: root.block_size
-                on_text: root.block_size = self.text
-
-<EditCropImage>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Confirm Edit'
-            on_release: root.owner.save_edit()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    WideButton:
-        id: loadLast
-        disabled: not root.owner.edit_crop
-        text: "Load Last Settings"
-        on_release: root.load_last()
-    MediumBufferY:
-    GridLayout:
-        id: videoPreset
-        cols: 1
-        height: self.minimum_height
-        size_hint_y: None
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Cropping:'
-        NormalButton:
-            text: 'Reset All'
-            on_release: root.reset_crop()
-    LeftNormalLabel:
-        size_hint_y: None
-        height: app.button_scale
-        text: root.crop_size
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Crop Top:'
-            ShortLabel:
-                text: str(round(cropTopSlider.value * 100, 1))+'%'
-        HalfSlider:
-            id: cropTopSlider
-            on_value: root.crop_top = self.value
-            reset_value: root.reset_crop_top
+            height: self.width * .5
+            Image:
+                id: histogram
+                allow_stretch: True
+                keep_ratio: False
+                opacity: 0
         SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Crop Right:'
-            ShortLabel:
-                text: str(round(cropRightSlider.value * 100, 1))+'%'
-        HalfSlider:
-            id: cropRightSlider
-            on_value: root.crop_right = self.value
-            reset_value: root.reset_crop_right
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Crop Bottom:'
-            ShortLabel:
-                text: str(round(cropBottomSlider.value * 100, 1))+'%'
-        HalfSlider:
-            id: cropBottomSlider
-            on_value: root.crop_bottom = self.value
-            reset_value: root.reset_crop_bottom
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Crop Left:'
-            ShortLabel:
-                text: str(round(cropLeftSlider.value * 100, 1))+'%'
-        HalfSlider:
-            id: cropLeftSlider
-            on_value: root.crop_left = self.value
-            reset_value: root.reset_crop_left
-    SmallBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        MenuStarterButtonWide:
-            size_hint_x: 1
-            text: 'Set Aspect Ratio...'
-            id: aspectRatios
-            on_release: root.aspect_dropdown.open(self)
-        NormalToggle:
-            text: 'Lock Aspect To ' + root.lock_aspect_name
-            state: 'down' if root.lock_aspect else 'normal'
-            on_state: root.update_lock_aspect(self.state)
-            size_hint_x: 1
+    ScreenManager:
+        id: sm
+        on_current: root.change_screen(self.current)
 
-<EditRotateImage>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    size_hint_y: None
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Confirm Edit'
-            on_release: root.owner.save_edit()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    MediumBufferY:
+<EditPanel>:
+    orientation: 'vertical'
     GridLayout:
-        id: videoPreset
-        cols: 1
-        height: self.minimum_height
-        size_hint_y: None
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        LeftNormalLabel:
-            text: 'Image Rotation:'
-        NormalButton:
-            text: 'Reset All'
-            on_release: root.reset_all()
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
         size_hint: 1, None
+        cols: 1
         height: self.minimum_height
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: app.button_scale
+            WideButton:
+                text: 'Confirm Edit'
+                on_release: root.confirm_edit()
+            WideButton:
+                text: 'Cancel Edit'
+                warn: True
+                on_release: root.cancel_edit()
+        WideButton:
+            id: loadLast
+            disabled: not root.owner.edit_color
+            text: "Load Last Settings"
+            on_release: root.load_last()
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba:0,0,0,1
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+            size_hint_y: None
+            height: self.width * .5
+            Image:
+                id: histogram
+                allow_stretch: True
+                keep_ratio: False
+                opacity: 0
+        SmallBufferY:
+    ScreenManager:
+        id: sm
+        on_current: root.change_screen(self.current)
+
+<EditPanelConversionBase>:
+    name: 'edit'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
         GridLayout:
-            cols: 4
-            size_hint_y: None
-            size_hint_x: 1
-            height: app.button_scale
-            NormalToggle:
-                id: angles_0
-                size_hint_x: 1
-                state: 'down'
-                text: '0'
-                group: 'angles'
-                on_press: root.update_angle(0)
-            NormalToggle:
-                id: angles_90
-                size_hint_x: 1
-                text: '90'
-                group: 'angles'
-                on_press: root.update_angle(90)
-            NormalToggle:
-                id: angles_180
-                size_hint_x: 1
-                text: '180'
-                group: 'angles'
-                on_press: root.update_angle(180)
-            NormalToggle:
-                id: angles_270
-                size_hint_x: 1
-                text: '270'
-                group: 'angles'
-                on_press: root.update_angle(270)
-        GridLayout:
-            cols: 2
             size_hint: 1, None
-            height: app.button_scale
-            orientation: 'horizontal'
-            NormalToggle:
-                text_size: self.size
-                halign: 'center'
-                valign: 'middle'
-                id: flip_horizontal
-                size_hint_x: 1
-                text: 'Horizontal Flip'
-                on_press: root.update_flip_horizontal(self.state)
-            NormalToggle:
-                text_size: self.size
-                halign: 'center'
-                valign: 'middle'
-                id: flip_vertical
-                size_hint_x: 1
-                text: 'Vertical Flip'
-                on_press: root.update_flip_vertical(self.state)
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'Color Adjustments'
+                on_release: root.manager.current = 'color'
+            SmallBufferY:
+            WideButton:
+                text: 'Filters'
+                on_release: root.manager.current = 'filter'
+            SmallBufferY:
+            WideButton:
+                text: 'Image Borders'
+                on_release: root.manager.current = 'border'
+            SmallBufferY:
+            WideButton:
+                height: app.button_scale if app.opencv else 0
+                opacity: 1 if app.opencv else 0
+                text: 'Denoise'
+                on_release: root.manager.current = 'denoise'
+                disabled: not app.opencv
+            SmallBufferY:
+                height: int(app.button_scale / 4) if app.opencv else 0
+            WideButton:
+                text: 'Rotate'
+                on_release: root.manager.current = 'rotate'
+            SmallBufferY:
+            WideButton:
+                text: 'Crop'
+                on_release: root.manager.current = 'crop'
 
-    MediumBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
+<EditPanelAlbumBase>:
+    name: 'edit'
+    ScrollerContainer:
         cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        NormalLabel:
-            text: 'Fine Rotation:'
-        NormalSlider:
-            id: fine_angle
-            on_value: root.fine_angle = self.value
-            reset_value: root.reset_fine_angle
-
-<EditConvertImage>:
-    cols: 1
-    size_hint: 1, None
-    height: self.minimum_height
-    WideButton:
-        text: 'Cancel Edit'
-        on_release: root.owner.set_edit_panel('main')
-    MediumBufferY:
-    NormalLabel:
-        text: 'Convert Is Not Available For Images'
-
-<EditConvertVideo>:
-    padding: 0, 0, int(app.button_scale / 2), 0
-    cols: 1
-    size_hint: 1, None
-    height: self.minimum_height
-    BoxLayout:
-        orientation: 'horizontal'
-        size_hint_y: None
-        height: app.button_scale
-        WideButton:
-            text: 'Convert'
-            on_release: root.encode()
-        WideButton:
-            text: 'Cancel Edit'
-            warn: True
-            on_release: root.owner.set_edit_panel('main')
-    MediumBufferY:
-    NormalLabel:
-        text: 'Convert Video:'
-    MenuStarterButtonWide:
-        text: 'Presets'
-        size_hint_x: 1
-        on_release: root.preset_drop.open(self)
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Container:'
-            MenuStarterButtonWide:
-                size_hint_x: 1
-                text: root.file_format
-                on_release: root.container_drop.open(self)
-        SmallBufferY:
-        NormalToggle:
-            id: resize
-            size_hint_x: 1
-            state: 'down' if root.resize else 'normal'
-            text: 'Resize' if self.state == 'down' else 'No Resize'
-            on_release: root.update_resize(self.state)
-        BoxLayout:
-            disabled: not root.resize
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                text: 'Size:'
-            NormalInput:
-                id: widthInput
-                hint_text: '1920'
-                multiline: False
-                text: root.resize_width
-                on_text: root.set_resize_width(self)
-            ShortLabel:
-                text: 'x'
-            NormalInput:
-                id: heightInput
-                hint_text: '1080'
-                multiline: False
-                text: root.resize_height
-                on_text: root.set_resize_height(self)
-        SmallBufferY:
-        NormalToggle:
-            id: deinterlace
-            size_hint_x: 1
-            state: 'down' if root.deinterlace else 'normal'
-            text: 'Deinterlace' if self.state == 'down' else 'No Deinterlace'
-            on_release: root.update_deinterlace(self.state)
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Video Codec:'
-            MenuStarterButtonWide:
-                size_hint_x: 1
-                text: root.video_codec
-                on_release: root.video_codec_drop.open(self)
-                id: videoCodecDrop
-        #BoxLayout:
-        #    orientation: 'horizontal'
-        #    size_hint_y: None
-        #    height: app.button_scale
-        #    LeftNormalLabel:
-        #        text: 'Video Quality:'
-        #    MenuStarterButtonWide:
-        #        size_hint_x: 1
-        #        text: root.video_quality
-        #        on_release: root.video_quality_drop.open(self)
-        #        id: videoQualityDrop
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Encoding Speed:'
-            MenuStarterButtonWide:
-                size_hint_x: 1
-                text: root.encoding_speed
-                on_release: root.encoding_speed_drop.open(self)
-                id: encodingSpeedDrop
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Video Bitrate:'
-            FloatInput:
-                id: videoBitrateInput
-                text: root.video_bitrate
-
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Audio Codec:'
-            MenuStarterButtonWide:
-                size_hint_x: 1
-                text: root.audio_codec
-                on_release: root.audio_codec_drop.open(self)
-                id: audioCodecDrop
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: 'Audio Bitrate:'
-            FloatInput:
-                id: audioBitrateInput
-                text: root.audio_bitrate
-    SmallBufferY:
-    GridLayout:
-        canvas.before:
-            Color:
-                rgba: app.theme.area_background
-            BorderImage:
-                pos: self.pos
-                size: self.size
-                source: 'data/buttonflat.png'
-        padding: app.padding
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: "Manual command line:"
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: "This will override all other settings."
-        SmallBufferY:
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            ShortLabel:
-                text: 'ffmpeg.exe '
-            NormalInput:
-                id: commandInput
-                hint_text: '-sn %c %v %a %f %p %b %d'
-                multiline: False
-                text: root.command_line
-                on_text: root.set_command_line(self)
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            LeftNormalLabel:
-                text: "String Replacements:"
+        do_scroll_x: False
         GridLayout:
-            cols: 3
             size_hint: 1, None
-            height: int(app.button_scale * 9)
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'Video Convert Settings'
+                on_release: root.manager.current = 'video'
+                disabled: root.owner.owner.view_image or not app.ffmpeg
+                height: 0 if (root.owner.owner.view_image or not app.ffmpeg) else app.button_scale
+                opacity: 0 if (root.owner.owner.view_image or not app.ffmpeg) else 1
+            SmallBufferY:
+            WideButton:
+                text: 'Color Adjustments'
+                on_release: root.manager.current = 'color'
+                disabled: not root.owner.owner.view_image and not app.ffmpeg
+            SmallBufferY:
+            WideButton:
+                text: 'Filters'
+                on_release: root.manager.current = 'filter'
+                disabled: not root.owner.owner.view_image and not app.ffmpeg
+            SmallBufferY:
+            WideButton:
+                text: 'Image Borders'
+                on_release: root.manager.current = 'border'
+                disabled: not root.owner.owner.view_image and not app.ffmpeg
+            SmallBufferY:
+            WideButton:
+                height: app.button_scale if app.opencv else 0
+                opacity: 1 if app.opencv else 0
+                text: 'Denoise'
+                on_release: root.manager.current = 'denoise'
+                disabled: (not root.owner.owner.view_image and not app.ffmpeg) or not app.opencv
+            SmallBufferY:
+                height: int(app.button_scale / 4) if app.opencv else 0
+            WideButton:
+                text: 'Rotate'
+                on_release: root.manager.current = 'rotate'
+                disabled: not root.owner.owner.view_image and not app.ffmpeg
+            SmallBufferY:
+            WideButton:
+                text: 'Crop'
+                on_release: root.manager.current = 'crop'
+                disabled: not root.owner.owner.view_image and not app.ffmpeg
 
-            ShortLabel:
-                text: '%i'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Input File (Required)'
+<EditPanelColor>:
+    name: 'color'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Color Adjustments:'
+                NormalButton:
+                    text: 'Reset All'
+                    on_release: root.reset()
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                NormalToggle:
+                    text: "Auto Contrast"
+                    id: autocontrastToggle
+                    state: 'down' if root.image.autocontrast else 'normal'
+                    on_state: root.update_autocontrast(self.state)
+                    size_hint_x: 1
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Equalize Histogram:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_equalize()
+            HalfSlider:
+                id: equalizeSlider
+                value: root.image.equalize
+                on_value: root.image.equalize = self.value
+                reset_value: root.reset_equalize
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale if app.opencv else 0
+                disabled: not app.opencv
+                opacity: 1 if app.opencv else 0
+                LeftNormalLabel:
+                    text: 'Adaptive Histogram Equalize:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_adaptive()
+            HalfSlider:
+                disabled: not app.opencv
+                opacity: 1 if app.opencv else 0
+                height: app.button_scale if app.opencv else 0
+                value: root.image.adaptive_clip
+                on_value: root.image.adaptive_clip = self.value
+                reset_value: root.reset_adaptive
+            SmallBufferY:
+                height: int(app.button_scale / 4) if app.opencv else 0
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Highs:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_brightness()
+            NormalSlider:
+                value: root.image.brightness
+                on_value: root.image.brightness = self.value
+                reset_value: root.reset_brightness
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Mids:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_gamma()
+            NormalSlider:
+                value: root.image.gamma
+                on_value: root.image.gamma = self.value
+                reset_value: root.reset_gamma
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Lows:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_shadow()
+            NormalSlider:
+                value: root.image.shadow
+                on_value: root.image.shadow = self.value
+                reset_value: root.reset_shadow
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Color Temperature:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_temperature()
+            NormalSlider:
+                value: root.image.temperature
+                on_value: root.image.temperature = self.value
+                reset_value: root.reset_temperature
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Saturation:'
+                NormalButton:
+                    text: 'Reset'
+                    on_release: root.reset_saturation()
+            NormalSlider:
+                value: root.image.saturation
+                on_value: root.image.saturation = self.value
+                reset_value: root.reset_saturation
+            SmallBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Curves:'
+                    NormalButton:
+                        text: 'Remove Point'
+                        on_release: root.remove_point()
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_curves()
+                BoxLayout:
+                    size_hint_y: None
+                    height: self.width * .66
+                    Curves:
+                        owner: root
+                        id: curves
+            SmallBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Tinting:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_tint()
+                BoxLayout:
+                    size_hint_y: None
+                    height: sp(33)*10
+                    ColorPickerCustom:
+                        id: tint
+                        color: root.image.tint
+                        on_color: root.image.tint = self.color
 
-            ShortLabel:
-                text: '%c'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Container Setting'
+<EditPanelFilter>:
+    name: 'filter'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Filter Image:'
+                NormalButton:
+                    text: 'Reset All'
+                    on_release: root.reset()
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Soften/Sharpen:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_sharpen()
+                NormalSlider:
+                    value: root.image.sharpen
+                    on_value: root.image.sharpen = self.value
+                    reset_value: root.reset_sharpen
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale if app.opencv else 0
+                    opacity: 1 if app.opencv else 0
+                    LeftNormalLabel:
+                        text: 'Median Blur (Despeckle):'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_median()
+                        disabled: not app.opencv
+                HalfSlider:
+                    height: app.button_scale if app.opencv else 0
+                    opacity: 1 if app.opencv else 0
+                    value: root.image.median_blur
+                    on_value: root.image.median_blur = self.value
+                    disabled: not app.opencv
+                    reset_value: root.reset_median
+            MediumBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height if app.opencv else 0
+                disabled: not app.opencv
+                opacity: 1 if app.opencv else 0
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Edge-Preserve Blur:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_bilateral_amount()
+                HalfSlider:
+                    value: root.image.bilateral_amount
+                    on_value: root.image.bilateral_amount = self.value
+                    reset_value: root.reset_bilateral_amount
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Blur Size:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_bilateral()
+                HalfSlider:
+                    value: root.image.bilateral
+                    on_value: root.image.bilateral = self.value
+                    reset_value: root.reset_bilateral
+            MediumBufferY:
+                height: int(app.button_scale / 2) if app.opencv else 0
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Vignette:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_vignette_amount()
+                HalfSlider:
+                    value: root.owner.image.vignette_amount
+                    on_value: root.image.vignette_amount = self.value
+                    reset_value: root.reset_vignette_amount
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Size:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_vignette_size()
+                HalfSlider:
+                    value: root.image.vignette_size
+                    on_value: root.image.vignette_size = self.value
+                    reset_value: root.reset_vignette_size
+            MediumBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Edge Blur:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_edge_blur_amount()
+                HalfSlider:
+                    value: root.image.edge_blur_amount
+                    on_value: root.image.edge_blur_amount = self.value
+                    reset_value: root.reset_edge_blur_amount
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Size:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_edge_blur_size()
+                HalfSlider:
+                    value: root.image.edge_blur_size
+                    on_value: root.image.edge_blur_size = self.value
+                    reset_value: root.reset_edge_blur_size
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Intensity:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_edge_blur_intensity()
+                HalfSlider:
+                    value: root.image.edge_blur_intensity
+                    on_value: root.image.edge_blur_intensity = self.value
+                    reset_value: root.reset_edge_blur_intensity
 
-            ShortLabel:
-                text: '%v'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Video Codec Setting'
+<EditPanelBorder>:
+    name: 'border'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Border Overlays:'
+                NormalButton:
+                    text: 'Reset All'
+                    on_release: root.reset()
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Border Opacity:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_border_opacity()
+                HalfSlider:
+                    value: root.image.border_opacity
+                    on_value: root.image.border_opacity = self.value
+                    reset_value: root.reset_border_opacity
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'X Size:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_border_x_scale()
+                NormalSlider:
+                    value: root.image.border_x_scale
+                    on_value: root.image.border_x_scale = self.value
+                    reset_value: root.reset_border_x_scale
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Y Size:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_border_y_scale()
+                NormalSlider:
+                    value: root.image.border_y_scale
+                    on_value: root.image.border_y_scale = self.value
+                    reset_value: root.reset_border_y_scale
+                SmallBufferY:
+                LeftNormalLabel:
+                    text: 'Select A Border:'
+                    height: app.button_scale
+                    size_hint_y: None
+                BoxLayout:
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.area_background
+                        BorderImage:
+                            pos: self.pos
+                            size: self.size
+                            source: 'data/buttonflat.png'
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: int(app.button_scale * 10)
+                    Scroller:
+                        id: wrapper
+                        NormalTreeView:
+                            id: borders
+            SmallBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Border Tinting:'
+                    NormalButton:
+                        text: 'Reset'
+                        on_release: root.reset_border_tint()
+                BoxLayout:
+                    size_hint_y: None
+                    height: sp(33)*10
+                    ColorPickerCustom:
+                        color: root.image.border_tint
+                        on_color: root.image.border_tint = self.color
 
-            ShortLabel:
-                text: '%a'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Audio Codec Setting'
+<EditPanelDenoise>:
+    name: 'denoise'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Denoise Image:'
+                NormalButton:
+                    text: 'Reset All'
+                    on_release: root.reset()
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                NormalToggle:
+                    text: 'Use Denoise'
+                    state: 'down' if root.image.denoise else 'normal'
+                    on_state: root.update_denoise(self.state)
+                    size_hint_x: 1
+                FloatLayout:
+                    canvas.before:
+                        Color:
+                            rgba:0,0,0,1
+                        Rectangle:
+                            size: self.size
+                            pos: self.pos
+                    size_hint_y: None
+                    height: self.width
+                    ScrollViewCentered:
+                        canvas.after:
+                            Color:
+                                rgba: self.bar_color[:3] + [self.bar_color[3] * 1 if self.do_scroll_y else 0]
+                            Rectangle:
+                                pos: self.right - self.bar_width - self.bar_margin, self.y + self.height * self.vbar[0]
+                                size: self.bar_width, self.height * self.vbar[1]
+                            Color:
+                                rgba: self.bar_color[:3] + [self.bar_color[3] * 1 if self.do_scroll_x else 0]
+                            Rectangle:
+                                pos: self.x + self.width * self.hbar[0], self.y + self.bar_margin
+                                size: self.width * self.hbar[1], self.bar_width
+                        on_scroll_stop: root.update_preview()
+                        pos: self.parent.pos
+                        size: self.parent.size
+                        scroll_type: ['bars', 'content']
+                        id: wrapper
+                        size_hint: 1, 1
+                        bar_width: int(app.button_scale * .75)
+                        bar_color: app.theme.scroller_selected
+                        bar_inactive_color: app.theme.scroller
+                        RelativeLayout:
+                            owner: root
+                            size_hint: None, None
+                            size: root.image.original_width, root.image.original_height
+                            Image:
+                                allow_stretch: True
+                                size: root.image.original_width, root.image.original_height
+                                size_hint: None, None
+                                id: noisePreview
+                                mipmap: True
+                            Image:
+                                id: denoiseOverlay
+                                size: self.parent.parent.size
+                                size_hint: None, None
+                                opacity: 0
 
-            ShortLabel:
-                text: '%f'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Framerate (From Original File)'
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    NormalLabel:
+                        text: 'Luminance: '
+                    IntegerInput:
+                        text: root.luminance_denoise
+                        on_text: root.luminance_denoise = self.text
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    NormalLabel:
+                        text: 'Color: '
+                    IntegerInput:
+                        text: root.color_denoise
+                        on_text: root.color_denoise = self.text
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    NormalLabel:
+                        text: 'Search Size: '
+                    IntegerInput:
+                        text: root.search_window
+                        on_text: root.search_window = self.text
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    NormalLabel:
+                        text: 'Noise Size: '
+                    IntegerInput:
+                        text: root.block_size
+                        on_text: root.block_size = self.text
 
-            ShortLabel:
-                text: '%p'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Pixel Format (From Original File)'
+<EditPanelRotate>:
+    name: 'rotate'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Image Rotation:'
+                NormalButton:
+                    text: 'Reset All'
+                    on_release: root.reset()
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                GridLayout:
+                    cols: 4
+                    size_hint_y: None
+                    size_hint_x: 1
+                    height: app.button_scale
+                    NormalToggle:
+                        id: angles_0
+                        size_hint_x: 1
+                        state: 'down'
+                        text: '0'
+                        group: 'angles'
+                        on_press: root.update_angle(0)
+                    NormalToggle:
+                        id: angles_90
+                        size_hint_x: 1
+                        text: '90'
+                        group: 'angles'
+                        on_press: root.update_angle(90)
+                    NormalToggle:
+                        id: angles_180
+                        size_hint_x: 1
+                        text: '180'
+                        group: 'angles'
+                        on_press: root.update_angle(180)
+                    NormalToggle:
+                        id: angles_270
+                        size_hint_x: 1
+                        text: '270'
+                        group: 'angles'
+                        on_press: root.update_angle(270)
+                GridLayout:
+                    cols: 2
+                    size_hint: 1, None
+                    height: app.button_scale
+                    orientation: 'horizontal'
+                    NormalToggle:
+                        text_size: self.size
+                        halign: 'center'
+                        valign: 'middle'
+                        id: flip_horizontal
+                        size_hint_x: 1
+                        text: 'Horizontal Flip'
+                        on_press: root.update_flip_horizontal(self.state)
+                    NormalToggle:
+                        text_size: self.size
+                        halign: 'center'
+                        valign: 'middle'
+                        id: flip_vertical
+                        size_hint_x: 1
+                        text: 'Vertical Flip'
+                        on_press: root.update_flip_vertical(self.state)
+            MediumBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                NormalLabel:
+                    text: 'Fine Rotation:'
+                NormalSlider:
+                    id: fine_angle
+                    value: root.image.fine_angle
+                    on_value: root.image.fine_angle = self.value
+                    reset_value: root.reset_fine_angle
 
-            ShortLabel:
-                text: '%b'
-            ShortLabel:
-                text: ' - '
+<EditPanelCrop>:
+    name: 'crop'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Cropping:'
+                NormalButton:
+                    text: 'Reset All'
+                    on_release: root.reset()
             LeftNormalLabel:
-                text: 'Video Bitrate Setting'
+                size_hint_y: None
+                height: app.button_scale
+                text: root.image.crop_text
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Crop Top:'
+                    ShortLabel:
+                        text: str(round(cropTopSlider.value * 100, 1))+'%'
+                HalfSlider:
+                    id: cropTopSlider
+                    #value: root.image.crop_top
+                    on_value: root.image.crop_top = self.value
+                    reset_value: root.reset_crop_top
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Crop Right:'
+                    ShortLabel:
+                        text: str(round(cropRightSlider.value * 100, 1))+'%'
+                HalfSlider:
+                    id: cropRightSlider
+                    #value: root.image.crop_right
+                    on_value: root.image.crop_right = self.value
+                    reset_value: root.reset_crop_right
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Crop Bottom:'
+                    ShortLabel:
+                        text: str(round(cropBottomSlider.value * 100, 1))+'%'
+                HalfSlider:
+                    id: cropBottomSlider
+                    #value: root.image.crop_bottom
+                    on_value: root.image.crop_bottom = self.value
+                    reset_value: root.reset_crop_bottom
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
+                        text: 'Crop Left:'
+                    ShortLabel:
+                        text: str(round(cropLeftSlider.value * 100, 1))+'%'
+                HalfSlider:
+                    id: cropLeftSlider
+                    #value: root.image.crop_left
+                    on_value: root.image.crop_left = self.value
+                    reset_value: root.reset_crop_left
+            SmallBufferY:
+            GridLayout:
+                canvas.before:
+                    Color:
+                        rgba: app.theme.area_background
+                    BorderImage:
+                        pos: self.pos
+                        size: self.size
+                        source: 'data/buttonflat.png'
+                padding: app.padding
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                MenuStarterButtonWide:
+                    size_hint_x: 1
+                    text: 'Set Aspect Ratio...'
+                    id: aspectRatios
+                    on_release: root.aspect_dropdown.open(self)
+                NormalToggle:
+                    text: 'Lock Aspect To ' + root.lock_aspect_name
+                    state: 'down' if root.lock_aspect else 'normal'
+                    on_state: root.update_lock_aspect(self.state)
+                    size_hint_x: 1
 
-            ShortLabel:
-                text: '%d'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Audio Bitrate Setting'
+<EditPanelVideo>:
+    name: 'video'
+    ScrollerContainer:
+        cols: 1
+        do_scroll_x: False
+        GridLayout:
+            padding: 0, 0, int(app.button_scale / 2), 0
+            size_hint: 1, None
+            cols: 1
+            height: self.minimum_height
+            WideButton:
+                text: 'More Editing'
+                on_release: root.manager.current = 'edit'
+                disabled: root.advanced
+                opacity: 0 if root.advanced else 1
+                height: 0 if root.advanced else app.button_scale
+            SmallBufferY:
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    text: 'Video Convert Settings:'
+            BoxLayout:
+                size_hint_y: None
+                orientation: 'horizontal'
+                disabled: not root.advanced
+                opacity: 1 if root.advanced else 0
+                height: app.button_scale if root.advanced else 0
+                NormalInput:
+                    text: app.encoding_settings.name
+                    on_text: app.encoding_settings.name = self.text
+                NormalButton:
+                    text: 'Save'
+                    on_release: 
+                        app.new_user_encoding_preset()
+                        root.setup_presets_menu()
+            GridLayout:
+                cols: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                MenuStarterButtonWide:
+                    text: 'Presets'
+                    size_hint_x: 1
+                    on_release: root.preset_drop.open(self)
+                GridLayout:
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.area_background
+                        BorderImage:
+                            pos: self.pos
+                            size: self.size
+                            source: 'data/buttonflat.png'
+                    padding: app.padding
+                    cols: 1
+                    size_hint: 1, None
+                    height: self.minimum_height
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Container:'
+                        MenuStarterButtonWide:
+                            size_hint_x: 1
+                            text: app.encoding_settings.file_format
+                            on_release: root.container_drop.open(self)
+                    SmallBufferY:
+                    NormalToggle:
+                        id: resize
+                        size_hint_x: 1
+                        state: 'down' if app.encoding_settings.resize else 'normal'
+                        text: 'Resize' if self.state == 'down' else 'No Resize'
+                        on_release: root.update_resize(self.state)
+                    BoxLayout:
+                        disabled: not app.encoding_settings.resize
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        ShortLabel:
+                            text: 'Size:'
+                        NormalInput:
+                            id: widthInput
+                            hint_text: 'Width'
+                            multiline: False
+                            text: app.encoding_settings.resize_width
+                            on_text: app.encoding_settings.resize_width = self.text
+                        ShortLabel:
+                            text: 'x'
+                        NormalInput:
+                            id: heightInput
+                            hint_text: 'Height'
+                            multiline: False
+                            text: app.encoding_settings.resize_height
+                            on_text: app.encoding_settings.resize_height = self.text
+                    SmallBufferY:
+                    NormalToggle:
+                        id: deinterlace
+                        size_hint_x: 1
+                        state: 'down' if app.encoding_settings.deinterlace else 'normal'
+                        text: 'Deinterlace' if self.state == 'down' else 'No Deinterlace'
+                        on_release: root.update_deinterlace(self.state)
+                    SmallBufferY:
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Video Codec:'
+                        MenuStarterButtonWide:
+                            size_hint_x: 1
+                            text: app.encoding_settings.video_codec
+                            on_release: root.video_codec_drop.open(self)
+                            id: videoCodecDrop
+                    #BoxLayout:
+                    #    orientation: 'horizontal'
+                    #    size_hint_y: None
+                    #    height: app.button_scale
+                    #    LeftNormalLabel:
+                    #        text: 'Video Quality:'
+                    #    MenuStarterButtonWide:
+                    #        size_hint_x: 1
+                    #        text: app.encoding_settings.video_quality
+                    #        on_release: root.video_quality_drop.open(self)
+                    #        id: videoQualityDrop
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Encoding Speed:'
+                        MenuStarterButtonWide:
+                            size_hint_x: 1
+                            text: app.encoding_settings.encoding_speed
+                            on_release: root.encoding_speed_drop.open(self)
+                            id: encodingSpeedDrop
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Video Bitrate:'
+                        FloatInput:
+                            hint_text: "Auto"
+                            id: videoBitrateInput
+                            text: app.encoding_settings.video_bitrate
+                            on_text: app.encoding_settings.video_bitrate = self.text
+                    SmallBufferY:
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Audio Codec:'
+                        MenuStarterButtonWide:
+                            size_hint_x: 1
+                            text: app.encoding_settings.audio_codec
+                            on_release: root.audio_codec_drop.open(self)
+                            id: audioCodecDrop
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Audio Bitrate:'
+                        FloatInput:
+                            hint_text: "Auto"
+                            id: audioBitrateInput
+                            text: app.encoding_settings.audio_bitrate
+                            on_text: app.encoding_settings.audio_bitrate = self.text
+                SmallBufferY:
+                GridLayout:
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.area_background
+                        BorderImage:
+                            pos: self.pos
+                            size: self.size
+                            source: 'data/buttonflat.png'
+                    padding: app.padding
+                    cols: 1
+                    size_hint: 1, None
+                    height: self.minimum_height if root.advanced else 0
+                    opacity: 1 if root.advanced else 0
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: "Custom command line settings"
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: "This can override other settings."
+                    SmallBufferY:
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: "String Replacements:"
+                    GridLayout:
+                        cols: 3
+                        size_hint: 1, None
+                        height: int(app.button_scale * 9)
+                        ShortLabel:
+                            text: '%i'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Input File (Required)'
+                        ShortLabel:
+                            text: '%c'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Container Setting'
+                        ShortLabel:
+                            text: '%v'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Video Codec Setting'
+                        ShortLabel:
+                            text: '%a'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Audio Codec Setting'
+                        ShortLabel:
+                            text: '%f'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Framerate (From Original File)'
+                        ShortLabel:
+                            text: '%p'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Pixel Format (From Original File)'
+                        ShortLabel:
+                            text: '%b'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Video Bitrate Setting'
+                        ShortLabel:
+                            text: '%d'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Audio Bitrate Setting'
+                        ShortLabel:
+                            text: '%%'
+                        ShortLabel:
+                            text: ' - '
+                        LeftNormalLabel:
+                            text: 'Single Percent Sign (%)'
 
-            ShortLabel:
-                text: '%%'
-            ShortLabel:
-                text: ' - '
-            LeftNormalLabel:
-                text: 'Single Percent Sign (%)'
+<EditMain>:
+    cols: 1
+    GridLayout:
+        cols: 1
+        size_hint: 1, None
+        height: self.minimum_height
+        WideButton:
+            text: 'Edit Image' if root.owner.view_image else 'Edit Video'
+            on_release: root.owner.set_edit_panel('edit')
+        SmallBufferY:
+        WideButton:
+            text: 'Advanced Video Editing'
+            on_release: app.show_video_converter()
+            disabled: root.owner.view_image or not app.ffmpeg
+            opacity: 0 if self.disabled else 1
+            height: 0 if self.disabled else app.button_scale
+        SmallBufferY:
+            height: 0 if (root.owner.view_image or not app.ffmpeg) else (app.button_scale / 4)
+        WideButton:
+            id: deleteOriginal
+            text: 'Delete Unedited Original File'
+            warn: True
+            on_release: root.owner.delete_original()
+        SmallBufferY:
+        WideButton:
+            id: deleteOriginalAll
+            text: 'Delete All Originals In Folder'
+            warn: True
+            on_release: root.owner.delete_original_all()
+        SmallBufferY:
+        WideButton:
+            id: undoEdits
+            text: 'Restore Original Unedited File'
+            on_release: root.owner.restore_original()
+        LargeBufferY:
+    ScrollerContainer:
+        do_scroll_x: False
+        size_hint_y: 1
+        GridLayout:
+            cols: 1
+            size_hint_y: None
+            height: self.minimum_height
+            padding: 0, 0, int(app.button_scale / 2), 0
+            GridLayout:
+                cols: 2
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    size_hint_x: 1
+                    text: 'External Programs:'
+                NormalButton:
+                    size_hint_x: None
+                    text: 'New'
+                    on_release: root.owner.add_program()
+            GridLayout:
+                id: externalPrograms
+                height: self.minimum_height
+                size_hint_y: None
+                cols: 1
 
 <AspectRatioDropDown>:
     MenuButton:
@@ -1842,20 +2108,6 @@ Builder.load_string("""
         on_release: root.select('Catmull-Rom')
 
 <Curves>:
-
-<VideoEncodePreset>:
-    orientation: 'vertical'
-    size_hint_y: None
-    height: int(app.button_scale * 2.5)
-    BoxLayout:
-        orientation: 'vertical'
-        LeftNormalLabel:
-            text: 'Video Encode:'
-        MenuStarterButton:
-            text: root.preset_name
-            size_hint_x: 1
-            on_release: root.preset_drop.open(self)
-    MediumBufferY:
 
 <VGridLine@Widget>:
     canvas.before:
@@ -2024,12 +2276,94 @@ Builder.load_string("""
     mipmap: True
     size_hint_x: 1
 
+<BatchPhoto>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: app.button_scale * (3 if root.message else 2)
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: None
+        width: app.button_scale * 2
+        NormalLabel:
+            text: str(root.index + 1)
+        Widget:
+            size_hint_y: None
+            height: app.button_scale if root.message else 0
+        NormalLabel:
+            text: root.encode_state
+    BoxLayout:
+        orientation: 'vertical'
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: 1, 1
+            ShortLabel:
+                text: os.path.join(root.path, root.file)
+            Label:
+            NormalButton:
+                size_hint_x: None
+                width: app.button_scale
+                text: 'X'
+                warn: True
+                on_release: root.remove()
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint: 1, 1
+            NormalButton:
+                text: 'Clear'
+                on_release: root.clear_export()
+            WideButton:
+                size_hint_x: 0.66
+                halign: 'left'
+                text: '     Export To: '+os.path.join(root.export_path, root.export_file)
+                on_release: root.select_export()
+            MenuStarterButtonWide:
+                size_hint_x: 0.34
+                text: 'Preset: '+root.preset_name if root.preset_name else 'Select Preset'
+                on_release: root.select_preset(self)
+        LeftNormalLabel:
+            height: app.button_scale if root.message else 0
+            text: root.message
+    Widget:
+        size_hint_x: None
+        width: app.button_scale / 2
+
+<VideoProcessingPopup>:
+    GridLayout:
+        cols: 1
+        NormalLabel:
+            text: root.overall_process
+            text_size: self.size
+        Scroller:
+            size_hint_y: 1
+            NormalInput:
+                id: logviewer
+                size_hint: 1, None
+                height: self.minimum_height
+                text: root.encode_log_text
+                multiline: True
+                on_text: self.text = root.encode_log_text
+        NormalLabel:
+            size_hint_y: None
+            height: app.button_scale
+            id: scanningText
+            text: root.scanning_text
+            text_size: self.size
+        ProgressBar:
+            size_hint_y: None
+            height: app.button_scale
+            id: scanningProgress
+            value: root.scanning_percentage
+            max: 100
+        WideButton:
+            size_hint_y: None
+            height: app.button_scale
+            id: scanningButton
+            text: root.button_text
+
 """)
 
 
-class AlbumScreen(Screen):
-    """Screen layout of the album viewer."""
-
+class ConversionScreen(Screen):
     #Display variables
     selected = StringProperty('')  #The current folder/album/tag being displayed
     type = StringProperty('None')  #'Folder', 'Album', 'Tag'
@@ -2038,34 +2372,23 @@ class AlbumScreen(Screen):
     photoinfo = []  #photoinfo for the currently viewed photo
     photo = StringProperty('')  #The absolute path to the currently visible photo
     fullpath = StringProperty()  #The database-relative path of the current visible photo
+    encode_log_text = StringProperty('')
 
-    folder_title = StringProperty('Album Viewer')
-    view_panel = StringProperty('')
-    sort_reverse_button = StringProperty('normal')
-    opencv = BooleanProperty()
-    canprint = BooleanProperty(True)
-    ffmpeg = BooleanProperty(False)
+    viewer = ObjectProperty(allownone=True)  #Holder for the photo viewer widget
+    popup = None
 
-    #Video reencode settings
-    encoding = BooleanProperty(False)
-    total_frames = NumericProperty()
-    current_frame = NumericProperty()
+    #Video reencode variables
     cancel_encoding = BooleanProperty()
-    encoding_settings = {}
+    encoding = BooleanProperty(False)
     encodingthread = ObjectProperty()
     encoding_process_thread = ObjectProperty()
-
-    #Widget holder variables
-    sort_dropdown = ObjectProperty()  #Holder for the sort method dropdown menu
-    popup = None  #Holder for the screen's popup dialog
-    edit_panel = StringProperty('')  #The type of edit panel currently loaded
-    edit_panel_object = ObjectProperty(allownone=True)  #Holder for the edit panel widget
-    viewer = ObjectProperty()  #Holder for the photo viewer widget
-    album_exports = ObjectProperty()
-
-    #Variables relating to the photo list view on the left
-    sort_method = StringProperty('Name')  #Current album sort method
-    sort_reverse = BooleanProperty(False)
+    audio_file = StringProperty()
+    use_audio = BooleanProperty(False)
+    offset_audio_file = BooleanProperty(False)
+    export_file = StringProperty()
+    export_folder = StringProperty()
+    advanced_encode = BooleanProperty(False)  #Enables 'advanced' features for the encoding command - replace audio, command line override, save to file
+    use_batch = BooleanProperty(False)
 
     #Variables relating to the photo view
     orientation = NumericProperty(1)  #EXIF Orientation of the currently viewed photo
@@ -2077,6 +2400,7 @@ class AlbumScreen(Screen):
     image_y = NumericProperty(0)  #Set when the image is loaded, used for orientation of cropping
 
     #Stored variables for editing
+    denoise = BooleanProperty(False)
     edit_color = BooleanProperty(False)
     equalize = NumericProperty(0)
     autocontrast = BooleanProperty(False)
@@ -2117,104 +2441,103 @@ class AlbumScreen(Screen):
     crop_bottom = NumericProperty(0)
     crop_left = NumericProperty(0)
 
-    def export_screen(self):
-        """Switches the app to export mode with the current selected album."""
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def clear_cache(self, *_):
+        pass
+
+    def set_photo(self, photo):
+        self.photo = photo
+
+    def set_edit_panel(self, *_):
+        pass
+
+    def key(self, key):
+        pass
+
+    def dismiss_extra(self):
+        if self.encoding:
+            self.cancel_encode()
+            return True
+        return False
+
+    def text_input_active(self):
+        """Detects if any text input fields are currently active (being typed in).
+        Returns: True or False
+        """
+
+        input_active = False
+        for widget in self.walk(restrict=True):
+            if widget.__class__.__name__ == 'NormalInput' or widget.__class__.__name__ == 'FloatInput' or widget.__class__.__name__ == 'IntegerInput':
+                if widget.focus:
+                    input_active = True
+                    break
+        return input_active
+
+    def has_popup(self):
+        """Detects if the current screen has a popup active.
+        Returns: True or False
+        """
+
+        if self.popup:
+            if self.popup.open:
+                return True
+        return False
+
+    def dismiss_popup(self, *_):
+        """Close a currently open popup for this screen."""
+
+        if self.popup:
+            self.popup.dismiss()
+            self.popup = None
+
+    def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
+        """Dummy function.  Here because the app can possibly call this function for any screen."""
+        pass
+
+    def on_leave(self):
+        if self.viewer:
+            self.viewer.stop()
 
         app = App.get_running_app()
-        app.export_target = self.target
-        app.export_type = self.type
-        app.show_export()
+        app.clear_drags()
 
-    def collage_screen(self):
-        """Switches the app to the collage mode with the current selected album."""
-
+    def on_enter(self):
+        #import variables
         app = App.get_running_app()
-        app.export_target = self.target
-        app.export_type = self.type
-        app.show_collage()
+        self.target = app.target
+        self.type = app.type
 
-    def show_panel(self, panel_name):
-        right_panel = self.ids['rightpanel']
-        if self.view_panel == panel_name:
-            self.set_edit_panel('main')
-            right_panel.hidden = True
-            self.view_panel = ''
-            self.show_left_panel()
-        else:
-            self.set_edit_panel('main')
-            self.view_panel = panel_name
-            right_panel.hidden = False
-            app = App.get_running_app()
-            if app.simple_interface:
-                self.hide_left_panel()
+        self.encoding = False
+        self.cancel_encoding = False
 
-    def show_tags_panel(self, *_):
-        self.show_panel('tags')
+    def on_use_audio(self, *_):
+        if not self.use_audio:
+            self.audio_file = ''
 
-    def show_info_panel(self, *_):
-        self.show_panel('info')
-
-    def show_edit_panel(self, *_):
-        self.show_panel('edit')
-
-    def show_left_panel(self, *_):
-        left_panel = self.ids['leftpanel']
-        left_panel.hidden = False
-
-    def hide_left_panel(self, *_):
-        left_panel = self.ids['leftpanel']
-        left_panel.hidden = True
+    def update_encoding_settings(self, *_):
+        pass
 
     def cancel_encode(self, *_):
         """Signal to cancel the encodig process."""
 
         self.cancel_encoding = True
+        if self.popup:
+            self.popup.scanning_text = "Canceling encoding process, please wait..."
 
-    def begin_encode(self):
-        """Begins the encoding process, asks the user for confirmation with a popup."""
-
-        self.set_edit_panel('main')
-        self.encode_answer(self, 'yes')
-
-    def encode_answer(self, instance, answer):
-        """Continues the encoding process.
-        If the answer was 'yes' will begin reencoding by starting the process thread.
-
-        Arguments:
-            instance: The widget that called this command.
-            answer: String, 'yes' if confirm, anything else on deny.
-        """
-
-        del instance
-        self.dismiss_popup()
-        if answer == 'yes':
-            app = App.get_running_app()
-            self.viewer.stop()
-
-            # Create popup to show progress
-            self.cancel_encoding = False
-            self.popup = ScanningPopup(title='Converting Video', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
-            self.popup.scanning_text = ''
-            self.popup.open()
-            encoding_button = self.popup.ids['scanningButton']
-            encoding_button.bind(on_press=self.cancel_encode)
-
-            # Start encoding thread
-            self.encodingthread = threading.Thread(target=self.encode_process)
-            self.encodingthread.start()
-
-    def get_ffmpeg_audio_command(self, video_input_folder, video_input_filename, audio_input_folder, audio_input_filename, output_file_folder, encoding_settings=None, start=None):
+    def get_ffmpeg_audio_command(self, video_input_folder, video_input_filename, audio_input_folder, audio_input_filename, output_file_folder, audio_file_override, offset_audio_file, encoding_settings=None, start=None):
+        app = App.get_running_app()
         if not encoding_settings:
-            encoding_settings = self.encoding_settings
-        if encoding_settings['file_format'].lower() == 'auto':
-            audio_codec = 'aac'
-            audio_bitrate = '192'
-            extension = 'mp4'
-        else:
-            file_format = containers[containers_friendly.index(encoding_settings['file_format'])]
-            audio_codec = audio_codecs[audio_codecs_friendly.index(encoding_settings['audio_codec'])]
-            audio_bitrate = encoding_settings['audio_bitrate']
-            extension = containers_extensions[containers.index(file_format)]
+            encoding_preset = app.encoding_settings
+            encoding_settings = encoding_preset.get_encoding_preset(replace_auto=True)
+        file_format = containers[containers_friendly.index(encoding_settings['file_format'])]
+        audio_codec = audio_codecs[audio_codecs_friendly.index(encoding_settings['audio_codec'])]
+        audio_bitrate = encoding_settings['audio_bitrate']
+        if not audio_bitrate:
+            audio_bitrate = str(audio_codecs_bitrate[audio_codecs_friendly.index(encoding_settings['audio_codec'])])
+
+        extension = containers_extensions[containers.index(file_format)]
 
         if start is not None:
             seek = ' -ss '+str(start)
@@ -2222,6 +2545,13 @@ class AlbumScreen(Screen):
             seek = ''
         video_file = video_input_folder+os.path.sep+video_input_filename
         audio_file = audio_input_folder+os.path.sep+audio_input_filename
+        if isfile2(audio_file_override):
+            audio_extension = os.path.splitext(audio_file_override)[1].lower()
+            if audio_extension in movietypes + audiotypes:
+                audio_file = audio_file_override
+                if not offset_audio_file:
+                    seek = ''
+
         output_filename = os.path.splitext(video_input_filename)[0]+'-mux.'+extension
         output_file = output_file_folder+os.path.sep+output_filename
         audio_bitrate_settings = "-b:a " + audio_bitrate + "k"
@@ -2230,36 +2560,34 @@ class AlbumScreen(Screen):
         command = 'ffmpeg -i "'+video_file+'"'+seek+' -i "'+audio_file+'" -map 0:v -map 1:a -codec copy '+audio_codec_settings+' '+audio_bitrate_settings+' -shortest "'+output_file+'"'
         return [True, command, output_filename]
 
-    def get_ffmpeg_command(self, input_folder, input_filename, output_file_folder, input_size, noaudio=False, input_images=False, input_file=None, input_framerate=None, input_pixel_format=None, encoding_settings=None, start=None, duration=None):
-        if not encoding_settings:
-            encoding_settings = self.encoding_settings
-        if encoding_settings['file_format'].lower() == 'auto':
-            file_format = 'MP4'
-            pixels_number = input_size[0] * input_size[1]
-            video_bitrate = str(pixels_number / 250)
-            video_codec = 'libx264'
-            audio_codec = 'aac'
-            audio_bitrate = '192'
-            encoding_speed = 'fast'
-            deinterlace = False
-            resize = False
-            resize_width = input_size[0]
-            resize_height = input_size[1]
-            encoding_command = ''
-            extension = 'mp4'
+    def get_ffmpeg_command(self, input_folder, input_filename, output_file_folder, output_filename, input_size, noaudio=False, input_images=False, input_file=None, input_framerate=None, input_pixel_format=None, encoding_settings=None, start=None, duration=None):
+        threads = multiprocessing.cpu_count() - 2
+        if threads > 1:
+            threads_command = ' -threads '+str(threads)
         else:
-            file_format = containers[containers_friendly.index(encoding_settings['file_format'])]
-            video_codec = video_codecs[video_codecs_friendly.index(encoding_settings['video_codec'])]
-            audio_codec = audio_codecs[audio_codecs_friendly.index(encoding_settings['audio_codec'])]
-            video_bitrate = encoding_settings['video_bitrate']
-            audio_bitrate = encoding_settings['audio_bitrate']
-            encoding_speed = encoding_settings['encoding_speed'].lower()
-            deinterlace = encoding_settings['deinterlace']
-            resize = encoding_settings['resize']
-            resize_width = encoding_settings['width']
-            resize_height = encoding_settings['height']
-            encoding_command = encoding_settings['command_line']
-            extension = containers_extensions[containers.index(file_format)]
+            threads_command = ''
+        app = App.get_running_app()
+        if not encoding_settings:
+            encoding_preset = app.encoding_settings
+            encoding_settings = encoding_preset.get_encoding_preset(replace_auto=True)
+        file_format = containers[containers_friendly.index(encoding_settings['file_format'])]
+        video_codec = video_codecs[video_codecs_friendly.index(encoding_settings['video_codec'])]
+        audio_codec = audio_codecs[audio_codecs_friendly.index(encoding_settings['audio_codec'])]
+        video_bitrate = encoding_settings['video_bitrate']
+        if not video_bitrate:
+            pixels_number = input_size[0] * input_size[1]
+            codec_divisor = video_codecs_bitrate_divisor[video_codecs_friendly.index(encoding_settings['video_codec'])]
+            video_bitrate = str(pixels_number / codec_divisor)
+        audio_bitrate = encoding_settings['audio_bitrate']
+        if not audio_bitrate:
+            audio_bitrate = str(audio_codecs_bitrate[audio_codecs_friendly.index(encoding_settings['audio_codec'])])
+        encoding_speed = encoding_speeds[encoding_speeds_friendly.index(encoding_settings['encoding_speed'])]
+        deinterlace = encoding_settings['deinterlace']
+        resize = encoding_settings['resize']
+        resize_width = encoding_settings['width']
+        resize_height = encoding_settings['height']
+        encoding_command = encoding_settings['command_line']
+        extension = containers_extensions[containers.index(file_format)]
 
         if start is not None:
             seek = ' -ss '+str(start)
@@ -2327,7 +2655,7 @@ class AlbumScreen(Screen):
         else:
             filter_settings = ""
 
-        if encoding_command:
+        if encoding_command and self.advanced_encode:
             #check if encoding command is valid
 
             if '%i' not in encoding_command:
@@ -2344,196 +2672,17 @@ class AlbumScreen(Screen):
                             extension = extension_list[0]
                 if not extension:
                     return [False, 'Could not determine ffmpeg container format.', '']
-            output_filename = os.path.splitext(input_filename)[0]+'.'+extension
+            output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
             input_settings = ' -i "'+input_file+'" '
             encoding_command_reformat = encoding_command.replace('%c', file_format_settings).replace('%v', video_codec_settings).replace('%a', audio_codec_settings).replace('%f', framerate_setting).replace('%p', pixel_format_setting).replace('%b', video_bitrate_settings).replace('%d', audio_bitrate_settings).replace('%i', input_settings).replace('%%', '%')
             command = 'ffmpeg'+seek+' '+input_format_settings+encoding_command_reformat+duration+' "'+output_file+'"'
         else:
-            output_filename = os.path.splitext(input_filename)[0]+'.'+extension
+            output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
             #command = 'ffmpeg '+file_format_settings+' -i "'+input_file+'"'+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+' "'+output_file+'"'
-            command = 'ffmpeg'+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
+            command = 'ffmpeg'+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
         return [True, command, output_filename]
-
-    def encode_process(self):
-        """Uses ffmpeg command line to reencode the current video file to a new format."""
-
-        app = App.get_running_app()
-        self.encoding = True
-        input_file = self.photo
-
-        input_video = MediaPlayer(input_file, ff_opts={'paused': True, 'ss': 1.0, 'an': True})
-        frame = None
-        while not frame:
-            frame, value = input_video.get_frame(force_refresh=True)
-        input_metadata = input_video.get_metadata()
-        input_video.close_player()
-        input_video = None
-
-        start_time = time.time()
-        start_point = self.viewer.start_point
-        end_point = self.viewer.end_point
-        framerate = input_metadata['frame_rate']
-        duration = input_metadata['duration']
-        self.total_frames = (duration * (end_point - start_point)) * (framerate[0] / framerate[1])
-        start_seconds = start_point * duration
-        duration_seconds = (end_point * duration) - start_seconds
-
-        pixel_format = input_metadata['src_pix_fmt']
-        input_size = input_metadata['src_vid_size']
-        input_file_folder, input_filename = os.path.split(input_file)
-        output_file_folder = input_file_folder+os.path.sep+'reencode'
-        command_valid, command, output_filename = self.get_ffmpeg_command(input_file_folder, input_filename, output_file_folder, input_size, input_framerate=framerate, input_pixel_format=pixel_format, start=start_seconds, duration=duration_seconds)
-        if not command_valid:
-            self.cancel_encode()
-            self.dismiss_popup()
-            app.popup_message(text="Invalid FFMPEG command: " + command, title='Warning')
-        print(command)
-
-        output_file = output_file_folder+os.path.sep+output_filename
-        if not os.path.isdir(output_file_folder):
-            try:
-                os.makedirs(output_file_folder)
-            except:
-                self.cancel_encode()
-                self.dismiss_popup()
-                app.popup_message(text='Could not create folder for encode.', title='Warning')
-                return
-        if os.path.isfile(output_file):
-            try:
-                os.remove(output_file)
-            except:
-                self.cancel_encode()
-                self.dismiss_popup()
-                app.popup_message(text='Could not create new encode, file already exists.', title='Warning')
-                return
-
-        self.encoding_process_thread = subprocess.Popen(command, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
-
-        # Poll process for new output until finished
-        progress = []
-        while True:
-            if self.cancel_encoding:
-                try:
-                    self.encoding_process_thread.terminate()
-                    self.encoding_process_thread.kill()
-                    outs, errs = self.encoding_process_thread.communicate()
-                except:
-                    pass
-                if os.path.isfile(output_file):
-                    self.delete_output(output_file)
-                if not os.listdir(output_file_folder):
-                    os.rmdir(output_file_folder)
-                self.dismiss_popup()
-                self.encoding = False
-                app.message("Canceled video processing.")
-                return
-            nextline = self.encoding_process_thread.stdout.readline()
-            if nextline == '' and self.encoding_process_thread.poll() is not None:
-                break
-            if nextline.startswith('frame= '):
-                self.current_frame = int(nextline.split('frame=')[1].split('fps=')[0].strip())
-                scanning_percentage = self.current_frame / self.total_frames * 100
-                self.popup.scanning_percentage = scanning_percentage
-                #time_done = nextline.split('time=')[1].split('bitrate=')[0].strip()
-                elapsed_time = time.time() - start_time
-                time_done = time_index(elapsed_time)
-                remaining_frames = self.total_frames - self.current_frame
-                try:
-                    fps = float(nextline.split('fps=')[1].split('q=')[0].strip())
-                    seconds_left = remaining_frames / fps
-                    time_remaining = time_index(seconds_left)
-                    time_text = "  Time: "+time_done+"  Remaining: "+time_remaining
-                except:
-                    time_text = ""
-                self.popup.scanning_text = str(str(int(scanning_percentage)))+"%"+time_text
-                progress.append(self.current_frame)
-            sys.stdout.write(nextline)
-            sys.stdout.flush()
-
-        output = self.encoding_process_thread.communicate()[0]
-        exit_code = self.encoding_process_thread.returncode
-
-        error_code = ''
-        if exit_code == 0:
-            #encoding completed
-            self.dismiss_popup()
-            good_file = True
-
-            if os.path.isfile(output_file):
-                output_video = MediaPlayer(output_file, ff_opts={'paused': True, 'ss': 1.0, 'an': True})
-                frame = None
-                while not frame:
-                    frame, value = output_video.get_frame(force_refresh=True)
-                output_metadata = output_video.get_metadata()
-                output_video.close_player()
-                output_video = None
-                if output_metadata:
-                    if self.encoding_settings['width'] and self.encoding_settings['height']:
-                        new_size = (int(self.encoding_settings['width']), int(self.encoding_settings['height']))
-                        if output_metadata['src_vid_size'] != new_size:
-                            error_code = ', Output size is incorrect'
-                            good_file = False
-                else:
-                    error_code = ', Unable to find output file metadata'
-                    good_file = False
-            else:
-                error_code = ', Output file not found'
-                good_file = False
-
-            if not good_file:
-                Clock.schedule_once(lambda x: app.message('Warning: Encoded file may be bad'+error_code))
-
-            new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
-            new_original_file_relative = '.originals'+os.path.sep+input_filename
-            if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
-                os.makedirs(input_file_folder+os.path.sep+'.originals')
-            new_encoded_file = input_file_folder+os.path.sep+output_filename
-            if not os.path.isfile(new_original_file) and os.path.isfile(output_file):
-                try:
-                    os.rename(input_file, new_original_file)
-                    os.rename(output_file, new_encoded_file)
-                    if not os.listdir(output_file_folder):
-                        os.rmdir(output_file_folder)
-
-                    #update database
-                    extension = os.path.splitext(output_file)[1]
-                    new_photoinfo = list(self.photoinfo)
-                    new_photoinfo[0] = os.path.splitext(self.photoinfo[0])[0]+extension  #fix extension
-                    new_photoinfo[7] = int(os.path.getmtime(new_encoded_file))  #update modified date
-                    new_photoinfo[9] = 1  #set edited
-                    new_photoinfo[10] = new_original_file_relative  #set original file
-                    if self.photoinfo[0] != new_photoinfo[0]:
-                        app.database_item_rename(self.photoinfo[0], new_photoinfo[0], new_photoinfo[1])
-                    app.database_item_update(new_photoinfo)
-
-                    # reload video in ui
-                    self.fullpath = local_path(new_photoinfo[0])
-                    newpath = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
-                    Clock.schedule_once(lambda x: self.set_photo(newpath))
-
-                except:
-                    app.popup_message(text='Could not replace original file', title='Warning')
-                    return
-            else:
-                app.popup_message(text='Target file name already exists! Encoded file left in "/reencode" subfolder', title='Warning')
-                return
-            Clock.schedule_once(lambda x: app.message("Completed encoding file '"+self.photo+"'"))
-        else:
-            self.dismiss_popup()
-            if os.path.isfile(output_file):
-                self.delete_output(output_file)
-            if not os.listdir(output_file_folder):
-                os.rmdir(output_file_folder)
-            app.popup_message(text='File not encoded, FFMPEG gave exit code '+str(exit_code), title='Warning')
-
-        self.encoding = False
-
-    def set_photo(self, photo):
-        self.photo = photo
-        Clock.schedule_once(lambda *dt: self.refresh_all())
-        Clock.schedule_once(self.show_selected)
 
     def delete_output(self, output_file, timeout=20):
         """Continuously try to delete a file until its done."""
@@ -2576,6 +2725,1091 @@ class AlbumScreen(Screen):
             return available_pixel_formats[0]
         else:
             return False
+
+    def save_edit(self):
+        if not self.photo:
+            return
+        if self.view_image:
+            self.save_image()
+        else:
+            self.save_video()
+
+    def save_video(self):
+        app = App.get_running_app()
+        app.encoding_settings.store_current_encoding_preset()
+        self.viewer.stop()
+
+        # Create popup to show progress
+        self.cancel_encoding = False
+        self.popup = ScanningPopup(title='Processing Video', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
+        self.popup.scanning_text = ''
+        self.popup.open()
+        encoding_button = self.popup.ids['scanningButton']
+        encoding_button.bind(on_press=self.cancel_encode)
+
+        # Start encoding thread
+        self.encodingthread = threading.Thread(target=self.save_video_process)
+        self.encodingthread.start()
+
+    def failed_encode(self, message):
+        app = App.get_running_app()
+        self.append_log("[WARNING] : "+message+'\n')
+        if not self.use_batch:
+            self.encoding = False
+            self.cancel_encode()
+            self.dismiss_popup()
+            self.save_log()
+            Clock.schedule_once(lambda x: app.popup_message(text=message, title='Warning'))
+
+    def delete_temp_encode(self, file, folder):
+        #Function that will delete the file and the folder if it is empty
+        deleted_file = self.delete_output(file)
+        if not os.listdir(folder):
+            try:
+                os.rmdir(folder)
+                deleted_folder = True
+            except:
+                deleted_folder = False
+        else:
+            deleted_folder = False
+        return [deleted_file, deleted_folder]
+
+    def read_stdout_thread(self):
+        #Thread that continuously reads the encoding process stdout, so things dont get blocked when lines are blank
+        for line in self.encoding_process_thread.stdout:
+            if self.cancel_encoding:
+                return
+            if line:
+                self.append_log(line)
+
+    def clear_log(self):
+        self.encode_log_text = ''
+
+    def append_log(self, text):
+        Clock.schedule_once(lambda x: self.append_log_finish(text))
+
+    def append_log_finish(self, text):
+        try:
+            self.encode_log_text += text  #Sometimes crashes kivy for some reason??
+        except:
+            pass
+
+    def save_video_process(self, photo=None, photoinfo=None, export_file=None, encoding_settings=None, audio_file=None, offset_audio_file=None, edit_image=None, start_point=None, end_point=None):
+        #Function that applies effects to a video and encodes it
+
+        if photo is None:
+            photo = self.photo
+        if photoinfo is None:
+            photoinfo = self.photoinfo
+        if export_file is None:
+            export_file = self.export_file
+        if encoding_settings is None:
+            app = App.get_running_app()
+            encoding_settings = app.encoding_settings.get_encoding_preset(replace_auto=True)
+        if audio_file is None:
+            audio_file = self.audio_file
+        if offset_audio_file is None:
+            offset_audio_file = self.offset_audio_file
+        if edit_image is None:
+            edit_image = self.viewer.edit_image
+        if start_point is None:
+            start_point = self.viewer.start_point
+        if end_point is None:
+            end_point = self.viewer.end_point
+
+        self.clear_log()
+        #get general variables
+        self.encoding = True
+        app = App.get_running_app()
+        start_time = time.time()
+
+        #setup file variables
+        self.export_folder = ''
+        input_file = photo
+        input_file_folder, input_filename = os.path.split(input_file)
+        input_basename = os.path.splitext(input_filename)[0]
+        output_file_folder = input_file_folder
+        output_filename = input_filename
+
+        #Test if given export file is valid
+        if self.advanced_encode and export_file:
+            export_folder_test, export_file_test = os.path.split(export_file)
+            if export_file_test:
+                output_filename = export_file_test
+            if os.path.isdir(export_folder_test):
+                output_file_folder = export_folder_test
+
+        output_file_folder_reencode = output_file_folder+os.path.sep+'reencode'
+
+        #setup encoding settings
+        self.append_log("[INFO] : "+'Using FFMPEG from: '+ffmpeg_command+'\n\n')
+        if not os.path.isdir(output_file_folder_reencode):
+            try:
+                os.makedirs(output_file_folder_reencode)
+            except:
+                message = 'File not encoded, could not create temporary "reencode" folder'
+                self.failed_encode(message)
+                return ['Error', message]
+        pixel_format = edit_image.pixel_format
+        input_size = [edit_image.original_width, edit_image.original_height]
+        duration = edit_image.length  #total length in seconds
+        length = duration * (end_point - start_point)  #converted length in seconds
+        edit_image.start_video_convert()
+        start_seconds = edit_image.start_seconds  #start offset in seconds
+        frame_number = 1
+        framerate = edit_image.framerate
+        total_frames_duration = (duration * (framerate[0] / framerate[1]))  #estimate of total frames in video
+        total_frames = (total_frames_duration * (end_point - start_point))  #estimate of total frames to convert
+        start_frame = int(total_frames_duration * start_point)
+
+        #get ready for the encode process
+        command_valid, command, output_filename = self.get_ffmpeg_command(input_file_folder, input_filename, output_file_folder_reencode, output_filename, input_size, encoding_settings=encoding_settings, noaudio=True, input_file='-', input_images=True, input_framerate=framerate, input_pixel_format=pixel_format)
+        output_basename = os.path.splitext(output_filename)[0]
+        if not command_valid:
+            message = 'Command not valid: '+command
+            self.failed_encode(message)
+            return ['Error', message]
+        output_file = output_file_folder_reencode+os.path.sep+output_filename
+        if os.path.isfile(output_file):
+            if photoinfo:
+                deleted = self.delete_output(output_file)
+            else:
+                deleted = False
+            if not deleted:
+                message = 'File not encoded, temporary file already exists, could not delete'
+                self.failed_encode(message)
+                return ["Error", message]
+
+        self.append_log("[INFO] : "+"Encoding video using the command:\n")
+        self.append_log(command+'\n\n')
+        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+        read_stdout = threading.Thread(target=self.read_stdout_thread)
+        read_stdout.start()
+
+        #Poll process for new output until finished
+        while True:
+            if self.cancel_encoding:
+                try:
+                    self.encoding_process_thread.terminate()
+                    self.encoding_process_thread.kill()
+                    outs, errs = self.encoding_process_thread.communicate()
+                except:
+                    pass
+                self.delete_temp_encode(output_file, output_file_folder_reencode)
+                if not self.use_batch:
+                    self.dismiss_popup()
+                self.encoding = False
+                self.append_log("[INFO] : "+"Canceled video processing."+'\n')
+                app.message("Canceled video processing.")
+                return ["Canceled", "Encoding canceled by user"]
+            frameinfo = edit_image.get_converted_frame()
+            if frameinfo is None:
+                #finished encoding
+                break
+
+            frame, pts = frameinfo
+            if frame is None:
+                #there was an error with creating the frame, error is in the pts variable
+                message = "First encode failed on frame "+str(frame_number)+": "+str(pts)
+                self.failed_encode(message)
+                return ["Error", message]
+            try:
+                frame.save(self.encoding_process_thread.stdin, 'JPEG')
+            except:
+                if not self.cancel_encoding:
+                    self.delete_temp_encode(output_file, output_file_folder_reencode)
+                    message = 'Ffmpeg shut down, failed encoding on frame: '+str(frame_number)
+                    self.failed_encode(message)
+                    return ["Error", message]
+            frame_number = frame_number+1
+            scanning_percentage = ((pts - start_seconds)/length) * 95
+            self.popup.scanning_percentage = scanning_percentage
+            elapsed_time = time.time() - start_time
+
+            try:
+                percentage_remaining = 95 - scanning_percentage
+                seconds_left = (elapsed_time * percentage_remaining) / scanning_percentage
+                if seconds_left < 0:
+                    seconds_left = 0
+                time_done = time_index(elapsed_time)
+                time_remaining = time_index(seconds_left)
+                time_text = "  Time: " + time_done + "  Remaining: " + time_remaining
+            except:
+                time_text = ""
+            self.popup.scanning_text = str(int(scanning_percentage))+"%"+time_text
+
+        outs, errors = self.encoding_process_thread.communicate()
+        read_stdout.join()
+        self.encoding_process_thread.stdin.close()
+        self.encoding_process_thread.wait()
+
+        exit_code = self.encoding_process_thread.returncode
+        self.append_log("[INFO] : "+"Video encode process ended with exit code "+str(exit_code)+'\n\n')
+        self.append_log(""+'\n')
+
+        if self.encoding_process_thread:
+            try:
+                self.encoding_process_thread.kill()
+                self.encoding_process_thread.terminate()
+                outs, errs = self.encoding_process_thread.communicate()
+            except:
+                pass
+
+        if exit_code == 0:
+            #encoding first file completed
+            if app.encoding_settings.audio_codec == 'None/Remove':
+                #User has indicated to skip adding audio track
+                output_temp_file = output_file
+                no_audio = False
+            else:
+                #Add audio track
+                command_valid, command, output_temp_filename = self.get_ffmpeg_audio_command(output_file_folder_reencode, output_filename, input_file_folder, input_filename, output_file_folder_reencode, audio_file, offset_audio_file, encoding_settings=encoding_settings, start=start_seconds)
+                output_temp_file = output_file_folder_reencode + os.path.sep + output_temp_filename
+
+                self.append_log("[INFO] : "+"Encoding audio using the command:\n")
+                self.append_log(command+'\n\n')
+                #print(command)
+                #used to have shell=True in arguments... is it still needed?
+                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+                #Poll process for new output until finished
+                deleted = self.delete_output(output_temp_file)
+                if not deleted:
+                    message = 'File not encoded, temporary file already existed and could not be replaced'
+                    self.failed_encode(message)
+                    return ["Error", message]
+                while True:
+                    if self.cancel_encoding:
+                        if not self.use_batch:
+                            self.dismiss_popup()
+                        try:
+                            self.encoding_process_thread.kill()
+                            outs, errs = self.encoding_process_thread.communicate()
+                        except:
+                            pass
+                        self.delete_temp_encode(output_file, output_file_folder_reencode)
+                        deleted = self.delete_output(output_temp_file)
+                        self.encoding = False
+                        self.append_log("[INFO] : "+"Canceled video processing."+'\n')
+                        app.message("Canceled video processing.")
+                        return ["Canceled", "Encoding canceled by user"]
+
+                    nextline = self.encoding_process_thread.stdout.readline()
+                    self.append_log(nextline)
+                    if nextline == '' and self.encoding_process_thread.poll() is not None:
+                        break
+                    if nextline.startswith('frame= '):
+                        current_frame = int(nextline.split('frame=')[1].split('fps=')[0].strip())
+                        scanning_percentage = 95 + ((current_frame - start_frame) / total_frames * 5)
+                        self.popup.scanning_percentage = scanning_percentage
+                        elapsed_time = time.time() - start_time
+
+                        try:
+                            time_done = time_index(elapsed_time)
+                            time_text = "  Time: " + time_done
+                        except:
+                            time_text = ""
+                        self.popup.scanning_text = str(int(scanning_percentage)) + "%" + time_text
+
+                    #sys.stdout.write(nextline)
+                    #sys.stdout.flush()
+
+                output = self.encoding_process_thread.communicate()[0]
+                if output:
+                    self.append_log(output)
+                exit_code = self.encoding_process_thread.returncode
+                self.encoding_process_thread.wait()
+                self.append_log("[INFO] : "+"Audio encode process ended with exit code: "+str(exit_code)+'\n\n')
+
+                if exit_code != 0:
+                    #Could not encode audio element, video file may not include audio, warn the user and continue
+                    deleted = self.delete_output(output_temp_file)  #Attempt to delete any incomplete encode
+                    no_audio = True
+                    output_temp_file = output_file
+                else:
+                    #Audio track was encoded properly, delete the first encoded file
+                    deleted = self.delete_output(output_file)
+                    no_audio = False
+
+                if self.encoding_process_thread:
+                    try:
+                        self.encoding_process_thread.kill()
+                        self.encoding_process_thread.terminate()
+                        outs, errs = self.encoding_process_thread.communicate()
+                    except:
+                        pass
+
+            #encoding completed
+            new_photoinfo = list(photoinfo)
+
+            #Deal with original file if needed
+            if not self.advanced_encode or (photoinfo and (not export_file or (output_file_folder == input_file_folder and output_basename == input_basename))):
+                #File is in database, not being exported to a different file
+                edit_image.close_video()
+                new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
+                new_original_file_relative = '.originals'+os.path.sep+input_filename
+                if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
+                    os.makedirs(input_file_folder+os.path.sep+'.originals')
+                new_encoded_file = input_file_folder+os.path.sep+output_filename
+
+                #check if original file has been backed up already
+                if not os.path.isfile(new_original_file):
+                    try:
+                        os.rename(input_file, new_original_file)
+                    except:
+                        self.export_folder = output_file_folder_reencode
+                        message = 'Could not replace video, converted video left in "reencode" subfolder'
+                        self.failed_encode(message)
+                        return ["Error", message]
+                    if new_photoinfo:
+                        new_photoinfo[10] = new_original_file_relative
+                else:
+                    deleted = self.delete_output(input_file)
+                    if not deleted:
+                        self.export_folder = output_file_folder_reencode
+                        message = 'Could not replace video, converted video left in "reencode" subfolder'
+                        self.failed_encode(message)
+                        return ["Error", message]
+                try:
+                    os.rename(output_temp_file, new_encoded_file)
+                except:
+                    self.export_folder = output_file_folder_reencode
+                    message = 'Could not replace video, original file may be deleted, converted video left in "reencode" subfolder'
+                    self.failed_encode(message)
+                    return ["Error", message]
+
+                if not os.listdir(output_file_folder_reencode):
+                    os.rmdir(output_file_folder_reencode)
+
+                #update database
+                if new_photoinfo:
+                    extension = os.path.splitext(new_encoded_file)[1]
+                    new_photoinfo[0] = os.path.splitext(photoinfo[0])[0]+extension  #fix extension
+                    new_photoinfo[7] = int(os.path.getmtime(new_encoded_file))  #update modified date
+                    new_photoinfo[9] = 1  #set edited
+
+                #update database and variables
+                if photoinfo:
+                    if photoinfo[0] != new_photoinfo[0]:
+                        app.database_item_rename(photoinfo[0], new_photoinfo[0], new_photoinfo[1])
+                    app.database_item_update(new_photoinfo)
+                    photoinfo = new_photoinfo
+                    app.database_thumbnail_update(photoinfo[0], photoinfo[2], photoinfo[7], photoinfo[13])
+                    self.fullpath = local_path(new_photoinfo[0])
+                self.export_folder = output_file_folder
+
+            else:
+                #File is not in database, or being exported to a different folder
+                #output_temp_file : finished encodeded temp file, in the output_file_folder_reencode folder
+                #check if output exists, rename if needed
+                new_encoded_file = output_file_folder+os.path.sep+output_filename
+                new_encoded_basefile, new_encoded_extension = os.path.splitext(new_encoded_file)
+                index = 1
+                while os.path.isfile(new_encoded_file):
+                    new_encoded_file = new_encoded_basefile+'_'+str(index)+new_encoded_extension
+                    index = index + 1
+
+                try:
+                    os.rename(output_temp_file, new_encoded_file)
+                except:
+                    self.export_folder = output_file_folder_reencode
+                    message = 'Could not rename video, converted video left in "reencode" subfolder'
+                    self.failed_encode(message)
+                    return ["Error", message]
+
+                if not os.listdir(output_file_folder_reencode):
+                    os.rmdir(output_file_folder_reencode)
+                self.export_folder = output_file_folder
+
+            #Notify user of success
+            if no_audio:
+                self.append_log("[WARNING] : Could not encode audio track"+'\n')
+                Clock.schedule_once(lambda x: app.message("Completed encoding file, could not find audio track."))
+            else:
+                Clock.schedule_once(lambda x: app.message("Completed encoding file '"+new_encoded_file+"'"))
+            self.append_log("[INFO] : "+"Completed encoding file to: "+new_encoded_file+'\n')
+            # reload video in ui
+            if new_photoinfo:
+                Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
+            #else:
+            #    Clock.schedule_once(lambda *dt: self.set_photo(new_encoded_file))
+            Clock.schedule_once(self.clear_cache)
+
+        else:
+            #failed first encode, clean up
+            message = 'First file not encoded, FFMPEG gave exit code '+str(exit_code)
+            self.failed_encode(message)
+            self.delete_temp_encode(output_file, output_file_folder_reencode)
+            return ["Error", message]
+        self.encoding = False
+        if not self.use_batch:
+            self.dismiss_popup()
+            self.save_log()
+        if no_audio:
+            return ["Error", "Could not encode audio element, file may not have audio."]
+        return ["Complete", "File saved as: "+output_file]
+
+    def save_image(self):
+        """Saves any temporary edits on the currently viewed image."""
+
+        app = App.get_running_app()
+
+        #generate full quality image
+        edit_image = self.viewer.edit_image.get_full_quality()
+        exif = self.viewer.edit_image.exif
+        #new_exif = exif[:274] + b'1' + exif[275:]
+        #exif = new_exif
+        self.viewer.stop()
+
+        #back up old image and save new edit
+        photo_file_original = self.photo
+        backup_directory = local_path(self.photoinfo[2])+os.path.sep+local_path(self.photoinfo[1])+os.path.sep+'.originals'
+        if not os.path.exists(backup_directory):
+            os.mkdir(backup_directory)
+        if not os.path.exists(backup_directory):
+            app.popup_message(text='Could not create backup directory', title='Warning')
+            return
+        backup_photo_file = backup_directory+os.path.sep+os.path.basename(self.photo)
+        backup_photo_file_relative = '.originals'+os.path.sep+os.path.basename(self.photo)
+        if not os.path.isfile(photo_file_original):
+            app.popup_message(text='Photo file no longer exists', title='Warning')
+            return
+        if not os.path.isfile(backup_photo_file):
+            try:
+                os.rename(photo_file_original, backup_photo_file)
+            except Exception as e:
+                print(e)
+                pass
+        if not os.path.isfile(backup_photo_file):
+            app.popup_message(text='Could not create backup photo', title='Warning')
+            return
+        if os.path.isfile(photo_file_original):
+            error = app.delete_file(photo_file_original)
+            #os.remove(photo_file_original)
+        if os.path.isfile(photo_file_original):
+            app.popup_message(text='Could not save edited photo', title='Warning')
+            return
+        photo_file = os.path.splitext(photo_file_original)[0]+'.jpg'
+        try:
+            edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
+        except:
+            if os.path.isfile(photo_file):
+                os.remove(photo_file)
+        if not os.path.isfile(photo_file):
+            if os.path.isfile(backup_photo_file):
+                copy2(backup_photo_file, photo_file)
+                if os.path.isfile(photo_file):
+                    os.remove(backup_photo_file)
+                    app.popup_message(text='Could not save edited photo, resored backup', title='Warning')
+                else:
+                    app.popup_message(text='Could not save edited photo, backup left in .originals folder', title='Warning')
+            else:
+                app.popup_message(text='Could not save edited photo', title='Warning')
+            return
+
+        #update photo info
+        new_fullpath = os.path.splitext(self.photoinfo[0])[0]+'.jpg'
+        update_photoinfo = list(self.photoinfo)
+        update_photoinfo[10] = agnostic_path(backup_photo_file_relative)
+        update_photoinfo[0] = agnostic_path(new_fullpath)
+        update_photoinfo[1] = agnostic_path(update_photoinfo[1])
+        update_photoinfo[2] = agnostic_path(update_photoinfo[2])
+        update_photoinfo[9] = 1
+        update_photoinfo[7] = int(os.path.getmtime(photo_file))
+        if self.photoinfo[0] != new_fullpath:
+            app.database_item_rename(self.photoinfo[0], update_photoinfo[0], update_photoinfo[1])
+        app.database_item_update(update_photoinfo)
+        app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
+
+        #regenerate thumbnail
+        app.database_thumbnail_update(update_photoinfo[0], update_photoinfo[2], update_photoinfo[7], update_photoinfo[13])
+
+        #reload photo image in ui
+        self.clear_cache()
+
+        #close edit panel
+        self.set_edit_panel('main')
+
+        #update interface and switch active photo in photo list back to image
+        self.photoinfo = update_photoinfo
+        self.fullpath = local_path(update_photoinfo[0])
+        Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
+        self.photo = photo_file
+        self.show_selected()
+
+        app.message("Saved edits to image")
+
+    def save_log(self):
+        app = App.get_running_app()
+        app.save_log(self.encode_log, 'encode')
+
+
+class VideoConverterScreen(ConversionScreen):
+    from_database = BooleanProperty(False)  #indicates if the database screen switched to this screen
+    edit_panel_object = ObjectProperty(allownone=True)
+    folder = StringProperty('')
+    view_panel = StringProperty('')
+    use_command = BooleanProperty(False)
+    show_extra = BooleanProperty(False)
+    batch_list = ListProperty()
+    photo_viewer_current = StringProperty('')
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.advanced_encode = True
+
+    def rescale_screen(self):
+        app = App.get_running_app()
+        #self.ids['leftpanel'].width = app.left_panel_width()
+        self.ids['rightpanel'].width = app.right_panel_width()
+
+    def key(self, key):
+        if key == 'a':
+            if self.popup:
+                self.popup.content.toggle_select()
+
+    def on_use_batch(self, *_):
+        if self.use_batch:
+            self.photo_viewer_current = 'batch'
+            self.show_conversion_panel(ensure=True)
+        else:
+            self.photo_viewer_current = 'edit'
+
+    def remove_batch(self, index):
+        self.batch_list.remove(self.batch_list[index])
+
+    def select_batch_export(self, index):
+        batch = self.batch_list[index]
+        browse_folder = batch['export_path']
+        if not browse_folder:
+            browse_folder = batch['path']
+        file = batch['export_file']
+        if not file:
+            file = batch['file']
+        content = FileBrowser(ok_text='Select', path=browse_folder, file=file, file_editable=True, export_mode=True)
+        content.remember = index
+        content.bind(on_cancel=self.dismiss_popup)
+        content.bind(on_ok=self.browse_preset_export_check)
+        self.popup = NormalPopup(title="Select Export Folder", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def clear_batch_export(self, index):
+        self.batch_list[index]['export_file'] = ''
+        self.batch_list[index]['export_path'] = ''
+        batch_list = self.ids['photosContainer']
+        batch_list.refresh_from_data()
+
+    def browse_preset_export_check(self, *_):
+        popup = self.popup
+        if popup:
+            path = popup.content.path
+            file = popup.content.file
+            index = popup.content.remember
+            self.dismiss_popup()
+            self.batch_list[index]['export_path'] = path
+            self.batch_list[index]['export_file'] = file
+            batch_list = self.ids['photosContainer']
+            batch_list.refresh_from_data()
+
+    def set_preset(self, index, preset):
+        self.batch_list[index]['preset'] = preset
+        if preset:
+            self.batch_list[index]['preset_name'] = preset.name
+        else:
+            self.batch_list[index]['preset_name'] = ''
+        batch_list = self.ids['photosContainer']
+        batch_list.refresh_from_data()
+
+    def add_batch(self):
+        app = App.get_running_app()
+        if app.last_browse_folder:
+            browse_folder = app.last_browse_folder
+        else:
+            browse_folder = self.folder
+        content = FileBrowser(ok_text='Add', path=browse_folder, multiselect=True, file_editable=False, export_mode=False)
+        content.bind(on_cancel=self.dismiss_popup)
+        content.bind(on_ok=self.add_batch_check)
+        self.popup = NormalPopup(title="Select Files To Add", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def add_batch_check(self, *_):
+        popup = self.popup
+        if popup:
+            app = App.get_running_app()
+            path = popup.content.path
+            app.last_browse_folder = path
+            self.dismiss_popup()
+            file_datas = popup.content.get_selected()
+            files = []
+            for file_data in file_datas:
+                files.append(file_data['fullpath'])
+            self.add_files_to_batch(files)
+
+    def add_files_to_batch(self, files):
+        for filepath in files:
+            path, file = os.path.split(filepath)
+            extension = os.path.splitext(filepath)[1].lower()
+            if extension in movietypes:
+                self.batch_list.append({
+                    'file': file,
+                    'path': path,
+                    'owner': self,
+                    'preset': None,
+                    'preset_name': '',
+                    'export_path': '',
+                    'export_file': '',
+                    'encode_state': 'Ready',
+                    'message': '',
+                    'selected': False,
+                    'selectable': True
+                })
+
+    def remove_selected_batch(self):
+        for file in reversed(self.batch_list):
+            if file['selected']:
+                self.batch_list.remove(file)
+        files_area = self.ids['photos']
+        files_area.clear_selects()
+
+    def clear_batch(self):
+        self.batch_list = []
+        files_area = self.ids['photos']
+        files_area.clear_selects()
+
+    def back(self):
+        app = App.get_running_app()
+        if self.from_database:
+            app.show_database()
+        else:
+            app.show_album(back=True)
+
+    def dismiss_extra(self):
+        if self.encoding:
+            self.cancel_encode()
+            return True
+        elif self.from_database:
+            app = App.get_running_app()
+            app.show_database()
+            return True
+        return False
+
+    def browse_export_folder(self):
+        try:
+            if self.export_folder:
+                import webbrowser
+                webbrowser.open(self.export_folder)
+        except:
+            pass
+
+    def on_use_command(self, *_):
+        if not self.use_command:
+            app = App.get_running_app()
+            app.encoding_settings.command_line = ''
+
+    def update_encoding_settings(self, *_):
+        app = App.get_running_app()
+        if app.encoding_settings.command_line:
+            self.use_command = True
+        else:
+            self.use_command = False
+
+    def show_conversion_panel(self, ensure=False):
+        self.show_panel('conversion', ensure)
+
+    def show_info_panel(self):
+        self.show_panel('info')
+
+    def show_edit_panel(self):
+        self.show_panel('edit')
+
+    def show_panel(self, panel_name, ensure=False):
+        right_panel = self.ids['rightpanel']
+        if self.view_panel == panel_name and not ensure:
+            right_panel.hidden = True
+            self.view_panel = ''
+        else:
+            self.view_panel = panel_name
+            right_panel.hidden = False
+
+    def on_leave(self):
+        super().on_leave()
+        self.clear_edit()
+
+    def clear_edit(self):
+        if self.viewer:
+            self.viewer.stop()  #Ensure that an old video is no longer playing.
+            self.viewer.close()
+            self.viewer.end_edit_mode()
+            self.viewer = None
+
+        container = self.ids['photoViewerContainer']
+        container.clear_widgets()
+        edit_panel_container = self.ids['panelEdit']
+        edit_panel_container.clear_widgets()
+        self.edit_panel_object = None
+
+    def browse_export_begin(self):
+        app = App.get_running_app()
+        if app.last_browse_folder:
+            browse_folder = app.last_browse_folder
+        else:
+            browse_folder = self.folder
+        if not self.use_batch:
+            file = self.target
+        else:
+            file = ''
+        content = FileBrowser(ok_text='Select', path=browse_folder, file=file, export_mode=True, allow_no_file=True, file_editable=True)
+        content.bind(on_cancel=self.dismiss_popup)
+        content.bind(on_ok=self.browse_export_check)
+        self.popup = NormalPopup(title="Select Export Folder", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def browse_export_check(self, *_):
+        popup = self.popup
+        if popup:
+            app = App.get_running_app()
+            path = popup.content.path
+            app.last_browse_folder = path
+            file = popup.content.file
+            self.dismiss_popup()
+            self.export_file = os.path.join(path, file)
+            app.message('Export to: '+self.export_file)
+
+    def load_audio_begin(self):
+        app = App.get_running_app()
+        if app.last_browse_folder:
+            browse_folder = app.last_browse_folder
+        else:
+            browse_folder = self.folder
+        content = FileBrowser(ok_text='Load', path=browse_folder, file_editable=True, export_mode=False, file=self.target)
+        content.bind(on_cancel=self.dismiss_popup)
+        content.bind(on_ok=self.load_audio_check)
+        self.popup = NormalPopup(title="Select An Audio File", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def load_audio_check(self, *_):
+        popup = self.popup
+        if popup:
+            app = App.get_running_app()
+            path = popup.content.path
+            app.last_browse_folder = path
+            file = popup.content.file
+            self.dismiss_popup()
+            extension = os.path.splitext(file)[1].lower()
+            if extension in movietypes + audiotypes:
+                self.audio_file = os.path.join(path, file)
+                app.message('Selected file: '+file)
+                return
+            app.message('Warning: File type not supported')
+
+    def load_video_begin(self):
+        app = App.get_running_app()
+        if app.last_browse_folder:
+            browse_folder = app.last_browse_folder
+        else:
+            browse_folder = self.folder
+        content = FileBrowser(ok_text='Load', path=browse_folder, file_editable=True, export_mode=False, file=self.target)
+        content.bind(on_cancel=self.dismiss_popup)
+        content.bind(on_ok=self.load_video_check)
+        self.popup = NormalPopup(title="Select A Video File", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def load_video_check(self, *_):
+        popup = self.popup
+        if popup:
+            app = App.get_running_app()
+            path = popup.content.path
+            app.last_browse_folder = path
+            file = popup.content.file
+            self.dismiss_popup()
+            extension = os.path.splitext(file)[1].lower()
+            if extension in movietypes:
+                self.folder = path
+                self.target = file
+                self.photo = os.path.join(path, file)
+                app.message('Loaded file: '+file)
+                return
+            app.message('Warning: File type not supported')
+
+    def on_enter(self):
+        super().on_enter()
+        #self.clear_batch()
+        self.show_extra = False
+        self.use_batch = False
+        self.photo_viewer_current = 'edit'
+        self.update_encoding_settings()
+        self.show_panel('conversion', ensure=True)
+        Clock.schedule_once(self.load_app_photo)  #Delay this to give the previous screen a chance to clear out memory if needed
+
+    def load_app_photo(self, *_):
+        app = App.get_running_app()
+        self.photo = ''
+        self.photo = app.photo
+
+    def on_photo(self, *_):
+        self.use_audio = False
+        self.audio_file = ''
+        if self.photo:
+            extension = os.path.splitext(self.photo)[1].lower()
+            if extension not in movietypes:
+                self.photo = ''
+                self.folder = ''
+                self.target = ''
+                self.photoinfo = []
+                self.edit_video()
+                return
+        app = App.get_running_app()
+        self.folder, self.target = os.path.split(self.photo)
+        photoinfo = app.file_in_database(self.photo)
+        if photoinfo:
+            self.photoinfo = photoinfo
+            self.fullpath = photoinfo[0]
+        else:
+            self.photoinfo = []
+            self.fullpath = ''
+
+        self.edit_video()
+        self.refresh_photoinfo()
+
+    def edit_video(self, *_):
+        self.export_file = ''
+        self.export_folder = ''
+        if isfile2(self.photo):
+            app = App.get_running_app()
+            if self.viewer:
+                self.viewer.stop()  #Ensure that an old video is no longer playing.
+                self.viewer.close()
+
+            #Set up photo viewer
+            container = self.ids['photoViewerContainer']
+            container.clear_widgets()
+            self.photoinfo = app.database_exists(self.fullpath)
+            if self.photoinfo:
+                self.orientation = self.photoinfo[13]
+            else:
+                self.orientation = 1
+            if self.orientation == 3 or self.orientation == 4:
+                self.angle = 180
+            elif self.orientation == 5 or self.orientation == 6:
+                self.angle = 270
+            elif self.orientation == 7 or self.orientation == 8:
+                self.angle = 90
+            else:
+                self.angle = 0
+            if self.orientation in [2, 4, 5, 7]:
+                self.mirror = True
+            else:
+                self.mirror = False
+            self.view_image = False
+            self.viewer = VideoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo, photoinfo=self.photoinfo)
+            container.add_widget(self.viewer)
+
+            edit_panel = 'edit'
+            edit_panel_container = self.ids['panelEdit']
+            edit_panel_container.clear_widgets()
+            #Start edit mode
+            self.viewer.edit_mode = edit_panel
+            self.viewer.init_edit_mode()
+            self.viewer.bypass = True
+            self.edit_panel_object = EditPanelConvert(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
+            self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
+
+            self.edit_panel_object.refresh_buttons()
+            edit_panel_container.add_widget(self.edit_panel_object)
+        else:
+            self.clear_edit()
+
+    def refresh_photoinfo(self):
+        """Displays the basic info for the current photo in the photo info right tab."""
+
+        #Clear old info
+        info_panel = self.ids['panelInfo']
+        nodes = list(info_panel.iterate_all_nodes())
+        for node in nodes:
+            info_panel.remove_node(node)
+
+        if isfile2(self.photo):
+            #Add basic info
+            filename = self.target
+            info_panel.add_node(TreeViewInfo(title='Filename: ' + filename))
+            path = self.folder
+            info_panel.add_node(TreeViewInfo(title='Path: ' + path))
+            if self.photoinfo:
+                database_folder = self.photoinfo[2]
+                info_panel.add_node(TreeViewInfo(title='Database: ' + database_folder))
+                import_date = datetime.datetime.fromtimestamp(self.photoinfo[6]).strftime('%Y-%m-%d, %I:%M%p')
+                info_panel.add_node(TreeViewInfo(title='Import Date: ' + import_date))
+            modified_date = datetime.datetime.fromtimestamp(int(os.path.getmtime(self.photo))).strftime('%Y-%m-%d, %I:%M%p')
+            info_panel.add_node(TreeViewInfo(title='Modified Date: ' + modified_date))
+            file_size = format_size(int(os.path.getsize(self.photo)))
+            info_panel.add_node(TreeViewInfo(title='File Size: ' + file_size))
+
+            video = self.viewer.edit_image
+            length = time_index(video.length)
+            info_panel.add_node(TreeViewInfo(title='Duration: ' + length))
+            image_x = video.original_width
+            image_y = video.original_height
+            resolution = str(image_x) + ' * ' + str(image_y)
+            megapixels = round(((image_x * image_y) / 1000000), 2)
+            info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
+
+    def save_log(self):
+        app = App.get_running_app()
+        app.save_log(self.encode_log_text, 'encode')
+        self.show_extra = True
+
+    def save_edit(self):
+        if self.use_batch:
+            if self.viewer:
+                self.viewer.stop()
+            self.clear_edit()
+            app = App.get_running_app()
+            app.encoding_settings.store_current_encoding_preset()
+            self.cancel_encoding = False
+            #Create popup to show progress
+            self.popup = VideoProcessingPopup(title='Processing Video', auto_dismiss=False, size_hint=(0.9, 0.9))
+            self.popup.scanning_text = ''
+            self.popup.open()
+            self.bind(encode_log_text=self.popup.setter('encode_log_text'))
+            encoding_button = self.popup.ids['scanningButton']
+            encoding_button.bind(on_press=self.cancel_encode)
+            save_batch_thread = threading.Thread(target=self.save_video_batch)
+            save_batch_thread.start()
+        else:
+            if not self.photo:
+                return
+            self.save_video()
+
+    def save_video_batch(self):
+        app = App.get_running_app()
+        all_encode_log = ''
+
+        #Iterate through batches and encode each
+        for index, file in enumerate(self.batch_list):
+            photo = os.path.join(file['path'], file['file'])
+            status_text = 'Encoding file '+str(index + 1)+' of '+str(len(self.batch_list))+': '+photo
+            self.popup.overall_process = status_text
+            all_encode_log += '[INFO] : '+status_text+'\n\n'
+            if isfile2(photo):
+                photoinfo = []
+                if file['export_path'] or file['export_file']:
+                    export_file = os.path.join(file['export_path'], file['export_file'])
+                else:
+                    export_file = os.path.join(file['path'], file['file'])
+                if file['preset'] is not None:
+                    encoding_settings = file['preset'].get_encoding_preset(replace_auto=True)
+                else:
+                    encoding_settings = app.encoding_settings.get_encoding_preset(replace_auto=True)
+                audio_file = ''
+                offset_audio_file = False
+
+                edit_image = CustomImage(photoinfo=photoinfo, source=photo)
+
+                result, reason = self.save_video_process(photo=photo, photoinfo=photoinfo, export_file=export_file, encoding_settings=encoding_settings, audio_file=audio_file, offset_audio_file=offset_audio_file, edit_image=edit_image, start_point=0, end_point=1)
+
+                file['encode_state'] = result
+                file['message'] = reason
+                edit_image.close_video()
+                edit_image.clear_image()
+                edit_image = None
+
+                all_encode_log += self.encode_log_text
+                all_encode_log += '\n\n'
+            else:
+                file['encode_state'] = 'Error'
+                file['message'] = "File not found"
+                all_encode_log += "[WARNING] : File not found: "+photo
+                all_encode_log += '\n\n\n'
+
+            if self.cancel_encoding:
+                break
+
+        self.encode_log_text = all_encode_log
+        app.save_log(all_encode_log, 'encode')
+        self.dismiss_popup()
+        Clock.schedule_once(self.edit_video)
+        batch_list = self.ids['photosContainer']
+        batch_list.refresh_from_data()
+
+
+class AlbumScreen(ConversionScreen):
+    """Screen layout of the album viewer."""
+
+    folder_title = StringProperty('Album Viewer')
+    view_panel = StringProperty('')
+    sort_reverse_button = StringProperty('normal')
+    canprint = BooleanProperty(True)
+
+    #Widget holder variables
+    sort_dropdown = ObjectProperty()  #Holder for the sort method dropdown menu
+    edit_panel = StringProperty('')  #The type of edit panel currently loaded
+    edit_panel_object = ObjectProperty(allownone=True)  #Holder for the edit panel widget
+    album_exports = ObjectProperty()
+
+    #Variables relating to the photo list view on the left
+    sort_method = StringProperty('Name')  #Current album sort method
+    sort_reverse = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.advanced_encode = False
+
+    def rescale_screen(self):
+        app = App.get_running_app()
+        self.ids['leftpanel'].width = app.left_panel_width()
+        self.ids['rightpanel'].width = app.right_panel_width()
+
+    def export_screen(self):
+        """Switches the app to export mode with the current selected album."""
+
+        app = App.get_running_app()
+        app.export_target = self.target
+        app.export_type = self.type
+        app.show_export()
+
+    def collage_screen(self):
+        """Switches the app to the collage mode with the current selected album."""
+
+        app = App.get_running_app()
+        app.export_target = self.target
+        app.export_type = self.type
+        app.show_collage()
+
+    def show_panel(self, panel_name):
+        right_panel = self.ids['rightpanel']
+        if self.view_panel == panel_name:
+            self.set_edit_panel('main')
+            right_panel.hidden = True
+            self.view_panel = ''
+            self.show_left_panel()
+        else:
+            self.set_edit_panel('main')
+            self.view_panel = panel_name
+            right_panel.hidden = False
+            app = App.get_running_app()
+            if app.simple_interface:
+                self.hide_left_panel()
+
+    def show_tags_panel(self, *_):
+        self.show_panel('tags')
+
+    def show_info_panel(self, *_):
+        self.show_panel('info')
+
+    def show_edit_panel(self, *_):
+        self.show_panel('edit')
+
+    def show_left_panel(self, *_):
+        left_panel = self.ids['leftpanel']
+        left_panel.hidden = False
+
+    def hide_left_panel(self, *_):
+        left_panel = self.ids['leftpanel']
+        left_panel.hidden = True
+
+    def set_photo(self, photo):
+        self.photo = photo
+        Clock.schedule_once(lambda *dt: self.refresh_all())
+        Clock.schedule_once(self.show_selected)
 
     def on_sort_reverse(self, *_):
         """Updates the sort reverse button's state variable, since kivy doesnt just use True/False for button states."""
@@ -2667,16 +3901,30 @@ class AlbumScreen(Screen):
             app.popup_message(text='Could not find original file', title='Warning')
 
     def set_edit_panel(self, panelname):
-        """Switches the current edit panel to another.
-        Argument:
-            panelname: String, the name of the panel.
-        """
+        """Switches the current edit panel to another."""
 
-        if self.edit_panel != panelname:
-            self.edit_panel = panelname
-            Clock.schedule_once(lambda *dt: self.update_edit_panel())
-        elif self.edit_panel == 'main':
-            self.edit_panel_object.refresh_buttons()
+        edit_panel_container = self.ids['panelEdit']
+        edit_panel_container.clear_widgets()
+        self.edit_panel = panelname
+        if self.edit_panel_object:
+            self.edit_panel_object.save_last()
+        if panelname != 'main' and self.viewer and isfile2(self.photo):
+            #Start edit mode
+            self.viewer.stop()
+            self.viewer.edit_mode = self.edit_panel
+            self.viewer.init_edit_mode()
+            self.viewer.bypass = True
+            self.edit_panel_object = EditPanel(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
+            self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
+        else:
+            #Close edit mode
+            self.edit_panel_object = EditMain(owner=self)
+            self.edit_panel_object.update_programs()
+            self.viewer.edit_mode = 'main'
+            self.viewer.bypass = False
+
+        self.edit_panel_object.refresh_buttons()
+        edit_panel_container.add_widget(self.edit_panel_object)
 
     def export(self):
         """Switches to export screen."""
@@ -2687,47 +3935,13 @@ class AlbumScreen(Screen):
             app.export_type = self.type
             app.show_export()
 
-    def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
-        """Dummy function.  Here because the app can possibly call this function for any screen."""
-        pass
-
-    def text_input_active(self):
-        """Detects if any text input fields are currently active (being typed in).
-        Returns: True or False
-        """
-
-        input_active = False
-        for widget in self.walk(restrict=True):
-            if widget.__class__.__name__ == 'NormalInput' or widget.__class__.__name__ == 'FloatInput' or widget.__class__.__name__ == 'IntegerInput':
-                if widget.focus:
-                    input_active = True
-                    break
-        return input_active
-
-    def has_popup(self):
-        """Detects if the current screen has a popup active.
-        Returns: True or False
-        """
-
-        if self.popup:
-            if self.popup.open:
-                return True
-        return False
-
-    def dismiss_popup(self, *_):
-        """Close a currently open popup for this screen."""
-
-        if self.popup:
-            self.popup.dismiss()
-            self.popup = None
-
     def dismiss_extra(self):
         """Deactivates fullscreen mode on the video viewer if applicable.
         Returns: True if it was deactivated, False if not.
         """
 
-        if self.encoding:
-            self.cancel_encode()
+        dismissed = super().dismiss_extra()
+        if dismissed:
             return True
         if self.edit_panel != 'main':
             self.set_edit_panel('main')
@@ -3052,13 +4266,12 @@ class AlbumScreen(Screen):
         album = self.ids['album']
         selected = self.fullpath
         data = album_container.data
-        current_photo = None
         for i, node in enumerate(data):
             if node['fullpath'] == selected:
-                current_photo = node
+                node['selected'] = True
+                album_container.scroll_to_selected()
+                album.refresh_selection()
                 break
-        if current_photo is not None:
-            album.selected = current_photo
 
     def scroll_photolist(self):
         """Scroll the right-side photo list to the current active photo."""
@@ -3070,6 +4283,8 @@ class AlbumScreen(Screen):
     def refresh_all(self, *_):
         self.refresh_photolist()
         self.refresh_photoview()
+        if self.edit_panel_object:
+            self.edit_panel_object.refresh_buttons()
 
     def refresh_photolist(self):
         """Reloads and sorts the photo list"""
@@ -3122,6 +4337,7 @@ class AlbumScreen(Screen):
             photodata['fullpath'] = photo[0]
             photodata['video'] = os.path.splitext(source)[1].lower() in movietypes
             photodata['selectable'] = True
+            photodata['selected'] = False
             #if self.fullpath == photo[0]:
             #    photodata['selected'] = True
             #else:
@@ -3323,17 +4539,19 @@ class AlbumScreen(Screen):
     def on_leave(self):
         """Called when the screen is left.  Clean up some things."""
 
+        super().on_leave()
+        self.set_edit_panel('main')
         if self.viewer:
-            self.viewer.stop()
-        app = App.get_running_app()
-        app.clear_drags()
+            self.viewer.stop()  #Ensure that an old video is no longer playing.
+            self.viewer.end_edit_mode()
+
         right_panel = self.ids['rightpanel']
         #right_panel.width = app.right_panel_width()
         right_panel.hidden = True
         self.view_panel = ''
         self.show_left_panel()
 
-    def clear_cache(self):
+    def clear_cache(self, *_):
         """Clears cached images and thumbnails, the app will redraw all images.
         Also redraws photolist and photo viewer."""
 
@@ -3358,8 +4576,9 @@ class AlbumScreen(Screen):
     def on_enter(self):
         """Called when the screen is entered.  Set up variables and widgets, and prepare to view images."""
 
-        self.ffmpeg = ffmpeg
-        self.opencv = opencv
+        super().on_enter()
+        self.use_audio = False
+        self.audio_file = ''
         app = App.get_running_app()
         self.ids['leftpanel'].width = app.left_panel_width()
         right_panel = self.ids['rightpanel']
@@ -3373,10 +4592,6 @@ class AlbumScreen(Screen):
             self.canprint = False
         else:
             self.canprint = True
-
-        #import variables
-        self.target = app.target
-        self.type = app.type
 
         #set up sort buttons
         self.sort_dropdown = AlbumSortDropDown()
@@ -3413,447 +4628,942 @@ class AlbumScreen(Screen):
         self.refresh_photoview()
 
         #reset edit panel
-        self.encoding = False
-        self.cancel_encoding = False
         self.edit_panel = 'main'
-        Clock.schedule_once(lambda *dt: self.update_edit_panel())
 
-    def update_edit_panel(self):
-        """Set up the edit panel with the current preset."""
 
-        if self.viewer and isfile2(self.photo):
-            self.viewer.stop()
-            if self.edit_panel_object:
-                self.edit_panel_object.save_last()
-            self.viewer.edit_mode = self.edit_panel
-            edit_panel_container = self.ids['panelEdit']
-            if self.edit_panel == 'main':
-                self.edit_panel_object = EditMain(owner=self)
-                self.edit_panel_object.update_programs()
-                self.viewer.bypass = False
+class VideoProcessingPopup(NormalPopup):
+    encode_log_text = StringProperty()
+    overall_process = StringProperty()
+    button_text = StringProperty('Cancel')
+    scanning_percentage = NumericProperty(0)
+    scanning_text = StringProperty('')
+
+
+class BatchPhoto(RecycleItem):
+    file = StringProperty('')
+    path = StringProperty('')
+    preset = ObjectProperty(allownone=True)
+    preset_name = StringProperty('')
+    export_path = StringProperty('')
+    export_file = StringProperty('')
+    encode_state = StringProperty('Ready')
+    owner = ObjectProperty()
+    preset_drop = ObjectProperty(allownone=True)
+    message = StringProperty('')
+
+    def add_presets_to_menu(self, preset_drop, presets):
+        for index, preset in enumerate(presets):
+            menu_button = MenuButton(text=preset.name)
+            menu_button.remember = preset
+            menu_button.bind(on_release=self.set_preset)
+            preset_drop.add_widget(menu_button)
+
+    def setup_presets_menu(self):
+        app = App.get_running_app()
+        self.preset_drop = NormalDropDown()
+        menu_button = MenuButton(text='None')
+        menu_button.remember = None
+        menu_button.bind(on_release=self.set_preset)
+        self.preset_drop.add_widget(menu_button)
+        self.preset_drop.add_widget(NormalLabel(text='Standard Presets'))
+        self.add_presets_to_menu(self.preset_drop, app.encoding_presets)
+        self.preset_drop.add_widget(NormalLabel(text='Extra Presets'))
+        self.add_presets_to_menu(self.preset_drop, app.encoding_presets_extra)
+        if app.encoding_presets_user:
+            self.preset_drop.add_widget(NormalLabel(text='User Presets'))
+            self.add_presets_to_menu(self.preset_drop, app.encoding_presets_user)
+
+    def select_preset(self, button):
+        self.setup_presets_menu()
+        self.preset_drop.open(button)
+
+    def remove(self, *_):
+        app = App.get_running_app()
+        app.clickfade(self, mode='height')
+        self.owner.remove_batch(self.index)
+
+    def set_preset(self, instance):
+        """Sets the current dialog preset settings to one of the presets stored in the app.
+        Argument:
+            index: Integer, the index of the preset to set.
+        """
+
+        self.preset_drop.dismiss()
+        preset = instance.remember
+        self.owner.set_preset(self.index, preset)
+
+    def select_export(self):
+        self.owner.select_batch_export(self.index)
+
+    def clear_export(self):
+        self.owner.clear_batch_export(self.index)
+
+
+class EditPanelBase(Screen):
+    owner = ObjectProperty()
+    image = ObjectProperty()  #Image object that all effects are applied to
+    viewer = ObjectProperty()  #Image viewer, used to display the edit modes
+
+
+class EditPanelAlbumBase(EditPanelBase):
+    pass
+
+
+class EditPanelConversionBase(EditPanelBase):
+    pass
+
+
+class EditPanelColor(EditPanelBase):
+    def reset(self, *_):
+        self.reset_brightness()
+        self.reset_shadow()
+        self.reset_gamma()
+        self.reset_saturation()
+        self.reset_temperature()
+        self.reset_equalize()
+        self.reset_autocontrast()
+        self.reset_adaptive()
+        self.reset_curves()
+        self.reset_tint()
+
+    def save(self, preset):
+        preset.equalize = self.image.equalize
+        preset.autocontrast = self.image.autocontrast
+        preset.adaptive = self.image.adaptive_clip
+        preset.brightness = self.image.brightness
+        preset.gamma = self.image.gamma
+        preset.saturation = self.image.saturation
+        preset.temperature = self.image.temperature
+        preset.shadow = self.image.shadow
+        preset.tint = self.image.tint
+        curves = self.ids['curves']
+        preset.curve = curves.points
+
+    def load(self, preset):
+        self.image.equalize = preset.equalize
+        self.image.autocontrast = preset.autocontrast
+        self.image.adaptive_clip = preset.adaptive
+        self.image.brightness = preset.brightness
+        self.image.gamma = preset.gamma
+        self.image.saturation = preset.saturation
+        self.image.temperature = preset.temperature
+        self.image.shadow = preset.shadow
+        self.image.tint = preset.tint
+        curves = self.ids['curves']
+        curves.points = preset.curve
+        curves.refresh()
+
+    def update_autocontrast(self, state):
+        if state == 'down':
+            self.image.autocontrast = True
+        else:
+            self.image.autocontrast = False
+
+    def reset_autocontrast(self, *_):
+        self.image.autocontrast = CustomImage().autocontrast
+
+    def reset_equalize(self, *_):
+        self.image.equalize = CustomImage().equalize
+
+    def reset_adaptive(self, *_):
+        self.image.adaptive_clip = CustomImage().adaptive_clip
+
+    def reset_brightness(self, *_):
+        self.image.brightness = CustomImage().brightness
+
+    def reset_gamma(self, *_):
+        self.image.gamma = CustomImage().gamma
+
+    def reset_shadow(self, *_):
+        self.image.shadow = CustomImage().shadow
+
+    def reset_temperature(self, *_):
+        self.image.temperature = CustomImage().temperature
+
+    def reset_saturation(self, *_):
+        self.image.saturation = CustomImage().saturation
+
+    def remove_point(self, *_):
+        """Tells the curves widget to remove its last point."""
+
+        curves = self.ids['curves']
+        curves.remove_point()
+
+    def reset_curves(self, *_):
+        """Tells the curves widget to reset to its default points."""
+
+        curves = self.ids['curves']
+        curves.reset()
+
+    def reset_tint(self, *_):
+        self.image.tint = CustomImage().tint
+
+
+class EditPanelFilter(EditPanelBase):
+    def reset(self, *_):
+        self.reset_sharpen()
+        self.reset_median()
+        self.reset_bilateral_amount()
+        self.reset_bilateral()
+        self.reset_vignette_amount()
+        self.reset_vignette_size()
+        self.reset_edge_blur_amount()
+        self.reset_edge_blur_size()
+        self.reset_edge_blur_intensity()
+
+    def save(self, preset):
+        preset.sharpen = self.image.sharpen
+        preset.median = self.image.median_blur
+        preset.bilateral_amount = self.image.bilateral_amount
+        preset.bilateral = self.image.bilateral
+        preset.vignette_amount = self.image.vignette_amount
+        preset.vignette_size = self.image.vignette_size
+        preset.edge_blur_amount = self.image.edge_blur_amount
+        preset.edge_blur_size = self.image.edge_blur_size
+        preset.edge_blur_intensity = self.image.edge_blur_intensity
+
+    def load(self, preset):
+        self.image.sharpen = preset.sharpen
+        self.image.median_blur = preset.median
+        self.image.bilateral_amount = preset.bilateral_amount
+        self.image.bilateral = preset.bilateral
+        self.image.vignette_amount = preset.vignette_amount
+        self.image.vignette_size = preset.vignette_size
+        self.image.edge_blur_amount = preset.edge_blur_amount
+        self.image.edge_blur_size = preset.edge_blur_size
+        self.image.edge_blur_intensity = preset.edge_blur_intensity
+
+    def reset_sharpen(self, *_):
+        self.image.sharpen = CustomImage().sharpen
+
+    def reset_median(self, *_):
+        self.image.median_blur = CustomImage().median_blur
+
+    def reset_bilateral_amount(self, *_):
+        self.image.bilateral_amount = CustomImage().bilateral_amount
+
+    def reset_bilateral(self, *_):
+        self.image.bilateral = CustomImage().bilateral
+
+    def reset_vignette_amount(self, *_):
+        self.image.vignette_amount = CustomImage().vignette_amount
+
+    def reset_vignette_size(self, *_):
+        self.image.vignette_size = CustomImage().vignette_size
+
+    def reset_edge_blur_amount(self, *_):
+        self.image.edge_blur_amount = CustomImage().edge_blur_amount
+
+    def reset_edge_blur_size(self, *_):
+        self.image.edge_blur_size = CustomImage().edge_blur_size
+
+    def reset_edge_blur_intensity(self, *_):
+        self.image.edge_blur_intensity = CustomImage().edge_blur_intensity
+
+
+class EditPanelBorder(EditPanelBase):
+    selected = StringProperty()
+    borders = ListProperty()
+
+    def __init__(self, **kwargs):
+        Clock.schedule_once(self.populate_borders)
+        super(EditPanelBorder, self).__init__(**kwargs)
+
+    def reset(self, *_):
+        self.selected = ''
+        self.reset_border_x_scale()
+        self.reset_border_y_scale()
+        self.reset_border_opacity()
+        self.reset_border_tint()
+
+    def save(self, preset):
+        preset.border_selected = self.selected
+        preset.border_x_scale = self.image.border_x_scale
+        preset.border_y_scale = self.image.border_y_scale
+        preset.border_opacity = self.image.border_opacity
+        preset.border_tint = self.image.border_tint
+
+    def load(self, preset):
+        self.selected = preset.border_selected
+        self.image.border_x_scale = preset.border_x_scale
+        self.image.border_y_scale = preset.border_y_scale
+        self.image.border_opacity = preset.border_opacity
+        self.image.border_tint = preset.border_tint
+        self.select_border()
+
+    def populate_borders(self, *_):
+        self.borders = [None]
+        for file in os.listdir('borders'):
+            if file.endswith('.txt'):
+                border_name = os.path.splitext(file)[0]
+                border_sizes = []
+                border_images = []
+                with open(os.path.join('borders', file)) as input_file:
+                    for line in input_file:
+                        if ':' in line and not line.startswith('#'):
+                            size, image = line.split(':')
+                            border_sizes.append(float(size))
+                            border_images.append(image.strip())
+                if border_sizes:
+                    self.borders.append([border_name, border_sizes, border_images])
+
+        borders_tree = self.ids['borders']
+        nodes = list(borders_tree.iterate_all_nodes())
+        for node in nodes:
+            borders_tree.remove_node(node)
+
+        for index, border in enumerate(self.borders):
+            if border:
+                node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name=border[0])
+                borders_tree.add_node(node)
             else:
-                self.viewer.bypass = True
-                self.viewer.stop()
-                if self.edit_panel == 'color':
-                    self.edit_panel_object = EditColor(owner=self)
-                    self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
-                elif self.edit_panel == 'filter':
-                    self.edit_panel_object = EditFilterImage(owner=self)
-                elif self.edit_panel == 'border':
-                    self.edit_panel_object = EditBorderImage(owner=self)
-                elif self.edit_panel == 'denoise':
-                    if opencv:
-                        self.edit_panel_object = EditDenoiseImage(owner=self, imagefile=self.photo, image_x=self.viewer.edit_image.original_width, image_y=self.viewer.edit_image.original_height)
-                    else:
-                        self.edit_panel = 'main'
-                        app = App.get_running_app()
-                        app.message("Could Not Denoise, OpenCV Not Found")
-                elif self.edit_panel == 'crop':
-                    self.edit_panel_object = EditCropImage(owner=self, image_x=self.viewer.edit_image.original_width, image_y=self.viewer.edit_image.original_height)
-                    self.viewer.edit_image.crop_controls = self.edit_panel_object
-                elif self.edit_panel == 'rotate':
-                    self.edit_panel_object = EditRotateImage(owner=self)
-                elif self.edit_panel == 'convert':
-                    if self.view_image:
-                        self.edit_panel_object = EditConvertImage(owner=self)
-                    else:
-                        self.edit_panel_object = EditConvertVideo(owner=self)
-            edit_panel_container.change_panel(self.edit_panel_object)
+                node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name='None')
+                borders_tree.add_node(node)
+                borders_tree.select_node(node)
+
+    def select_border(self):
+        borders_tree = self.ids['borders']
+        nodes = list(borders_tree.iterate_all_nodes())
+        if self.selected:
+            border_name = self.borders[int(self.selected)][0]
         else:
-            if self.edit_panel_object:
-                self.edit_panel_object.save_last()
-            self.viewer.edit_mode = self.edit_panel
-            edit_panel_container = self.ids['panelEdit']
-            edit_panel_container.change_panel(None)
-            self.edit_panel_object = EditNone(owner=self)
-
-    def save_edit(self):
-        if self.view_image:
-            self.save_image()
-        else:
-            self.save_video()
-
-    def save_video(self):
-        app = App.get_running_app()
-        app.save_encoding_preset()
-        self.viewer.stop()
-
-        # Create popup to show progress
-        self.cancel_encoding = False
-        self.popup = ScanningPopup(title='Processing Video', auto_dismiss=False, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
-        self.popup.scanning_text = ''
-        self.popup.open()
-        encoding_button = self.popup.ids['scanningButton']
-        encoding_button.bind(on_press=self.cancel_encode)
-
-        # Start encoding thread
-        self.encodingthread = threading.Thread(target=self.save_video_process)
-        self.encodingthread.start()
-
-    def failed_encode(self, message):
-        app = App.get_running_app()
-        self.cancel_encode()
-        self.dismiss_popup()
-        self.encoding = False
-        app.popup_message(text=message, title='Warning')
-
-    def save_video_process(self):
-        #Function that applies effects to a video and encodes it
-
-        self.encoding = True
-        self.viewer.stop()
-        app = App.get_running_app()
-        input_file = self.photo
-        input_file_folder, input_filename = os.path.split(input_file)
-        output_file_folder = input_file_folder+os.path.sep+'reencode'
-        encoding_settings = None
-        preset_name = app.selected_encoder_preset
-        for preset in app.encoding_presets:
-            if preset['name'] == preset_name:
-                encoding_settings = preset
-        if not encoding_settings:
-            encoding_settings = app.encoding_presets[0]
-
-        if not os.path.isdir(output_file_folder):
-            try:
-                os.makedirs(output_file_folder)
-            except:
-                self.failed_encode('File not encoded, could not create temporary "reencode" folder')
-                return
-        edit_image = self.viewer.edit_image
-        start_point = self.viewer.start_point
-        end_point = self.viewer.end_point
-        pixel_format = edit_image.pixel_format
-        input_size = [edit_image.original_width, edit_image.original_height]
-        length = edit_image.length
-        length = length * (end_point - start_point)
-        edit_image.start_video_convert()
-        start_seconds = edit_image.start_seconds
-        frame_number = 1
-        framerate = edit_image.framerate
-        duration = edit_image.length
-        self.total_frames = (duration * (end_point - start_point)) * (framerate[0] / framerate[1])
-        start_frame = int(self.total_frames * start_point)
-        command_valid, command, output_filename = self.get_ffmpeg_command(input_file_folder, input_filename, output_file_folder, input_size, noaudio=True, input_file='-', input_images=True, input_framerate=framerate, input_pixel_format=pixel_format, encoding_settings=encoding_settings)
-        if not command_valid:
-            self.failed_encode('Command not valid: '+command)
-            return
-        output_file = output_file_folder+os.path.sep+output_filename
-        deleted = self.delete_output(output_file)
-        if not deleted:
-            self.failed_encode('File not encoded, temporary file already exists, could not delete')
-            return
-        #command = 'ffmpeg -f image2pipe -vcodec mjpeg -i "-" -vcodec libx264 -r 30 -b:v 8000k "'+output_file+'"'
-        print(command)
-
-        start_time = time.time()
-        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
-        # Poll process for new output until finished
-        while True:
-            if self.cancel_encoding:
-                self.dismiss_popup()
-                try:
-                    self.encoding_process_thread.terminate()
-                    self.encoding_process_thread.kill()
-                    outs, errs = self.encoding_process_thread.communicate()
-                except:
-                    pass
-                deleted = self.delete_output(output_file)
-                if not os.listdir(output_file_folder):
-                    os.rmdir(output_file_folder)
-                self.encoding = False
-                app.message("Canceled video processing.")
-                return
-            frameinfo = edit_image.get_converted_frame()
-            if frameinfo is None:
-                #finished encoding
-                break
-            frame, pts = frameinfo
-            try:
-                frame.save(self.encoding_process_thread.stdin, 'JPEG')
-            except:
-                if not self.cancel_encoding:
-                    lines = self.encoding_process_thread.stdout.readlines()
-                    for line in lines:
-                        sys.stdout.write(line)
-                        sys.stdout.flush()
-                    deleted = self.delete_output(output_file)
-                    if not os.listdir(output_file_folder):
-                        try:
-                            os.rmdir(output_file_folder)
-                        except:
-                            pass
-                    self.failed_encode('Ffmpeg shut down, failed encoding on frame: '+str(frame_number))
-                    return
-            #output_file = output_file_folder+os.path.sep+'image'+str(frame_number).zfill(4)+'.jpg'
-            #frame.save(output_file, "JPEG", quality=95)
-            frame_number = frame_number+1
-            scanning_percentage = ((pts - start_seconds)/length) * 95
-            self.popup.scanning_percentage = scanning_percentage
-            elapsed_time = time.time() - start_time
-
-            try:
-                percentage_remaining = 95 - scanning_percentage
-                seconds_left = (elapsed_time * percentage_remaining) / scanning_percentage
-                time_done = time_index(elapsed_time)
-                time_remaining = time_index(seconds_left)
-                time_text = "  Time: " + time_done + "  Remaining: " + time_remaining
-            except:
-                time_text = ""
-            self.popup.scanning_text = str(int(scanning_percentage))+"%"+time_text
-
-        self.encoding_process_thread.stdin.close()
-        self.encoding_process_thread.wait()
-
-        #output = self.encoding_process_thread.communicate()[0]
-        exit_code = self.encoding_process_thread.returncode
-
-        if exit_code == 0:
-            #encoding first file completed, add audio
-            command_valid, command, output_temp_filename = self.get_ffmpeg_audio_command(output_file_folder, output_filename, input_file_folder, input_filename, output_file_folder, encoding_settings=encoding_settings, start=start_seconds)
-            output_temp_file = output_file_folder + os.path.sep + output_temp_filename
-
-            print(command)
-            #used to have shell=True in arguments... is it still needed?
-            self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
-            #Poll process for new output until finished
-            deleted = self.delete_output(output_temp_file)
-            if not deleted:
-                self.failed_encode('File not encoded, temporary file already existed and could not be replaced')
-                return
-            while True:
-                if self.cancel_encoding:
-                    self.dismiss_popup()
-                    try:
-                        self.encoding_process_thread.kill()
-                        outs, errs = self.encoding_process_thread.communicate()
-                    except:
-                        pass
-                    deleted = self.delete_output(output_file)
-                    deleted = self.delete_output(output_temp_file)
-                    if not os.listdir(output_file_folder):
-                        try:
-                            os.rmdir(output_file_folder)
-                        except:
-                            pass
-                    self.encoding = False
-                    app.message("Canceled video processing.")
-                    return
-
-                nextline = self.encoding_process_thread.stdout.readline()
-                if nextline == '' and self.encoding_process_thread.poll() is not None:
+            border_name = 'None'
+        for node in nodes:
+            if hasattr(node, 'folder_name'):
+                if node.folder_name == border_name:
+                    borders_tree.select_node(node)
                     break
-                if nextline.startswith('frame= '):
-                    self.current_frame = int(nextline.split('frame=')[1].split('fps=')[0].strip())
-                    scanning_percentage = 95 + ((self.current_frame - start_frame) / self.total_frames * 5)
-                    self.popup.scanning_percentage = scanning_percentage
-                    elapsed_time = time.time() - start_time
 
-                    try:
-                        percentage_remaining = 95 - scanning_percentage
-                        seconds_left = (elapsed_time * percentage_remaining) / scanning_percentage
-                        time_done = time_index(elapsed_time)
-                        time_remaining = time_index(seconds_left)
-                        time_text = "  Time: " + time_done + "  Remaining: " + time_remaining
-                    except:
-                        time_text = ""
-                    self.popup.scanning_text = str(int(scanning_percentage)) + "%" + time_text
-
-                sys.stdout.write(nextline)
-                sys.stdout.flush()
-
-            output = self.encoding_process_thread.communicate()[0]
-            exit_code = self.encoding_process_thread.returncode
-
-            if exit_code != 0:
-                #failed second encode, clean up
-                #self.dismiss_popup()
-                #self.delete_output(output_file)
-                #self.delete_output(output_temp_file)
-                #if not os.listdir(output_file_folder):
-                #    os.rmdir(output_file_folder)
-                #app.popup_message(text='Second file not encoded, FFMPEG gave exit code '+str(exit_code), title='Warning')
-                #return
-                #Could not encode audio element, video file may not include audio, warn the user and continue
-                no_audio = True
-                output_temp_file = output_file
-            else:
-                #Audio track was encoded properly, delete the first encoded file
-                deleted = self.delete_output(output_file)
-                no_audio = False
-
-            #encoding completed
-            self.viewer.edit_image.close_video()
-
-            new_original_file = input_file_folder+os.path.sep+'.originals'+os.path.sep+input_filename
-            new_original_file_relative = '.originals'+os.path.sep+input_filename
-            if not os.path.isdir(input_file_folder+os.path.sep+'.originals'):
-                os.makedirs(input_file_folder+os.path.sep+'.originals')
-            new_encoded_file = input_file_folder+os.path.sep+output_filename
-
-            new_photoinfo = list(self.photoinfo)
-            #check if original file has been backed up already
-            if not os.path.isfile(new_original_file):
-                try:
-                    os.rename(input_file, new_original_file)
-                except:
-                    self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
-                    return
-                new_photoinfo[10] = new_original_file_relative
-            else:
-                deleted = self.delete_output(input_file)
-                if not deleted:
-                    self.failed_encode('Could not replace video, converted video left in "reencode" subfolder')
-                    return
-            try:
-                os.rename(output_temp_file, new_encoded_file)
-            except:
-                self.failed_encode('Could not replace video, original file may be deleted, converted video left in "reencode" subfolder')
-                return
-
-            if not os.listdir(output_file_folder):
-                os.rmdir(output_file_folder)
-
-            #update database
-            extension = os.path.splitext(new_encoded_file)[1]
-            new_photoinfo[0] = os.path.splitext(self.photoinfo[0])[0]+extension  #fix extension
-            new_photoinfo[7] = int(os.path.getmtime(new_encoded_file))  #update modified date
-            new_photoinfo[9] = 1  #set edited
-
-            # regenerate thumbnail
-            app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13])
-
-            if self.photoinfo[0] != new_photoinfo[0]:
-                app.database_item_rename(self.photoinfo[0], new_photoinfo[0], new_photoinfo[1])
-            app.database_item_update(new_photoinfo)
-
-            self.dismiss_popup()
-
-            # reload video in ui
-            self.photoinfo = new_photoinfo
-            self.fullpath = local_path(new_photoinfo[0])
-            #self.photo = os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))
-            Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
-
-            #Clock.schedule_once(lambda *dt: self.refresh_photolist())
-            if no_audio:
-                Clock.schedule_once(lambda x: app.message("Completed encoding file, could not find audio track."))
-            else:
-                Clock.schedule_once(lambda x: app.message("Completed encoding file '"+self.photo+"'"))
-            Clock.schedule_once(lambda x: self.update_video_preview(self.photoinfo))
-
+    def on_selected(self, *_):
+        if self.selected:
+            border_index = int(self.selected)
         else:
-            #failed first encode, clean up
-            self.failed_encode('First file not encoded, FFMPEG gave exit code '+str(exit_code))
-            deleted = self.delete_output(output_file)
-            if not os.listdir(output_file_folder):
-                try:
-                    os.rmdir(output_file_folder)
-                except:
-                    pass
-        if self.encoding_process_thread:
-            try:
-                self.encoding_process_thread.kill()
-                outs, errs = self.encoding_process_thread.communicate()
-            except:
-                pass
+            border_index = 0
+        self.reset_border_x_scale()
+        self.reset_border_y_scale()
+        if border_index == 0:
+            self.image.border_image = []
+        else:
+            self.image.border_image = self.borders[border_index]
 
-        self.encoding = False
-        self.set_edit_panel('main')
+    def reset_border_x_scale(self, *_):
+        self.image.border_x_scale = CustomImage().border_x_scale
 
-    def update_video_preview(self, photoinfo):
+    def reset_border_y_scale(self, *_):
+        self.image.border_y_scale = CustomImage().border_y_scale
+
+    def reset_border_opacity(self, *_):
+        self.image.border_opacity = CustomImage().border_opacity
+
+    def reset_border_tint(self, *_):
+        self.image.border_tint = CustomImage().border_tint
+
+
+class EditPanelDenoise(EditPanelBase):
+    luminance_denoise = StringProperty('10')
+    color_denoise = StringProperty('10')
+    search_window = StringProperty('15')
+    block_size = StringProperty('5')
+
+    def __init__(self, **kwargs):
+        Clock.schedule_once(self.setup_denoise_preview)
+        Clock.schedule_once(self.update_preview)
+        super(EditPanelDenoise, self).__init__(**kwargs)
+
+    def reset(self, *_):
+        self.image.denoise = False
+        self.luminance_denoise = '10'
+        self.color_denoise = '10'
+        self.search_window = '21'
+        self.block_size = '7'
+
+    def save(self, preset):
+        preset.denoise = self.image.denoise
+        preset.luminance_denoise = self.luminance_denoise
+        preset.color_denoise = self.color_denoise
+        preset.search_window = self.search_window
+        preset.block_size = self.block_size
+
+    def load(self, preset):
+        self.image.denoise = preset.denoise
+        self.luminance_denoise = preset.luminance_denoise
+        self.color_denoise = preset.color_denoise
+        self.search_window = preset.search_window
+        self.block_size = preset.block_size
+
+    def update_denoise(self, state):
+        if state == 'down':
+            self.image.denoise = True
+        else:
+            self.image.denoise = False
+
+    def on_luminance_denoise(self, *_):
+        if not self.luminance_denoise:
+            luminance_denoise = 0
+        else:
+            luminance_denoise = int(self.luminance_denoise)
+        self.image.luminance_denoise = luminance_denoise
+        self.update_preview()
+
+    def on_color_denoise(self, *_):
+        if not self.color_denoise:
+            color_denoise = 0
+        else:
+            color_denoise = int(self.color_denoise)
+        self.image.color_denoise = color_denoise
+        self.update_preview()
+
+    def on_search_window(self, *_):
+        if not self.search_window:
+            search_window = 0
+        else:
+            search_window = int(self.search_window)
+        if (search_window % 2) == 0:
+            search_window = search_window + 1
+        self.image.search_window = search_window
+        self.update_preview()
+
+    def on_block_size(self, *_):
+        if not self.block_size:
+            block_size = 0
+        else:
+            block_size = int(self.block_size)
+        if (block_size % 2) == 0:
+            block_size = block_size + 1
+        self.image.block_size = block_size
+        self.update_preview()
+
+    def setup_denoise_preview(self, *_):
+        #convert pil image to bytes and display background image
+
+        if not self.image:
+            return
         app = App.get_running_app()
+        if to_bool(app.config.get("Settings", "lowmem")):
+            image = self.image.edit_image
+        else:
+            image = self.image.get_original_image()
+        noise_preview = self.ids['noisePreview']
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image_bytes = BytesIO()
+        image.save(image_bytes, 'jpeg')
+        image_bytes.seek(0)
+        noise_preview._coreimage = CoreImage(image_bytes, ext='jpg')
+        noise_preview._on_tex_change()
 
-        #regenerate thumbnail
-        app.database_thumbnail_update(photoinfo[0], photoinfo[2], photoinfo[7], photoinfo[13])
+    def update_preview(self, *_):
+        #Gets the denoised preview image and updates it in the ui
 
-        #reload photo image in ui
-        Clock.schedule_once(lambda x: self.clear_cache())
+        if not self.image:
+            return
 
-    def save_image(self):
-        """Saves any temporary edits on the currently viewed image."""
+        #Update background image if video
+        if self.image.video:
+            self.setup_denoise_preview()
 
+        #update overlay image
+        scroll_area = self.ids['wrapper']
+        width = scroll_area.size[0]
+        height = scroll_area.size[1]
+        pos_x = int((self.image.original_width * scroll_area.scroll_x) - (width * scroll_area.scroll_x))
+        image_pos_y = self.image.original_height - int((self.image.original_height * scroll_area.scroll_y) + (width * (1 - scroll_area.scroll_y)))
+        preview = self.image.denoise_preview(width, height, pos_x, image_pos_y)
+        overlay_image = self.ids['denoiseOverlay']
+        widget_pos_y = int((self.image.original_height * scroll_area.scroll_y) - (width * scroll_area.scroll_y))
+        overlay_image.pos = [pos_x, widget_pos_y]
+        overlay_image._coreimage = CoreImage(preview, ext='jpg')
+        overlay_image._on_tex_change()
+        overlay_image.opacity = 1
+
+
+class EditPanelRotate(EditPanelBase):
+    def reset(self, *_):
+        self.update_angle(0)
+        self.ids['angles_0'].state = 'down'
+        self.ids['angles_90'].state = 'normal'
+        self.ids['angles_180'].state = 'normal'
+        self.ids['angles_270'].state = 'normal'
+        self.update_flip_horizontal(flip='up')
+        self.ids['flip_horizontal'].state = 'normal'
+        self.update_flip_vertical(flip='up')
+        self.ids['flip_vertical'].state = 'normal'
+        self.reset_fine_angle()
+
+    def update_angle(self, angle):
+        self.image.rotate_angle = angle
+
+    def update_flip_horizontal(self, flip):
+        if flip == 'down':
+            self.image.flip_horizontal = True
+        else:
+            self.image.flip_horizontal = False
+
+    def update_flip_vertical(self, flip):
+        if flip == 'down':
+            self.image.flip_vertical = True
+        else:
+            self.image.flip_vertical = False
+
+    def reset_fine_angle(self, *_):
+        self.image.fine_angle = CustomImage().fine_angle
+
+
+class EditPanelCrop(EditPanelBase):
+    lock_aspect = BooleanProperty(False)
+    lock_aspect_name = StringProperty('Current')
+    aspect_dropdown = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        self.aspect_dropdown = AspectRatioDropDown()
+        self.aspect_dropdown.bind(on_select=lambda instance, x: self.set_aspect_ratio(x))
+        Clock.schedule_once(self.setup_crop)
+        super(EditPanelCrop, self).__init__(**kwargs)
+
+    def reset(self, *_):
+        if self.image:
+            self.image.reset_crop()
+
+    def setup_crop(self, *_):
+        self.image.crop_controls = self
+        self.set_aspect_ratio('Current')
+        self.reset()
+        self.update_crop_sliders()
+
+    def update_lock_aspect(self, value):
+        if value == 'down':
+            self.lock_aspect = True
+        else:
+            self.lock_aspect = False
+
+    def on_lock_aspect(self, *_):
+        if self.image:
+            self.image.lock_aspect = self.lock_aspect
+            if self.lock_aspect:
+                self.image.set_aspect()
+
+    def reset_crop_top(self, *_):
+        self.image.crop_top = CustomImage().crop_top
+
+    def reset_crop_right(self, *_):
+        self.image.crop_right = CustomImage().crop_right
+
+    def reset_crop_bottom(self, *_):
+        self.image.crop_bottom = CustomImage().crop_bottom
+
+    def reset_crop_left(self, *_):
+        self.image.crop_left = CustomImage().crop_left
+
+    def update_crop_sliders(self, *_):
+        self.ids['cropTopSlider'].value = self.image.crop_top
+        self.ids['cropRightSlider'].value = self.image.crop_right
+        self.ids['cropBottomSlider'].value = self.image.crop_bottom
+        self.ids['cropLeftSlider'].value = self.image.crop_left
+
+    def set_aspect_ratio(self, method):
+        self.lock_aspect_name = method
+        if method == '6x4':
+            aspect_x = 6
+            aspect_y = 4
+        elif method == '4x6':
+            aspect_x = 4
+            aspect_y = 6
+        elif method == '7x5':
+            aspect_x = 7
+            aspect_y = 5
+        elif method == '5x7':
+            aspect_x = 5
+            aspect_y = 7
+        elif method == '11x8.5':
+            aspect_x = 11
+            aspect_y = 8.5
+        elif method == '8.5x11':
+            aspect_x = 8.5
+            aspect_y = 11
+        elif method == '4x3':
+            aspect_x = 4
+            aspect_y = 3
+        elif method == '3x4':
+            aspect_x = 3
+            aspect_y = 4
+        elif method == '16x9':
+            aspect_x = 16
+            aspect_y = 9
+        elif method == '9x16':
+            aspect_x = 9
+            aspect_y = 16
+        elif method == '1x1':
+            aspect_x = 1
+            aspect_y = 1
+        else:
+            aspect_x = self.image.original_width
+            aspect_y = self.image.original_height
+        self.image.set_aspect(aspect_x, aspect_y)
+
+
+class EditPanelVideo(EditPanelBase):
+    #Video encoding dropdown menus
+    preset_drop = ObjectProperty()
+    container_drop = ObjectProperty()
+    video_codec_drop = ObjectProperty()
+    #video_quality_drop = ObjectProperty()
+    encoding_speed_drop = ObjectProperty()
+    audio_codec_drop = ObjectProperty()
+    advanced = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        Clock.schedule_once(self.setup_video)
+        super(EditPanelVideo, self).__init__(**kwargs)
+
+    def remove_preset(self, preset, instance):
         app = App.get_running_app()
+        app.remove_user_encoding_preset(preset)
+        self.preset_drop.dismiss()
+        self.setup_presets_menu()
 
-        #generate full quality image
-        edit_image = self.viewer.edit_image.get_full_quality()
-        exif = self.viewer.edit_image.exif
-        #new_exif = exif[:274] + b'1' + exif[275:]
-        #exif = new_exif
-        self.viewer.stop()
-
-        #back up old image and save new edit
-        photo_file_original = self.photo
-        backup_directory = local_path(self.photoinfo[2])+os.path.sep+local_path(self.photoinfo[1])+os.path.sep+'.originals'
-        if not os.path.exists(backup_directory):
-            os.mkdir(backup_directory)
-        if not os.path.exists(backup_directory):
-            app.popup_message(text='Could not create backup directory', title='Warning')
-            return
-        backup_photo_file = backup_directory+os.path.sep+os.path.basename(self.photo)
-        backup_photo_file_relative = '.originals'+os.path.sep+os.path.basename(self.photo)
-        if not os.path.isfile(photo_file_original):
-            app.popup_message(text='Photo file no longer exists', title='Warning')
-            return
-        if not os.path.isfile(backup_photo_file):
-            try:
-                os.rename(photo_file_original, backup_photo_file)
-            except Exception as e:
-                print(e)
-                pass
-        if not os.path.isfile(backup_photo_file):
-            app.popup_message(text='Could not create backup photo', title='Warning')
-            return
-        if os.path.isfile(photo_file_original):
-            try:
-                app.delete_file(self, photo_file_original)
-                #os.remove(photo_file_original)
-            except:
-                pass
-        if os.path.isfile(photo_file_original):
-            app.popup_message(text='Could not save edited photo', title='Warning')
-            return
-        photo_file = os.path.splitext(photo_file_original)[0]+'.jpg'
-        edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
-        if not os.path.isfile(photo_file):
-            if os.path.isfile(backup_photo_file):
-                copy2(backup_photo_file, photo_file)
-                app.popup_message(text='Could not save edited photo, restoring backup', title='Warning')
+    def add_presets_to_menu(self, preset_drop, presets, user=False):
+        app = App.get_running_app()
+        for index, preset in enumerate(presets):
+            menu_button = MenuButton(text=preset.name)
+            menu_button.remember = preset
+            menu_button.bind(on_release=self.set_preset)
+            if user:
+                menu_holder = BoxLayout(orientation='horizontal', size_hint_y=None, height=app.button_scale)
+                menu_holder.add_widget(menu_button)
+                remove_button = NormalButton(warn=True, text="X")
+                remove_button.bind(on_release=partial(self.remove_preset, preset))
+                menu_holder.add_widget(remove_button)
+                preset_drop.add_widget(menu_holder)
             else:
-                app.popup_message(text='Could not save edited photo', title='Warning')
+                preset_drop.add_widget(menu_button)
+
+    def setup_presets_menu(self):
+        app = App.get_running_app()
+        self.preset_drop = NormalDropDown()
+        self.add_presets_to_menu(self.preset_drop, app.encoding_presets)
+        if self.advanced:
+            self.preset_drop.add_widget(NormalLabel(text='Extra Presets'))
+            self.add_presets_to_menu(self.preset_drop, app.encoding_presets_extra)
+            if app.encoding_presets_user:
+                self.preset_drop.add_widget(NormalLabel(text='User Presets'))
+                self.add_presets_to_menu(self.preset_drop, app.encoding_presets_user, user=True)
+
+    def setup_video(self, *_):
+        self.setup_presets_menu()
+
+        all_containers = ['Auto'] + containers_friendly
+        self.container_drop = NormalDropDown()
+        for container in all_containers:
+            menu_button = MenuButton(text=container)
+            menu_button.bind(on_release=self.change_container_to)
+            self.container_drop.add_widget(menu_button)
+
+        all_video_codecs = ['Auto'] + video_codecs_friendly
+        self.video_codec_drop = NormalDropDown()
+        for codec in all_video_codecs:
+            menu_button = MenuButton(text=codec)
+            menu_button.bind(on_release=self.change_video_codec_to)
+            self.video_codec_drop.add_widget(menu_button)
+
+        #video_qualities = ['Auto', 'Constant Bitrate', 'High', 'Medium', 'Low', 'Very Low']
+        #self.video_quality_drop = NormalDropDown()
+        #for quality in video_qualities:
+        #    menu_button = MenuButton(text=quality)
+        #    menu_button.bind(on_release=self.change_video_quality_to)
+        #    self.video_quality_drop.add_widget(menu_button)
+
+        all_encoding_speeds = ['Auto'] + encoding_speeds_friendly
+        self.encoding_speed_drop = NormalDropDown()
+        for speed in all_encoding_speeds:
+            menu_button = MenuButton(text=speed)
+            menu_button.bind(on_release=self.change_encoding_speed_to)
+            self.encoding_speed_drop.add_widget(menu_button)
+
+        all_audio_codecs = ['Auto'] + audio_codecs_friendly
+        self.audio_codec_drop = NormalDropDown()
+        for codec in all_audio_codecs:
+            menu_button = MenuButton(text=codec)
+            menu_button.bind(on_release=self.change_audio_codec_to)
+            self.audio_codec_drop.add_widget(menu_button)
+
+    def set_preset(self, instance):
+        """Sets the current dialog preset settings to one of the presets stored in the app.
+        Argument:
+            index: Integer, the index of the preset to set.
+        """
+
+        self.preset_drop.dismiss()
+        app = App.get_running_app()
+        app.encoding_settings.copy_from(instance.remember)
+        self.owner.update_encoding_settings()
+
+    def change_container_to(self, instance):
+        """Sets the self.file_format value."""
+
+        app = App.get_running_app()
+        self.container_drop.dismiss()
+        app.encoding_settings.file_format = instance.text
+
+    def change_video_codec_to(self, instance):
+        """Sets the self.video_codec value."""
+
+        app = App.get_running_app()
+        self.video_codec_drop.dismiss()
+        app.encoding_settings.video_codec = instance.text
+
+    def change_audio_codec_to(self, instance):
+        """Sets the self.audio_codec value."""
+
+        app = App.get_running_app()
+        self.audio_codec_drop.dismiss()
+        app.encoding_settings.audio_codec = instance.text
+
+    def update_resize(self, state):
+        app = App.get_running_app()
+        if state == 'down':
+            app.encoding_settings.resize = True
+        else:
+            app.encoding_settings.resize = False
+
+    def change_encoding_speed_to(self, instance):
+        """Sets the self.encoding_speed value."""
+
+        app = App.get_running_app()
+        self.encoding_speed_drop.dismiss()
+        app.encoding_settings.encoding_speed = instance.text
+
+    def update_deinterlace(self, state):
+        app = App.get_running_app()
+        if state == 'down':
+            app.encoding_settings.deinterlace = True
+        else:
+            app.encoding_settings.deinterlace = False
+
+    def change_video_quality_to(self, instance):
+        """Sets the video_quality value."""
+
+        app = App.get_running_app()
+        self.video_quality_drop.dismiss()
+        app.encoding_settings.video_quality = instance.text
+
+
+class EditPanelConvert(BoxLayout):
+    image = ObjectProperty()  #Image object that all effects are applied to
+    viewer = ObjectProperty()  #Image viewer, used to display the edit modes
+    owner = ObjectProperty()  #Panel holder
+
+    edit_panel_base = ObjectProperty()
+    edit_panel_color = ObjectProperty()
+    edit_panel_filter = ObjectProperty()
+    edit_panel_border = ObjectProperty()
+    edit_panel_denoise = ObjectProperty()
+    edit_panel_rotate = ObjectProperty()
+    edit_panel_crop = ObjectProperty()
+    edit_panel_video = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        Clock.schedule_once(self.setup_screen_manager)
+        super(EditPanelConvert, self).__init__(**kwargs)
+
+    def setup_screen_manager(self, *_):
+        screen_manager = self.ids['sm']
+        self.edit_panel_base = EditPanelConversionBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_border = EditPanelBorder(name='border', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_denoise = EditPanelDenoise(name='denoise', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
+        screen_manager.add_widget(self.edit_panel_base)
+        screen_manager.add_widget(self.edit_panel_color)
+        screen_manager.add_widget(self.edit_panel_filter)
+        screen_manager.add_widget(self.edit_panel_border)
+        screen_manager.add_widget(self.edit_panel_denoise)
+        screen_manager.add_widget(self.edit_panel_rotate)
+        screen_manager.add_widget(self.edit_panel_crop)
+
+    def refresh_buttons(self):
+        pass
+
+    def change_screen(self, current):
+        #Called when edit screen changes, sets the image to the right edit type
+        self.viewer.edit_mode = current
+
+    def confirm_edit(self, *_):
+        self.owner.save_edit()
+
+    def draw_histogram(self, *_):
+        """Draws the histogram image and displays it."""
+
+        if self.image is None:
             return
+        size = 256  #Determines histogram resolution
+        size_multiplier = int(256/size)
+        histogram_data = self.image.histogram
+        if len(histogram_data) == 768:
+            histogram = self.ids['histogram']
+            histogram.opacity = 1
+            histogram_max = max(histogram_data)
+            data_red = histogram_data[0:256]
+            data_green = histogram_data[256:512]
+            data_blue = histogram_data[512:768]
+            multiplier = 256.0/histogram_max/size_multiplier
 
-        #update photo info
-        new_fullpath = os.path.splitext(self.photoinfo[0])[0]+'.jpg'
-        update_photoinfo = list(self.photoinfo)
-        update_photoinfo[10] = agnostic_path(backup_photo_file_relative)
-        update_photoinfo[0] = agnostic_path(new_fullpath)
-        update_photoinfo[1] = agnostic_path(update_photoinfo[1])
-        update_photoinfo[2] = agnostic_path(update_photoinfo[2])
-        update_photoinfo[9] = 1
-        update_photoinfo[7] = int(os.path.getmtime(photo_file))
-        if self.photoinfo[0] != new_fullpath:
-            app.database_item_rename(self.photoinfo[0], update_photoinfo[0], update_photoinfo[1])
-        app.database_item_update(update_photoinfo)
-        app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
+            #Draw red channel
+            histogram_red = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
+            draw = ImageDraw.Draw(histogram_red)
+            for index in range(size):
+                value = int(data_red[index*size_multiplier]*multiplier)
+                draw.line((index, size, index, size-value), fill=(255, 0, 0))
 
-        #regenerate thumbnail
-        app.database_thumbnail_update(update_photoinfo[0], update_photoinfo[2], update_photoinfo[7], update_photoinfo[13])
+            #Draw green channel
+            histogram_green = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
+            draw = ImageDraw.Draw(histogram_green)
+            for index in range(size):
+                value = int(data_green[index*size_multiplier]*multiplier)
+                draw.line((index, size, index, size-value), fill=(0, 255, 0))
 
-        #reload photo image in ui
-        self.clear_cache()
+            #Draw blue channel
+            histogram_blue = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
+            draw = ImageDraw.Draw(histogram_blue)
+            for index in range(size):
+                value = int(data_blue[index*size_multiplier]*multiplier)
+                draw.line((index, size, index, size-value), fill=(0, 0, 255))
 
-        #close edit panel
-        self.set_edit_panel('main')
+            #Mix channels together
+            histogram_red_green = ImageChops.add(histogram_red, histogram_green)
+            histogram_image = ImageChops.add(histogram_red_green, histogram_blue)
 
-        #update interface and switch active photo in photo list back to image
-        self.photoinfo = update_photoinfo
-        self.fullpath = local_path(update_photoinfo[0])
-        Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
-        self.photo = photo_file
-        self.show_selected()
+            #Convert and display image
+            image_bytes = BytesIO()
+            histogram_image.save(image_bytes, 'jpeg')
+            image_bytes.seek(0)
+            histogram._coreimage = CoreImage(image_bytes, ext='jpg')
+            histogram._on_tex_change()
 
-        app.message("Saved edits to image")
+    def save_last(self, *_):
+        pass
+
+
+class EditPanel(BoxLayout):
+    image = ObjectProperty()  #Image object that all effects are applied to
+    viewer = ObjectProperty()  #Image viewer, used to display the edit modes
+    owner = ObjectProperty()  #Panel holder
+
+    edit_panel_base = ObjectProperty()
+    edit_panel_color = ObjectProperty()
+    edit_panel_filter = ObjectProperty()
+    edit_panel_border = ObjectProperty()
+    edit_panel_denoise = ObjectProperty()
+    edit_panel_rotate = ObjectProperty()
+    edit_panel_crop = ObjectProperty()
+    edit_panel_video = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        Clock.schedule_once(self.setup_screen_manager)
+        super(EditPanel, self).__init__(**kwargs)
+
+    def setup_screen_manager(self, *_):
+        screen_manager = self.ids['sm']
+        self.edit_panel_base = EditPanelAlbumBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_border = EditPanelBorder(name='border', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_denoise = EditPanelDenoise(name='denoise', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
+        self.edit_panel_video = EditPanelVideo(name='video', owner=self.owner, image=self.image, viewer=self.viewer)
+        screen_manager.add_widget(self.edit_panel_base)
+        screen_manager.add_widget(self.edit_panel_color)
+        screen_manager.add_widget(self.edit_panel_filter)
+        screen_manager.add_widget(self.edit_panel_border)
+        screen_manager.add_widget(self.edit_panel_denoise)
+        screen_manager.add_widget(self.edit_panel_rotate)
+        screen_manager.add_widget(self.edit_panel_crop)
+        screen_manager.add_widget(self.edit_panel_video)
+
+    def refresh_buttons(self):
+        pass
+
+    def change_screen(self, current):
+        #Called when edit screen changes, sets the image to the right edit type
+        self.viewer.edit_mode = current
+
+    def confirm_edit(self, *_):
+        self.owner.save_edit()
+
+    def cancel_edit(self, *_):
+        self.owner.set_edit_panel('main')
+
+    def draw_histogram(self, *_):
+        """Draws the histogram image and displays it."""
+
+        if self.image is None:
+            return
+        size = 256  #Determines histogram resolution
+        size_multiplier = int(256/size)
+        histogram_data = self.image.histogram
+        if len(histogram_data) == 768:
+            histogram = self.ids['histogram']
+            histogram.opacity = 1
+            histogram_max = max(histogram_data)
+            data_red = histogram_data[0:256]
+            data_green = histogram_data[256:512]
+            data_blue = histogram_data[512:768]
+            multiplier = 256.0/histogram_max/size_multiplier
+
+            #Draw red channel
+            histogram_red = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
+            draw = ImageDraw.Draw(histogram_red)
+            for index in range(size):
+                value = int(data_red[index*size_multiplier]*multiplier)
+                draw.line((index, size, index, size-value), fill=(255, 0, 0))
+
+            #Draw green channel
+            histogram_green = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
+            draw = ImageDraw.Draw(histogram_green)
+            for index in range(size):
+                value = int(data_green[index*size_multiplier]*multiplier)
+                draw.line((index, size, index, size-value), fill=(0, 255, 0))
+
+            #Draw blue channel
+            histogram_blue = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
+            draw = ImageDraw.Draw(histogram_blue)
+            for index in range(size):
+                value = int(data_blue[index*size_multiplier]*multiplier)
+                draw.line((index, size, index, size-value), fill=(0, 0, 255))
+
+            #Mix channels together
+            histogram_red_green = ImageChops.add(histogram_red, histogram_green)
+            histogram_image = ImageChops.add(histogram_red_green, histogram_blue)
+
+            #Convert and display image
+            image_bytes = BytesIO()
+            histogram_image.save(image_bytes, 'jpeg')
+            image_bytes.seek(0)
+            histogram._coreimage = CoreImage(image_bytes, ext='jpg')
+            histogram._on_tex_change()
+
+    def save_last(self, *_):
+        self.owner.edit_color = True
+        self.edit_panel_color.save(self.owner)
+        self.edit_panel_filter.save(self.owner)
+        self.edit_panel_border.save(self.owner)
+        self.edit_panel_denoise.save(self.owner)
+
+    def load_last(self, *_):
+        self.edit_panel_color.load(self.owner)
+        self.edit_panel_filter.load(self.owner)
+        self.edit_panel_border.load(self.owner)
+        self.edit_panel_denoise.load(self.owner)
+
+    def reset_all(self, *_):
+        self.edit_panel_color.reset()
+        self.edit_panel_filter.reset()
+        self.edit_panel_border.reset()
+        self.edit_panel_denoise.reset()
+        self.edit_panel_rotate.reset()
+        self.edit_panel_crop.reset()
 
 
 class PanelTabs(FloatLayout):
@@ -3957,7 +5667,7 @@ class PhotoViewer(BoxLayout):
     file = StringProperty()
     scale_max = NumericProperty(1)
     edit_mode = StringProperty('main')
-    edit_image = ObjectProperty()
+    edit_image = ObjectProperty(allownone=True)
     overlay = ObjectProperty(allownone=True)
     bypass = BooleanProperty(False)
     zoom = NumericProperty(0)
@@ -4017,28 +5727,40 @@ class PhotoViewer(BoxLayout):
         image = self.ids['image']
         image.source = self.file
 
+    def init_edit_mode(self, *_):
+        if not self.edit_image:
+            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            viewer = self.ids['photoShow']
+            viewer.add_widget(self.edit_image)
+
     def on_edit_mode(self, *_):
         """Called when the user enters or exits edit mode.
         Adds the edit image widget, and overlay if need be, and sets them up."""
 
         image = self.ids['image']
+        self.init_edit_mode()
+        viewer = self.ids['photoShow']
+        if self.overlay:
+            viewer.remove_widget(self.overlay)
+            self.overlay = None
         if self.edit_mode == 'main':
             image.opacity = 1
-            viewer = self.ids['photoShow']
-            if self.edit_image:
-                viewer.remove_widget(self.edit_image)
-            if self.overlay:
-                viewer.remove_widget(self.overlay)
-                self.overlay = None
+            self.end_edit_mode()
         else:
-            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
             Clock.schedule_once(self.start_edit_mode)  #Need to delay this because if i add it right away it will show a non-rotated version for some reason
+
+    def end_edit_mode(self, *_):
+        if self.edit_image:
+            viewer = self.ids['photoShow']
+            viewer.remove_widget(self.edit_image)
+            self.edit_image.clear_image()
+            self.edit_image = None
 
     def start_edit_mode(self, *_):
         image = self.ids['image']
         image.opacity = 0
         viewer = self.ids['photoShow']
-        viewer.add_widget(self.edit_image)
+
         if self.edit_mode == 'rotate':
             #add rotation grid overlay
             self.overlay = RotationGrid()
@@ -4049,6 +5771,9 @@ class PhotoViewer(BoxLayout):
             viewer.add_widget(self.overlay)
             self.edit_image.cropping = True
             self.edit_image.cropper = self.overlay
+        elif self.edit_image.crop_top != 0 or self.edit_image.crop_bottom != 0 or self.edit_image.crop_left != 0 or self.edit_image.crop_right != 0:
+            #not currently cropping, need to display crop blackout
+            self.edit_image.update_preview()
 
     def stop(self):
         self.fullscreen = False
@@ -4056,7 +5781,7 @@ class PhotoViewer(BoxLayout):
         #    self.edit_image.close_image()
 
     def close(self):
-        pass
+        self.end_edit_mode()
 
     def on_fullscreen(self, instance, value):
         window = self.get_parent_window()
@@ -4112,6 +5837,7 @@ class VideoViewer(FloatLayout):
     bypass = BooleanProperty(False)
     edit_image = ObjectProperty(None, allownone=True)
     position = NumericProperty(0.0)
+    position_time_index = StringProperty()
     start_point = NumericProperty(0.0)
     end_point = NumericProperty(1.0)
     fullscreen = BooleanProperty(False)
@@ -4146,6 +5872,11 @@ class VideoViewer(FloatLayout):
     def on_position(self, *_):
         if self.edit_image:
             self.edit_image.position = self.position
+            position_seconds = self.edit_image.length * self.position
+            minutes, seconds = divmod(position_seconds, 60)
+            self.position_time_index = str(int(minutes))+':'+format(round(seconds, 2), '.2f').zfill(5)
+        else:
+            self.position_time_index = ''
 
     def on_start_point(self, *_):
         if self.edit_image:
@@ -4155,31 +5886,34 @@ class VideoViewer(FloatLayout):
         if self.edit_image:
             self.edit_image.end_point = self.end_point
 
+    def init_edit_mode(self, *_):
+        if not self.edit_image:
+            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            viewer = self.ids['photoShow']
+            viewer.add_widget(self.edit_image)
+            self.position = 0
+
     def on_edit_mode(self, *_):
         """Called when the user enters or exits edit mode.
         Adds the edit image widget, and overlay if need be, and sets them up."""
 
+        self.init_edit_mode()
         overlay_container = self.ids['overlay']
         player = self.ids['player']
-        self.position = 0
+        viewer = self.ids['photoShow']
+        if self.overlay:
+            viewer.remove_widget(self.overlay)
+            self.overlay = None
         if self.edit_mode == 'main':
-            player.opacity = 1
-            overlay_container.opacity = 0
-            viewer = self.ids['photoShow']
-            if self.edit_image:
-                self.edit_image.close_video()
-                if self.overlay:
-                    viewer.remove_widget(self.overlay)
-                viewer.remove_widget(self.edit_image)
-                self.edit_image = None
-        else:
             self.reset_start_point()
             self.reset_end_point()
+            player.opacity = 1
+            overlay_container.opacity = 0
+            self.end_edit_mode()
+        else:
             overlay_container.opacity = 1
             player.opacity = 0
             viewer = self.ids['photoShow']
-            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
-            viewer.add_widget(self.edit_image)
             if self.edit_mode == 'rotate':
                 #add rotation grid overlay
                 self.overlay = RotationGrid()
@@ -4191,6 +5925,14 @@ class VideoViewer(FloatLayout):
                 self.edit_image.cropping = True
                 self.edit_image.cropper = self.overlay
 
+    def end_edit_mode(self, *_):
+        if self.edit_image:
+            viewer = self.ids['photoShow']
+            viewer.remove_widget(self.edit_image)
+            self.edit_image.close_video()
+            self.edit_image.clear_image()
+            self.edit_image = None
+
     def on_fullscreen(self, instance, value):
         player = self.ids['player']
         player.fullscreen = self.fullscreen
@@ -4198,6 +5940,7 @@ class VideoViewer(FloatLayout):
     def close(self):
         player = self.ids['player']
         player.close()
+        self.end_edit_mode()
 
     def stop(self):
         """Stops the video playback."""
@@ -4293,47 +6036,6 @@ class PauseableVideo(Video):
             return True
 
 
-class EditPanelContainer(GridLayout):
-    panel = None
-    animating = None
-
-    def animation_complete(self, *_):
-        app = App.get_running_app()
-        self.animating = None
-        if self.panel:
-            self.clear_widgets()
-            self.opacity = 0
-            self.add_widget(self.panel)
-            self.animating = anim = Animation(opacity=1, duration=app.animation_length)
-            anim.start(self)
-
-    def change_panel(self, panel):
-        app = App.get_running_app()
-        self.panel = panel
-        if app.animations:
-            self.animating = anim = Animation(opacity=0, duration=app.animation_length)
-            anim.start(self)
-            anim.bind(on_complete=self.animation_complete)
-        else:
-            self.clear_widgets()
-            self.opacity = 1
-            if panel:
-                self.add_widget(panel)
-
-
-class EditNone(GridLayout):
-    owner = ObjectProperty()
-
-    def refresh_buttons(self):
-        pass
-
-    def save_last(self):
-        pass
-
-    def load_last(self):
-        pass
-
-
 class EditMain(GridLayout):
     """Main menu edit panel, contains buttons to activate the other edit panels."""
 
@@ -4342,18 +6044,17 @@ class EditMain(GridLayout):
     def __init__(self, **kwargs):
         super(EditMain, self).__init__(**kwargs)
         self.update_programs()
-        self.refresh_buttons()
-
-    def refresh_buttons(self):
-        self.update_undo()
-        self.update_delete_original()
-        self.update_delete_original_all()
 
     def save_last(self):
         pass
 
     def load_last(self):
         pass
+
+    def refresh_buttons(self):
+        self.update_undo()
+        self.update_delete_original()
+        self.update_delete_original_all()
 
     def update_delete_original(self):
         """Checks if the current viewed photo has an original file, enables the 'Delete Original' button if so."""
@@ -4431,1107 +6132,6 @@ class EditMain(GridLayout):
                 program_button.expanded = True
 
 
-class EditPanelBase(GridLayout):
-    def set_slider(self, slider, value):
-        Clock.schedule_once(lambda x: self.set_slider_delay(slider, value), .1)
-
-    def set_slider_delay(self, slider, value):
-        self.ids[slider].value = value
-
-
-class EditColor(EditPanelBase):
-    equalize = NumericProperty(0)
-    autocontrast = BooleanProperty(False)
-    adaptive = NumericProperty(0)
-    brightness = NumericProperty(0)
-    shadow = NumericProperty(0)
-    gamma = NumericProperty(0)
-    contrast = NumericProperty(0)
-    saturation = NumericProperty(0)
-    temperature = NumericProperty(0)
-    tint = ListProperty([1.0, 1.0, 1.0, 1.0])
-    curve = ListProperty([[0, 0], [1, 1]])
-
-    owner = ObjectProperty()
-    interpolation_drop_down = ObjectProperty()
-    preset_name = StringProperty()
-
-    def __init__(self, **kwargs):
-        Clock.schedule_once(self.add_video_preset)
-        Clock.schedule_once(self.reset_all)
-        super(EditColor, self).__init__(**kwargs)
-        #self.interpolation_drop_down = InterpolationDropDown()
-        #interpolation_button = self.ids['interpolation']
-        #interpolation_button.bind(on_release=self.interpolation_drop_down.open)
-        #self.interpolation_drop_down.bind(on_select=self.set_interpolation)
-
-    def refresh_buttons(self):
-        pass
-
-    def add_video_preset(self, *_):
-        if not self.owner.view_image:
-            video_preset = self.ids['videoPreset']
-            video_preset.add_widget(VideoEncodePreset())
-
-    def save_last(self):
-        self.owner.edit_color = True
-        self.owner.equalize = self.equalize
-        self.owner.autocontrast = self.autocontrast
-        self.owner.adaptive = self.adaptive
-        self.owner.brightness = self.brightness
-        self.owner.gamma = self.gamma
-        self.owner.saturation = self.saturation
-        self.owner.temperature = self.temperature
-        self.owner.shadow = self.shadow
-
-        self.owner.edit_advanced = True
-        self.owner.tint = self.tint
-        curves = self.ids['curves']
-        self.curve = curves.points
-        self.owner.curve = self.curve
-
-    def load_last(self):
-        self.equalize = self.owner.equalize
-        self.set_slider('equalizeSlider', self.equalize)
-        self.autocontrast = self.owner.autocontrast
-        self.adaptive = self.owner.adaptive
-        self.set_slider('adaptiveSlider', self.adaptive)
-        self.brightness = self.owner.brightness
-        self.set_slider('brightnessSlider', self.brightness)
-        self.gamma = self.owner.gamma
-        self.set_slider('gammaSlider', self.gamma)
-        self.saturation = self.owner.saturation
-        self.set_slider('saturationSlider', self.saturation)
-        self.temperature = self.owner.temperature
-        self.set_slider('temperatureSlider', self.temperature)
-        self.shadow = self.owner.shadow
-        self.set_slider('shadowSlider', self.shadow)
-
-        self.tint = self.owner.tint
-        self.curve = self.owner.curve
-        curves = self.ids['curves']
-        curves.points = self.curve
-        curves.refresh()
-
-    def draw_histogram(self, *_):
-        """Draws the histogram image and displays it."""
-
-        if self.owner.viewer.edit_image is None:
-            return
-        size = 256  #Determines histogram resolution
-        size_multiplier = int(256/size)
-        histogram_data = self.owner.viewer.edit_image.histogram
-        if len(histogram_data) == 768:
-            histogram = self.ids['histogram']
-            histogram_max = max(histogram_data)
-            data_red = histogram_data[0:256]
-            data_green = histogram_data[256:512]
-            data_blue = histogram_data[512:768]
-            multiplier = 256.0/histogram_max/size_multiplier
-
-            #Draw red channel
-            histogram_red = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
-            draw = ImageDraw.Draw(histogram_red)
-            for index in range(size):
-                value = int(data_red[index*size_multiplier]*multiplier)
-                draw.line((index, size, index, size-value), fill=(255, 0, 0))
-
-            #Draw green channel
-            histogram_green = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
-            draw = ImageDraw.Draw(histogram_green)
-            for index in range(size):
-                value = int(data_green[index*size_multiplier]*multiplier)
-                draw.line((index, size, index, size-value), fill=(0, 255, 0))
-
-            #Draw blue channel
-            histogram_blue = Image.new(mode='RGB', size=(size, size), color=(0, 0, 0))
-            draw = ImageDraw.Draw(histogram_blue)
-            for index in range(size):
-                value = int(data_blue[index*size_multiplier]*multiplier)
-                draw.line((index, size, index, size-value), fill=(0, 0, 255))
-
-            #Mix channels together
-            histogram_red_green = ImageChops.add(histogram_red, histogram_green)
-            histogram_image = ImageChops.add(histogram_red_green, histogram_blue)
-
-            #Convert and display image
-            image_bytes = BytesIO()
-            histogram_image.save(image_bytes, 'jpeg')
-            image_bytes.seek(0)
-            histogram._coreimage = CoreImage(image_bytes, ext='jpg')
-            histogram._on_tex_change()
-
-    def set_interpolation(self, instance, value):
-        """Sets the interpolation mode.
-        Arguments:
-            instance: Widget that called this function.  Not used.
-            value: String, new value to set interpolation to.
-        """
-
-        del instance
-        app = App.get_running_app()
-        app.interpolation = value
-        curves = self.ids['curves']
-        curves.refresh()
-
-    def reset_all(self, *_):
-        """Reset all edit settings on this panel."""
-
-        self.reset_brightness()
-        self.reset_shadow()
-        self.reset_gamma()
-        self.reset_saturation()
-        self.reset_temperature()
-        self.reset_equalize()
-        self.reset_autocontrast()
-        self.reset_adaptive()
-
-        self.reset_curves()
-        self.reset_tint()
-
-    def on_equalize(self, *_):
-        self.owner.viewer.edit_image.equalize = self.equalize
-
-    def update_equalize(self, value):
-        if value == 'down':
-            self.equalize = True
-        else:
-            self.equalize = False
-        self.draw_histogram()
-
-    def reset_equalize(self):
-        self.equalize = 0
-        self.set_slider('equalizeSlider', self.equalize)
-
-    def on_autocontrast(self, *_):
-        self.owner.viewer.edit_image.autocontrast = self.autocontrast
-
-    def update_autocontrast(self, value):
-        if value == 'down':
-            self.autocontrast = True
-        else:
-            self.autocontrast = False
-
-    def reset_autocontrast(self):
-        self.autocontrast = False
-
-    def on_adaptive(self, *_):
-        self.owner.viewer.edit_image.adaptive_clip = self.adaptive
-
-    def reset_adaptive(self):
-        self.adaptive = 0
-        self.set_slider('adaptiveSlider', self.adaptive)
-
-    def on_brightness(self, *_):
-        self.owner.viewer.edit_image.brightness = self.brightness
-
-    def reset_brightness(self):
-        self.brightness = 0
-        self.set_slider('brightnessSlider', self.brightness)
-
-    def on_shadow(self, *_):
-        self.owner.viewer.edit_image.shadow = self.shadow
-
-    def reset_shadow(self):
-        self.shadow = 0
-        self.set_slider('shadowSlider', self.shadow)
-
-    def on_gamma(self, *_):
-        self.owner.viewer.edit_image.gamma = self.gamma
-
-    def reset_gamma(self):
-        self.gamma = 0
-        self.set_slider('gammaSlider', self.gamma)
-
-    def on_saturation(self, *_):
-        self.owner.viewer.edit_image.saturation = self.saturation
-
-    def reset_saturation(self):
-        self.saturation = 0
-        self.set_slider('saturationSlider', self.saturation)
-
-    def on_temperature(self, *_):
-        self.owner.viewer.edit_image.temperature = self.temperature
-
-    def reset_temperature(self):
-        self.temperature = 0
-        self.set_slider('temperatureSlider', self.temperature)
-
-    def reset_curves(self):
-        """Tells the curves widget to reset to its default points."""
-
-        curves = self.ids['curves']
-        curves.reset()
-
-    def remove_point(self):
-        """Tells the curves widget to remove its last point."""
-
-        curves = self.ids['curves']
-        curves.remove_point()
-
-    def on_tint(self, *_):
-        self.owner.viewer.edit_image.tint = self.tint
-
-    def reset_tint(self):
-        self.tint = [1.0, 1.0, 1.0, 1.0]
-
-
-class EditFilterImage(EditPanelBase):
-    """Panel to expose filter editing options."""
-
-    sharpen = NumericProperty(0)
-    vignette_amount = NumericProperty(0)
-    vignette_size = NumericProperty(0.5)
-    edge_blur_amount = NumericProperty(0)
-    edge_blur_size = NumericProperty(0.5)
-    edge_blur_intensity = NumericProperty(0.5)
-    median = NumericProperty(0)
-    bilateral = NumericProperty(0.5)
-    bilateral_amount = NumericProperty(0)
-
-    owner = ObjectProperty()
-    preset_name = StringProperty()
-
-    def __init__(self, **kwargs):
-        Clock.schedule_once(self.add_video_preset)
-        Clock.schedule_once(self.reset_all)
-        super(EditFilterImage, self).__init__(**kwargs)
-
-    def refresh_buttons(self):
-        pass
-
-    def add_video_preset(self, *_):
-        if not self.owner.view_image:
-            video_preset = self.ids['videoPreset']
-            video_preset.add_widget(VideoEncodePreset())
-
-    def save_last(self):
-        self.owner.edit_filter = True
-        self.owner.sharpen = self.sharpen
-        self.owner.vignette_amount = self.vignette_amount
-        self.owner.vignette_size = self.vignette_size
-        self.owner.edge_blur_amount = self.edge_blur_amount
-        self.owner.edge_blur_size = self.edge_blur_size
-        self.owner.edge_blur_intensity = self.edge_blur_intensity
-        self.owner.bilateral = self.bilateral
-        self.owner.bilateral_amount = self.bilateral_amount
-        self.owner.median = self.median
-
-    def load_last(self):
-        self.sharpen = self.owner.sharpen
-        self.set_slider('sharpenSlider', self.sharpen)
-        self.median = self.owner.median
-        self.set_slider('medianSlider', self.median)
-        self.bilateral_amount = self.owner.bilateral_amount
-        self.set_slider('bilateralAmountSlider', self.bilateral_amount)
-        self.bilateral = self.owner.bilateral
-        self.set_slider('bilateralSlider', self.bilateral)
-        self.vignette_amount = self.owner.vignette_amount
-        self.set_slider('vignetteAmountSlider', self.vignette_amount)
-        self.vignette_size = self.owner.vignette_size
-        self.set_slider('vignetteSizeSlider', self.vignette_size)
-        self.edge_blur_amount = self.owner.edge_blur_amount
-        self.set_slider('edgeBlurAmountSlider', self.edge_blur_amount)
-        self.edge_blur_size = self.owner.edge_blur_size
-        self.set_slider('edgeBlurSizeSlider', self.edge_blur_size)
-        self.edge_blur_intensity = self.owner.edge_blur_intensity
-        self.set_slider('edgeBlurIntensitySlider', self.edge_blur_intensity)
-
-    def on_sharpen(self, *_):
-        self.owner.viewer.edit_image.sharpen = self.sharpen
-
-    def reset_sharpen(self):
-        self.sharpen = 0
-        self.set_slider('sharpenSlider', self.sharpen)
-
-    def on_median(self, *_):
-        self.owner.viewer.edit_image.median_blur = self.median
-
-    def reset_median(self):
-        self.median = 0
-        self.set_slider('medianSlider', self.median)
-
-    def on_bilateral_amount(self, *_):
-        self.owner.viewer.edit_image.bilateral_amount = self.bilateral_amount
-
-    def reset_bilateral_amount(self):
-        self.bilateral_amount = 0
-        self.set_slider('bilateralAmountSlider', self.bilateral_amount)
-
-    def on_bilateral(self, *_):
-        self.owner.viewer.edit_image.bilateral = self.bilateral
-
-    def reset_bilateral(self):
-        self.bilateral = 0.5
-        self.set_slider('bilateralSlider', self.bilateral)
-
-    def on_vignette_amount(self, *_):
-        self.owner.viewer.edit_image.vignette_amount = self.vignette_amount
-
-    def reset_vignette_amount(self):
-        self.vignette_amount = 0
-        self.set_slider('vignetteAmountSlider', self.vignette_amount)
-
-    def on_vignette_size(self, *_):
-        self.owner.viewer.edit_image.vignette_size = self.vignette_size
-
-    def reset_vignette_size(self):
-        self.vignette_size = 0.5
-        self.set_slider('vignetteSizeSlider', self.vignette_size)
-
-    def on_edge_blur_amount(self, *_):
-        self.owner.viewer.edit_image.edge_blur_amount = self.edge_blur_amount
-
-    def reset_edge_blur_amount(self):
-        self.edge_blur_amount = 0
-        self.set_slider('edgeBlurAmountSlider', self.edge_blur_amount)
-
-    def on_edge_blur_size(self, *_):
-        self.owner.viewer.edit_image.edge_blur_size = self.edge_blur_size
-
-    def reset_edge_blur_size(self):
-        self.edge_blur_size = 0.5
-        self.set_slider('edgeBlurSizeSlider', self.edge_blur_size)
-
-    def on_edge_blur_intensity(self, *_):
-        self.owner.viewer.edit_image.edge_blur_intensity = self.edge_blur_intensity
-
-    def reset_edge_blur_intensity(self):
-        self.edge_blur_intensity = 0.5
-        self.set_slider('edgeBlurIntensitySlider', self.edge_blur_intensity)
-
-    def reset_all(self, *_):
-        """Reset all edit values to defaults."""
-
-        self.reset_sharpen()
-        self.reset_vignette_amount()
-        self.reset_vignette_size()
-        self.reset_edge_blur_amount()
-        self.reset_edge_blur_size()
-        self.reset_edge_blur_intensity()
-        self.reset_median()
-        self.reset_bilateral()
-        self.reset_bilateral_amount()
-
-
-class EditBorderImage(EditPanelBase):
-    """Panel to expose image border overlays."""
-
-    selected = StringProperty()
-    border_x_scale = NumericProperty(0)
-    border_y_scale = NumericProperty(0)
-    border_opacity = NumericProperty(1)
-    tint = ListProperty([1.0, 1.0, 1.0, 1.0])
-
-    owner = ObjectProperty()
-    borders = ListProperty()
-    type = StringProperty()
-    preset_name = StringProperty()
-
-    def __init__(self, **kwargs):
-        self.reset_border_opacity()
-        Clock.schedule_once(self.add_video_preset)
-        Clock.schedule_once(self.populate_borders)
-        super(EditBorderImage, self).__init__(**kwargs)
-
-    def refresh_buttons(self):
-        pass
-
-    def add_video_preset(self, *_):
-        if not self.owner.view_image:
-            video_preset = self.ids['videoPreset']
-            video_preset.add_widget(VideoEncodePreset())
-
-    def save_last(self):
-        self.owner.edit_border = True
-        self.owner.border_selected = self.selected
-        self.owner.border_x_scale = self.border_x_scale
-        self.owner.border_y_scale = self.border_y_scale
-        self.owner.border_opacity = self.border_opacity
-        self.owner.border_tint = self.tint
-
-    def load_last(self):
-        self.selected = self.owner.border_selected
-        self.border_x_scale = self.owner.border_x_scale
-        self.set_slider('borderXScale', self.border_x_scale)
-        self.border_y_scale = self.owner.border_y_scale
-        self.set_slider('borderYScale', self.border_y_scale)
-        self.border_opacity = self.owner.border_opacity
-        self.set_slider('opacitySlider', self.border_opacity)
-        self.tint = self.owner.border_tint
-
-    def on_selected(self, *_):
-        if self.selected:
-            border_index = int(self.selected)
-        else:
-            border_index = 0
-        self.reset_border_x_scale()
-        self.reset_border_y_scale()
-        if border_index == 0:
-            self.owner.viewer.edit_image.border_image = []
-        else:
-            self.owner.viewer.edit_image.border_image = self.borders[border_index]
-
-    def populate_borders(self, *_):
-        self.borders = [None]
-        for file in os.listdir('borders'):
-            if file.endswith('.txt'):
-                border_name = os.path.splitext(file)[0]
-                border_sizes = []
-                border_images = []
-                with open(os.path.join('borders', file)) as input_file:
-                    for line in input_file:
-                        if ':' in line and not line.startswith('#'):
-                            size, image = line.split(':')
-                            border_sizes.append(float(size))
-                            border_images.append(image.strip())
-                if border_sizes:
-                    self.borders.append([border_name, border_sizes, border_images])
-
-        borders_tree = self.ids['borders']
-        nodes = list(borders_tree.iterate_all_nodes())
-        for node in nodes:
-            borders_tree.remove_node(node)
-
-        for index, border in enumerate(self.borders):
-            if border:
-                node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name=border[0])
-                borders_tree.add_node(node)
-            else:
-                node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name='None')
-                borders_tree.add_node(node)
-                borders_tree.select_node(node)
-
-    def on_border_x_scale(self, *_):
-        self.owner.viewer.edit_image.border_x_scale = self.border_x_scale
-
-    def reset_border_x_scale(self):
-        self.border_x_scale = 0
-        self.set_slider('borderXScale', self.border_x_scale)
-
-    def on_border_y_scale(self, *_):
-        self.owner.viewer.edit_image.border_y_scale = self.border_y_scale
-
-    def reset_border_y_scale(self):
-        self.border_y_scale = 0
-        self.set_slider('borderYScale', self.border_y_scale)
-
-    def on_border_opacity(self, *_):
-        self.owner.viewer.edit_image.border_opacity = self.border_opacity
-
-    def reset_border_opacity(self, *_):
-        self.border_opacity = 1
-        self.set_slider('opacitySlider', self.border_opacity)
-
-    def on_tint(self, *_):
-        self.owner.viewer.edit_image.border_tint = self.tint
-
-    def reset_tint(self):
-        self.tint = [1.0, 1.0, 1.0, 1.0]
-
-
-class EditDenoiseImage(GridLayout):
-    """Panel to expose image denoise options."""
-
-    luminance_denoise = StringProperty('10')
-    color_denoise = StringProperty('10')
-    search_window = StringProperty('15')
-    block_size = StringProperty('5')
-
-    owner = ObjectProperty()
-    imagefile = StringProperty('')
-    image_x = NumericProperty(1)
-    image_y = NumericProperty(1)
-    full_image = ObjectProperty()
-
-    def __init__(self, **kwargs):
-        Clock.schedule_once(self.add_video_preset)
-        Clock.schedule_once(self.update_preview)
-        super(EditDenoiseImage, self).__init__(**kwargs)
-
-    def refresh_buttons(self):
-        pass
-
-    def add_video_preset(self, *_):
-        if not self.owner.view_image:
-            video_preset = self.ids['videoPreset']
-            video_preset.add_widget(VideoEncodePreset())
-
-    def save_last(self):
-        self.owner.edit_denoise = True
-        self.owner.luminance_denoise = self.luminance_denoise
-        self.owner.color_denoise = self.color_denoise
-        self.owner.search_window = self.search_window
-        self.owner.block_size = self.block_size
-
-    def load_last(self):
-        self.luminance_denoise = self.owner.luminance_denoise
-        self.color_denoise = self.owner.color_denoise
-        self.search_window = self.owner.search_window
-        self.block_size = self.owner.block_size
-
-    def reset_all(self):
-        """Reset all edit values to defaults."""
-        self.luminance_denoise = '10'
-        self.color_denoise = '10'
-        self.search_window = '21'
-        self.block_size = '7'
-
-    def on_luminance_denoise(self, *_):
-        if not self.luminance_denoise:
-            luminance_denoise = 0
-        else:
-            luminance_denoise = int(self.luminance_denoise)
-        self.owner.viewer.edit_image.luminance_denoise = luminance_denoise
-        self.update_preview()
-
-    def on_color_denoise(self, *_):
-        if not self.color_denoise:
-            color_denoise = 0
-        else:
-            color_denoise = int(self.color_denoise)
-        self.owner.viewer.edit_image.color_denoise = color_denoise
-        self.update_preview()
-
-    def on_search_window(self, *_):
-        if not self.search_window:
-            search_window = 0
-        else:
-            search_window = int(self.search_window)
-        if (search_window % 2) == 0:
-            search_window = search_window + 1
-        self.owner.viewer.edit_image.search_window = search_window
-        self.update_preview()
-
-    def on_block_size(self, *_):
-        if not self.block_size:
-            block_size = 0
-        else:
-            block_size = int(self.block_size)
-        if (block_size % 2) == 0:
-            block_size = block_size + 1
-        self.owner.viewer.edit_image.block_size = block_size
-        self.update_preview()
-
-    def update_preview(self, *_):
-        #Gets the denoised preview image and updates it in the ui
-
-        #convert pil image to bytes and display background image
-        app = App.get_running_app()
-        if to_bool(app.config.get("Settings", "lowmem")):
-            image = self.owner.viewer.edit_image.edit_image
-        else:
-            if self.owner.viewer.edit_image:
-                image = self.owner.viewer.edit_image.original_image
-            else:
-                return
-        noise_preview = self.ids['noisePreview']
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        image_bytes = BytesIO()
-        image.save(image_bytes, 'jpeg')
-        image_bytes.seek(0)
-        noise_preview._coreimage = CoreImage(image_bytes, ext='jpg')
-        noise_preview._on_tex_change()
-
-        #update overlay image
-        scroll_area = self.ids['wrapper']
-        width = scroll_area.size[0]
-        height = scroll_area.size[1]
-        pos_x = int((self.image_x * scroll_area.scroll_x) - (width * scroll_area.scroll_x))
-        image_pos_y = self.image_y - int((self.image_y * scroll_area.scroll_y) + (width * (1 - scroll_area.scroll_y)))
-        preview = self.owner.viewer.edit_image.denoise_preview(width, height, pos_x, image_pos_y)
-        overlay_image = self.ids['denoiseOverlay']
-        widget_pos_y = int((self.image_y * scroll_area.scroll_y) - (width * scroll_area.scroll_y))
-        overlay_image.pos = [pos_x, widget_pos_y]
-        overlay_image._coreimage = CoreImage(preview, ext='jpg')
-        overlay_image._on_tex_change()
-        overlay_image.opacity = 1
-
-    def denoise(self):
-        """Generates a preview using the current denoise settings"""
-
-        self.owner.viewer.edit_image.update_preview(denoise=True)
-
-
-class EditCropImage(EditPanelBase):
-    """Panel to expose crop editing options."""
-
-    crop_top = NumericProperty(0)
-    crop_right = NumericProperty(0)
-    crop_bottom = NumericProperty(0)
-    crop_left = NumericProperty(0)
-
-    owner = ObjectProperty()
-    image_x = NumericProperty(0)
-    image_y = NumericProperty(0)
-    aspect_x = NumericProperty(0)
-    aspect_y = NumericProperty(0)
-    crop_size = StringProperty('')
-    lock_aspect = BooleanProperty(False)
-    lock_aspect_name = StringProperty('Current')
-
-    def __init__(self, **kwargs):
-        super(EditCropImage, self).__init__(**kwargs)
-        Clock.schedule_once(self.add_video_preset)
-        self.aspect_dropdown = AspectRatioDropDown()
-        self.aspect_dropdown.bind(on_select=lambda instance, x: self.set_aspect_ratio(x))
-        self.aspect_x = self.image_x
-        self.aspect_y = self.image_y
-        self.lock_aspect_name = 'Current'
-        Clock.schedule_once(self.reset_crop)  #Give the cropper overlay a frame so it can figure out its actual size
-
-    def refresh_buttons(self):
-        pass
-
-    def add_video_preset(self, *_):
-        if not self.owner.view_image:
-            video_preset = self.ids['videoPreset']
-            video_preset.add_widget(VideoEncodePreset())
-
-    def update_crop_size_text(self):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            self.crop_size = edit_image.get_crop_size()
-
-    def update_crop_values(self):
-        self.ids['cropLeftSlider'].value = self.crop_left
-        self.ids['cropRightSlider'].value = self.crop_right
-        self.ids['cropTopSlider'].value = self.crop_top
-        self.ids['cropBottomSlider'].value = self.crop_bottom
-
-    def update_crop(self):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            percents = edit_image.get_crop_percent()
-            self.crop_top = percents[0]
-            self.crop_right = percents[1]
-            self.crop_bottom = percents[2]
-            self.crop_left = percents[3]
-            self.update_crop_values()
-
-    def save_last(self):
-        self.update_crop()
-        self.owner.edit_crop = True
-        self.owner.crop_top = self.crop_top
-        self.owner.crop_right = self.crop_right
-        self.owner.crop_bottom = self.crop_bottom
-        self.owner.crop_left = self.crop_left
-
-    def load_last(self):
-        self.crop_top = self.owner.crop_top
-        self.crop_right = self.owner.crop_right
-        self.crop_bottom = self.owner.crop_bottom
-        self.crop_left = self.owner.crop_left
-
-    def update_lock_aspect(self, value):
-        if value == 'down':
-            self.lock_aspect = True
-        else:
-            self.lock_aspect = False
-
-    def on_lock_aspect(self, *_):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.lock_aspect = self.lock_aspect
-
-    def on_crop_top(self, *_):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.crop_percent('top', self.crop_top)
-            self.update_crop_size_text()
-
-    def reset_crop_top(self):
-        self.crop_top = 0
-        self.set_slider('cropTopSlider', self.crop_top)
-
-    def on_crop_right(self, *_):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.crop_percent('right', self.crop_right)
-            self.update_crop_size_text()
-
-    def reset_crop_right(self):
-        self.crop_right = 0
-        self.set_slider('cropRightSlider', self.crop_right)
-
-    def on_crop_bottom(self, *_):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.crop_percent('bottom', self.crop_bottom)
-            self.update_crop_size_text()
-
-    def reset_crop_bottom(self):
-        self.crop_bottom = 0
-        self.set_slider('cropBottomSlider', self.crop_bottom)
-
-    def on_crop_left(self, *_):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.crop_percent('left', self.crop_left)
-            self.update_crop_size_text()
-
-    def reset_crop_left(self):
-        self.crop_left = 0
-        self.set_slider('cropLeftSlider', self.crop_left)
-
-    def recrop(self):
-        """tell image to recrop itself based on an aspect ratio"""
-
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.set_aspect(self.aspect_x, self.aspect_y)
-            self.update_crop()
-
-    def reset_crop(self, *_):
-        edit_image = self.owner.viewer.edit_image
-        if edit_image:
-            edit_image.reset_crop()
-            self.update_crop()
-
-    def set_aspect_ratio(self, method):
-        self.lock_aspect_name = method
-        if method == '6x4':
-            self.aspect_x = 6
-            self.aspect_y = 4
-        elif method == '4x6':
-            self.aspect_x = 4
-            self.aspect_y = 6
-        elif method == '7x5':
-            self.aspect_x = 7
-            self.aspect_y = 5
-        elif method == '5x7':
-            self.aspect_x = 5
-            self.aspect_y = 7
-        elif method == '11x8.5':
-            self.aspect_x = 11
-            self.aspect_y = 8.5
-        elif method == '8.5x11':
-            self.aspect_x = 8.5
-            self.aspect_y = 11
-        elif method == '4x3':
-            self.aspect_x = 4
-            self.aspect_y = 3
-        elif method == '3x4':
-            self.aspect_x = 3
-            self.aspect_y = 4
-        elif method == '16x9':
-            self.aspect_x = 16
-            self.aspect_y = 9
-        elif method == '9x16':
-            self.aspect_x = 9
-            self.aspect_y = 16
-        elif method == '1x1':
-            self.aspect_x = 1
-            self.aspect_y = 1
-        else:
-            self.aspect_x = self.image_x
-            self.aspect_y = self.image_y
-        self.recrop()
-
-
-class EditRotateImage(EditPanelBase):
-    """Panel to expose rotation editing options."""
-
-    fine_angle = NumericProperty(0)
-    owner = ObjectProperty()
-
-    def __init__(self, **kwargs):
-        super(EditRotateImage, self).__init__(**kwargs)
-        Clock.schedule_once(self.add_video_preset)
-
-    def refresh_buttons(self):
-        pass
-
-    def add_video_preset(self, *_):
-        if not self.owner.view_image:
-            video_preset = self.ids['videoPreset']
-            video_preset.add_widget(VideoEncodePreset())
-
-    def save_last(self):
-        pass
-
-    def load_last(self):
-        pass
-
-    def reset_all(self):
-        self.update_angle(0)
-        self.ids['angles_0'].state = 'down'
-        self.ids['angles_90'].state = 'normal'
-        self.ids['angles_180'].state = 'normal'
-        self.ids['angles_270'].state = 'normal'
-        self.update_flip_horizontal(flip='up')
-        self.ids['flip_horizontal'].state = 'normal'
-        self.update_flip_vertical(flip='up')
-        self.ids['flip_vertical'].state = 'normal'
-        self.reset_fine_angle()
-
-    def update_angle(self, angle):
-        self.owner.viewer.edit_image.rotate_angle = angle
-
-    def on_fine_angle(self, *_):
-        self.owner.viewer.edit_image.fine_angle = self.fine_angle
-
-    def reset_fine_angle(self, *_):
-        self.fine_angle = 0
-        self.set_slider('fine_angle', self.fine_angle)
-
-    def update_flip_horizontal(self, flip):
-        if flip == 'down':
-            self.owner.viewer.edit_image.flip_horizontal = True
-        else:
-            self.owner.viewer.edit_image.flip_horizontal = False
-
-    def update_flip_vertical(self, flip):
-        if flip == 'down':
-            self.owner.viewer.edit_image.flip_vertical = True
-        else:
-            self.owner.viewer.edit_image.flip_vertical = False
-
-
-class EditConvertImage(GridLayout):
-    """Currently not supported."""
-    owner = ObjectProperty()
-
-    def refresh_buttons(self):
-        pass
-
-    def save_last(self):
-        pass
-
-    def load_last(self):
-        pass
-
-
-class EditConvertVideo(GridLayout):
-    """Convert a video file to another format using ffmpeg."""
-
-    owner = ObjectProperty()
-
-    #Encoding settings
-    video_codec = StringProperty()
-    audio_codec = StringProperty()
-    video_quality = StringProperty()
-    encoding_speed = StringProperty()
-    file_format = StringProperty()
-    input_file = StringProperty()
-    video_bitrate = StringProperty('8000')
-    audio_bitrate = StringProperty('192')
-    command_line = StringProperty()
-    deinterlace = BooleanProperty(False)
-    resize = BooleanProperty(False)
-    resize_width = StringProperty('1920')
-    resize_height = StringProperty('1080')
-
-    #Dropdown menus
-    preset_drop = ObjectProperty()
-    container_drop = ObjectProperty()
-    video_codec_drop = ObjectProperty()
-    video_quality_drop = ObjectProperty()
-    encoding_speed_drop = ObjectProperty()
-    audio_codec_drop = ObjectProperty()
-
-    def __init__(self, **kwargs):
-        self.setup_dropdowns()
-        app = App.get_running_app()
-        encoding_preset = app.config.get('Presets', 'encoding')
-        if encoding_preset:
-            encoding_settings = encoding_preset.split(',', 10)
-            if len(encoding_settings) == 11:
-                self.file_format = encoding_settings[0]
-                self.video_codec = encoding_settings[1]
-                self.audio_codec = encoding_settings[2]
-                self.resize = to_bool(encoding_settings[3])
-                self.resize_width = encoding_settings[4]
-                self.resize_height = encoding_settings[5]
-                self.video_bitrate = encoding_settings[6]
-                self.audio_bitrate = encoding_settings[7]
-                self.encoding_speed = encoding_settings[8]
-                self.deinterlace = to_bool(encoding_settings[9])
-                self.command_line = encoding_settings[10]
-        super(EditConvertVideo, self).__init__(**kwargs)
-
-    def refresh_buttons(self):
-        pass
-
-    def save_last(self):
-        pass
-
-    def load_last(self):
-        pass
-
-    def store_settings(self):
-        encoding_preset = self.file_format+','+self.video_codec+','+self.audio_codec+','+str(self.resize)+','+self.resize_width+','+self.resize_height+','+self.video_bitrate+','+self.audio_bitrate+','+self.encoding_speed+','+str(self.deinterlace)+','+self.command_line
-        app = App.get_running_app()
-        app.config.set('Presets', 'encoding', encoding_preset)
-
-    def setup_dropdowns(self):
-        """Creates and populates the various drop-down menus used by this dialog."""
-
-        self.preset_drop = NormalDropDown()
-        app = App.get_running_app()
-        for index, preset in enumerate(app.encoding_presets):
-            menu_button = MenuButton(text=preset['name'])
-            menu_button.bind(on_release=self.set_preset)
-            self.preset_drop.add_widget(menu_button)
-
-        self.file_format = containers_friendly[0]
-        self.container_drop = NormalDropDown()
-        for container in containers_friendly:
-            menu_button = MenuButton(text=container)
-            menu_button.bind(on_release=self.change_container_to)
-            self.container_drop.add_widget(menu_button)
-
-        self.video_codec = video_codecs_friendly[0]
-        self.video_codec_drop = NormalDropDown()
-        for codec in video_codecs_friendly:
-            menu_button = MenuButton(text=codec)
-            menu_button.bind(on_release=self.change_video_codec_to)
-            self.video_codec_drop.add_widget(menu_button)
-
-        #self.video_quality = 'Constant Bitrate'
-        #video_qualities = ['Constant Bitrate', 'High', 'Medium', 'Low', 'Very Low']
-        #self.video_quality_drop = NormalDropDown()
-        #for quality in video_qualities:
-        #    menu_button = MenuButton(text=quality)
-        #    menu_button.bind(on_release=self.change_video_quality_to)
-        #    self.video_quality_drop.add_widget(menu_button)
-
-        self.encoding_speed = 'Fast'
-        encoding_speeds = ['Very Fast', 'Fast', 'Medium', 'Slow', 'Very Slow']
-        self.encoding_speed_drop = NormalDropDown()
-        for speed in encoding_speeds:
-            menu_button = MenuButton(text=speed)
-            menu_button.bind(on_release=self.change_encoding_speed_to)
-            self.encoding_speed_drop.add_widget(menu_button)
-
-        self.audio_codec = audio_codecs_friendly[0]
-        self.audio_codec_drop = NormalDropDown()
-        for codec in audio_codecs_friendly:
-            menu_button = MenuButton(text=codec)
-            menu_button.bind(on_release=self.change_audio_codec_to)
-            self.audio_codec_drop.add_widget(menu_button)
-
-    def update_deinterlace(self, state):
-        if state == 'down':
-            self.deinterlace = True
-        else:
-            self.deinterlace = False
-
-    def update_resize(self, state):
-        if state == 'down':
-            self.resize = True
-        else:
-            self.resize = False
-
-    def set_resize_width(self, instance):
-        self.resize_width = instance.text
-        self.store_settings()
-
-    def set_resize_height(self, instance):
-        self.resize_height = instance.text
-        self.store_settings()
-
-    def set_preset(self, instance):
-        """Sets the current dialog preset settings to one of the presets stored in the app.
-        Argument:
-            index: Integer, the index of the preset to set.
-        """
-
-        self.preset_drop.dismiss()
-        app = App.get_running_app()
-        for preset in app.encoding_presets:
-            if preset['name'] == instance.text:
-                if preset['file_format'] in containers_friendly:
-                    self.file_format = preset['file_format']
-                else:
-                    self.file_format = containers_friendly[0]
-                if preset['video_codec'] in video_codecs_friendly:
-                    self.video_codec = preset['video_codec']
-                else:
-                    self.video_codec = video_codecs_friendly[0]
-                if preset['audio_codec'] in audio_codecs_friendly:
-                    self.audio_codec = preset['audio_codec']
-                else:
-                    self.audio_codec = audio_codecs_friendly[0]
-                self.resize = preset['resize']
-                self.resize_width = preset['width']
-                self.resize_height = preset['height']
-                self.video_bitrate = preset['video_bitrate']
-                self.audio_bitrate = preset['audio_bitrate']
-                self.encoding_speed = preset['encoding_speed']
-                self.deinterlace = preset['deinterlace']
-                self.command_line = preset['command_line']
-                self.store_settings()
-                return
-
-    def on_video_bitrate(self, *_):
-        self.store_settings()
-
-    def on_audio_bitrate(self, *_):
-        self.store_settings()
-
-    def set_command_line(self, instance):
-        self.command_line = instance.text
-        self.store_settings()
-
-    def change_video_quality_to(self, instance):
-        """Sets the self.video_quality value."""
-
-        self.video_quality_drop.dismiss()
-        self.video_quality = instance.text
-        self.store_settings()
-
-    def change_encoding_speed_to(self, instance):
-        """Sets the self.encoding_speed value."""
-
-        self.encoding_speed_drop.dismiss()
-        self.encoding_speed = instance.text
-        self.store_settings()
-
-    def change_audio_codec_to(self, instance):
-        """Sets the self.audio_codec value."""
-
-        self.audio_codec_drop.dismiss()
-        self.audio_codec = instance.text
-        self.store_settings()
-
-    def change_video_codec_to(self, instance):
-        """Sets the self.video_codec value."""
-
-        self.video_codec_drop.dismiss()
-        self.video_codec = instance.text
-        self.store_settings()
-
-    def change_container_to(self, instance):
-        """Sets the self.file_format value."""
-
-        self.container_drop.dismiss()
-        self.file_format = instance.text
-        self.store_settings()
-
-    def encode(self):
-        """Pass encoding settings to owner album screen and tell it to begin encoding process."""
-
-        #file_format = containers[containers_friendly.index(self.file_format)]
-        #video_codec = video_codecs[video_codecs_friendly.index(self.video_codec)]
-        #audio_codec = audio_codecs[audio_codecs_friendly.index(self.audio_codec)]
-        encoding_settings = {'file_format': self.file_format,
-                             'video_codec': self.video_codec,
-                             'audio_codec': self.audio_codec,
-                             'resize': self.resize,
-                             'width': self.resize_width,
-                             'height': self.resize_height,
-                             'video_bitrate': self.video_bitrate,
-                             'audio_bitrate': self.audio_bitrate,
-                             'encoding_speed': self.encoding_speed,
-                             'deinterlace': self.deinterlace,
-                             'command_line': self.command_line}
-        self.owner.encoding_settings = encoding_settings
-        self.store_settings()
-        self.owner.begin_encode()
-
-
 class DenoisePreview(RelativeLayout):
     finished = BooleanProperty(False)
 
@@ -5556,6 +6156,7 @@ class InterpolationDropDown(NormalDropDown):
 class Curves(FloatLayout):
     """Widget for viewing and generating color curves information."""
 
+    owner = ObjectProperty()
     points = ListProperty()  #List of curves points
     current_point = ListProperty()  #
     moving = BooleanProperty(False)  #
@@ -5599,15 +6200,13 @@ class Curves(FloatLayout):
         for point in self.points:
             self.draw_point(canvas, point)
 
-        if self.parent:
-            if self.parent.parent:
-                if self.parent.parent.parent:
-                    image = self.parent.parent.parent.owner.viewer.edit_image
-                    if image:
-                        if self.points == [[0, 0], [1, 1]]:
-                            image.curve = []
-                        else:
-                            image.curve = self.curve
+        if self.owner:
+            image = self.owner.image
+            if image:
+                if self.points == [[0, 0], [1, 1]]:
+                    image.curve = []
+                else:
+                    image.curve = self.curve
 
     def relative_to_local(self, point):
         """Convert relative coordinates (0-1) into window coordinates.
@@ -5778,12 +6377,20 @@ class Curves(FloatLayout):
         else:
             return False
 
+    def find_parent_scroller(self):
+        parent = self.parent
+        while parent:
+            if isinstance(parent, ScrollerContainer):
+                return parent
+            parent = parent.parent
+        return None
+
     def on_touch_down(self, touch):
         """Intercept touches and begin moving points.
         Will also modify scrolling in the parent scroller widget to improve usability.
         """
 
-        edit_scroller = self.parent.parent.parent.owner.ids['editScroller']
+        edit_scroller = self.find_parent_scroller()
         self.scroll_timeout = edit_scroller.scroll_timeout  #cache old scroll timeout
 
         #Handle touch
@@ -5834,35 +6441,11 @@ class Curves(FloatLayout):
     def on_touch_up(self, touch):
         """Touch is released, turn off move mode regardless of if touch is over widget or not."""
 
-        edit_scroller = self.parent.parent.parent.owner.ids['editScroller']
+        edit_scroller = self.find_parent_scroller()
         edit_scroller.scroll_timeout = self.scroll_timeout  #Reset parent scroller object to normal operation
         self.moving = False
         if self.collide_point(*touch.pos):
             return True
-
-
-class VideoEncodePreset(BoxLayout):
-    preset_drop = ObjectProperty()
-    preset_name = StringProperty()
-
-    def __init__(self, **kwargs):
-        self.preset_drop = NormalDropDown()
-        app = App.get_running_app()
-        for index, preset in enumerate(app.encoding_presets):
-            menu_button = MenuButton(text=preset['name'])
-            menu_button.bind(on_release=self.set_preset)
-            self.preset_drop.add_widget(menu_button)
-        if app.selected_encoder_preset:
-            self.preset_name = app.selected_encoder_preset
-        else:
-            self.preset_name = app.encoding_presets[0]['name']
-        super(VideoEncodePreset, self).__init__(**kwargs)
-
-    def set_preset(self, instance):
-        app = App.get_running_app()
-        self.preset_name = instance.text
-        self.preset_drop.dismiss()
-        app.selected_encoder_preset = self.preset_name
 
 
 class RotationGrid(FloatLayout):
@@ -5896,18 +6479,18 @@ class CropOverlay(ResizableBehavior, RelativeLayout):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             #adjust crop mode
-            if touch.button == 'left':
-                if self.check_resizable_side(*touch.pos):
-                    self.drag_mode = False
-                    super(CropOverlay, self).on_touch_down(touch)
-                else:
-                    self.start_x = self.pos[0]
-                    self.start_y = self.pos[1]
-                    self.moved_x = 0
-                    self.moved_y = 0
-                    self.start_width = self.width
-                    self.start_height = self.height
-                    self.drag_mode = True
+            #if touch.button == 'left':
+            if self.check_resizable_side(*touch.pos):
+                self.drag_mode = False
+                super(CropOverlay, self).on_touch_down(touch)
+            else:
+                self.start_x = self.pos[0]
+                self.start_y = self.pos[1]
+                self.moved_x = 0
+                self.moved_y = 0
+                self.start_width = self.width
+                self.start_height = self.height
+                self.drag_mode = True
             return True
         elif self.owner.collide_point(*touch.pos):
             #recrop mode
@@ -6001,7 +6584,8 @@ class ExternalProgramEditor(GridLayout):
     def select_command(self):
         """Opens a popup filebrowser to select a program to run."""
 
-        content = FileBrowser(ok_text='Select', filters=['*'])
+        app = App.get_running_app()
+        content = FileBrowser(ok_text='Select', path=app.last_browse_folder, filters=['*'])
         content.bind(on_cancel=lambda x: self.owner.owner.dismiss_popup())
         content.bind(on_ok=self.select_command_confirm)
         self.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content, size_hint=(0.9, 0.9))
@@ -6010,9 +6594,14 @@ class ExternalProgramEditor(GridLayout):
     def select_command_confirm(self, *_):
         """Called when the filebrowser dialog is successfully closed."""
 
-        self.command = self.owner.owner.popup.content.filename
-        self.owner.owner.dismiss_popup()
-        self.save_program()
+        popup = self.owner.owner.popup
+        if popup:
+            self.command = popup.content.filename
+            path = popup.content.path
+            app = App.get_running_app()
+            app.last_browse_folder = path
+            self.owner.owner.dismiss_popup()
+            self.save_program()
 
 
 class TagSelectButton(WideButton):

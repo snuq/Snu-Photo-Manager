@@ -733,6 +733,10 @@ class CollageScreen(Screen):
     sort_method = StringProperty('Name')  #Current album sort method
     sort_reverse = BooleanProperty(False)
 
+    def rescale_screen(self):
+        app = App.get_running_app()
+        self.ids['leftpanel'].width = app.left_panel_width()
+
     def on_collage_background(self, *_):
         self.collage.collage_background = self.collage_background
 
@@ -753,27 +757,31 @@ class CollageScreen(Screen):
         self.filechooser_popup()
 
     def filechooser_popup(self):
-        content = FileBrowser(ok_text='Export', directory_select=False, file_editable=True, export_mode=True, file='collage.jpg')
+        app = App.get_running_app()
+        content = FileBrowser(ok_text='Export', path=app.last_browse_folder, file_editable=True, export_mode=True, file='collage.jpg')
         content.bind(on_cancel=self.dismiss_popup)
         content.bind(on_ok=self.export_check)
         self.popup = NormalPopup(title="Select File To Export To", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
 
     def export_check(self, *_):
-        path = self.popup.content.path
-        file = self.popup.content.file
-        self.dismiss_popup()
-        if not file.lower().endswith('.jpg'):
-            file = file+'.jpg'
-        self.filename = os.path.join(path, file)
-        if os.path.isfile(self.filename):
+        popup = self.popup
+        if popup:
+            path = popup.content.path
             app = App.get_running_app()
-            content = ConfirmPopup(text='Overwrite the file "'+self.filename+'"?', yes_text='Overwrite', no_text="Cancel", warn_yes=True)
-            content.bind(on_answer=self.export_overwrite_answer)
-            self.popup = NormalPopup(title='Confirm Overwrite', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
-            self.popup.open()
-        else:
-            self.export_finish()
+            app.last_browse_folder = path
+            file = popup.content.file
+            self.dismiss_popup()
+            if not file.lower().endswith('.jpg'):
+                file = file+'.jpg'
+            self.filename = os.path.join(path, file)
+            if os.path.isfile(self.filename):
+                content = ConfirmPopup(text='Overwrite the file "'+self.filename+'"?', yes_text='Overwrite', no_text="Cancel", warn_yes=True)
+                content.bind(on_answer=self.export_overwrite_answer)
+                self.popup = NormalPopup(title='Confirm Overwrite', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
+                self.popup.open()
+            else:
+                self.export_finish()
 
     def export_overwrite_answer(self, instance, answer):
         del instance

@@ -535,6 +535,10 @@ class ImportingScreen(Screen):
     start_time = NumericProperty()
     import_scanning = BooleanProperty(False)
 
+    def rescale_screen(self):
+        app = App.get_running_app()
+        self.ids['leftpanel'].width = app.left_panel_width()
+
     def get_selected_photos(self, fullpath=False):
         photos = self.ids['photos']
         selected_indexes = photos.selected_nodes
@@ -1358,18 +1362,23 @@ class ImportPresetArea(GridLayout):
         self.update_preset()
 
     def add_folder(self):
-        content = FileBrowser(ok_text='Add', directory_select=True)
+        app = App.get_running_app()
+        content = FileBrowser(ok_text='Add', path=app.last_browse_folder, directory_select=True)
         content.bind(on_cancel=self.owner.owner.dismiss_popup)
         content.bind(on_ok=self.add_folder_confirm)
         self.owner.owner.popup = filepopup = NormalPopup(title='Select A Folder To Import From', content=content, size_hint=(0.9, 0.9))
         filepopup.open()
 
     def add_folder_confirm(self, *_):
-        folder = self.owner.owner.popup.content.filename
-        self.import_from.append(folder)
-        self.owner.owner.dismiss_popup()
-        self.update_preset()
-        self.update_import_from()
+        popup = self.owner.owner.popup
+        if popup:
+            app = App.get_running_app()
+            app.last_browse_folder = popup.content.path
+            folder = popup.content.path
+            self.import_from.append(folder)
+            self.owner.owner.dismiss_popup()
+            self.update_preset()
+            self.update_import_from()
 
     def update_import_from(self, *_):
         preset_folders = self.ids['importPresetFolders']

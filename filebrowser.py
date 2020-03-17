@@ -7,78 +7,81 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.utils import platform
 if platform == 'win':
     from ctypes import windll, create_unicode_buffer
 
-from generalelements import InputPopup, NormalPopup, ConfirmPopup, RecycleItem
+from generalelements import ClickFade, InputPopup, NormalPopup, ConfirmPopup, RecycleItem, SelectableRecycleBoxLayout
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
 <FileBrowser>:
-    size_hint: 1, 1
-    orientation: 'horizontal'
     BoxLayout:
-        orientation: 'vertical'
-        size_hint: .75, 1
+        size_hint: 1, 1
+        pos: root.pos
+        orientation: 'horizontal'
         BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
-            NormalButton:
-                text: 'Go Up'
-                on_release: root.go_up()
-            ShortLabel:
-                text: root.path
+            orientation: 'vertical'
+            size_hint: .75, 1
+            BoxLayout:
+                orientation: 'horizontal'
                 size_hint_y: None
                 height: app.button_scale
-        NormalRecycleView:
-            size_hint_x: 1
-            id: fileList
-            viewclass: 'FileBrowserItem'
-            SelectableRecycleBoxLayout:
-        NormalInput:
-            id: filename
-            height: app.button_scale if not root.directory_select else 0
-            opacity: 1 if not root.directory_select else 0
-            disabled: not root.file_editable
-            size_hint_x: 1
-            text: root.file
-            on_text: root.file = self.text
+                NormalButton:
+                    text: 'Go Up'
+                    on_release: root.go_up()
+                ShortLabel:
+                    text: root.path
+                    size_hint_y: None
+                    height: app.button_scale
+            NormalRecycleView:
+                size_hint_x: 1
+                id: fileList
+                viewclass: 'FileBrowserItem'
+                FileBrowserSelectableRecycleBoxLayout:
+                    id: files
+                    multiselect: root.multiselect
+                    owner: root
+            NormalInput:
+                id: filename
+                height: app.button_scale if not root.directory_select else 0
+                opacity: 1 if not root.directory_select else 0
+                disabled: not root.file_editable
+                size_hint_x: 1
+                text: root.file
+                on_text: root.file = self.text
+            BoxLayout:
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: app.button_scale
+                NormalButton:
+                    height: app.button_scale
+                    text: 'Create Folder...'
+                    on_release: root.add_folder()
+                NormalButton:
+                    height: app.button_scale
+                    text: 'Delete This Folder'
+                    warn: True
+                    on_release: root.delete_folder()
         BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: app.button_scale
+            orientation: 'vertical'
+            size_hint_y: 1
+            size_hint_x: .25
+            NormalRecycleView:
+                size_hint_x: 1
+                id: locationsList
+                viewclass: 'FileBrowserItem'
+                SelectableRecycleBoxLayout:
             NormalButton:
-                height: app.button_scale if root.allow_delete else 0
-                opacity: 1 if root.allow_delete else 0
-                disabled: not root.allow_delete
-                text: 'Delete This Folder'
-                on_release: root.delete_folder()
+                text: root.ok_text
+                disabled: not (root.target_selected or (root.export_mode and len(root.file) > 0) or root.allow_no_file)
+                size_hint_x: 1
+                on_release: root.dispatch('on_ok')
             NormalButton:
-                height: app.button_scale if root.allow_new else 0
-                opacity: 1 if root.allow_new else 0
-                disabled: not root.allow_new
-                text: 'Create Folder...'
-                on_release: root.add_folder()
-    BoxLayout:
-        orientation: 'vertical'
-        size_hint_y: 1
-        size_hint_x: .25
-        NormalRecycleView:
-            size_hint_x: 1
-            id: locationsList
-            viewclass: 'FileBrowserItem'
-            SelectableRecycleBoxLayout:
-        NormalButton:
-            text: root.ok_text
-            disabled: not (root.target_selected or (root.export_mode and len(root.file) > 0))
-            size_hint_x: 1
-            on_release: root.dispatch('on_ok')
-        NormalButton:
-            size_hint_x: 1
-            text: root.cancel_text
-            on_release: root.dispatch('on_cancel')
+                size_hint_x: 1
+                text: root.cancel_text
+                on_release: root.dispatch('on_cancel')
 
 <FileBrowserItem>:
     Image:
@@ -142,17 +145,29 @@ def get_drives():
     return drives
 
 
-class FileBrowser(BoxLayout):
+class FileBrowserSelectableRecycleBoxLayout(SelectableRecycleBoxLayout):
+    def click_node(self, node):
+        super().click_node(node)
+        self.owner.click_node(node)
+
+    def on_selected(self, *_):
+        self.owner.select_item(self.selected)
+
+
+class FileBrowser(FloatLayout):
     __events__ = ('on_cancel', 'on_ok')
     path = StringProperty()
     file = StringProperty()
     filename = StringProperty()
     root = StringProperty()
+    allow_no_file = BooleanProperty(False)
+    clickfade_object = ObjectProperty(allownone=True)
 
     popup = ObjectProperty(None, allownone=True)
 
-    allow_new = BooleanProperty(True)
-    allow_delete = BooleanProperty(True)
+    remember = None
+
+    multiselect = BooleanProperty(False)
     new_folder = StringProperty('')
     start_in = StringProperty()
     directory_select = BooleanProperty(False)
@@ -169,7 +184,28 @@ class FileBrowser(BoxLayout):
         if not self.start_in:
             self.start_in = '/'
         Clock.schedule_once(self.refresh_locations)
+        self.clickfade_object = ClickFade()
         super(FileBrowser, self).__init__(**kwargs)
+
+    def clickfade(self, widget):
+        try:
+            self.remove_widget(self.clickfade_object)
+        except:
+            pass
+        self.clickfade_object.size = widget.size
+        self.clickfade_object.pos = widget.to_window(*widget.pos)
+        self.clickfade_object.begin()
+        self.add_widget(self.clickfade_object)
+
+    def toggle_select(self):
+        file_list = self.ids['files']
+        if self.multiselect:
+            file_list.toggle_select()
+
+    def get_selected(self):
+        file_list = self.ids['files']
+        selected = file_list.selects
+        return selected
 
     def dismiss_popup(self, *_):
         """If this dialog has a popup, closes it and removes it."""
@@ -256,7 +292,8 @@ class FileBrowser(BoxLayout):
                 'fullpath': location[0],
                 'path': location[0],
                 'type': 'folder',
-                'owner': self
+                'owner': self,
+                'selectable': False
             })
         locations_list.data = data
         if not self.path:
@@ -265,6 +302,8 @@ class FileBrowser(BoxLayout):
 
     def refresh_folder(self, *_):
         file_list = self.ids['fileList']
+        files = self.ids['files']
+        files.selects = []
         data = []
         files = []
         dirs = []
@@ -286,8 +325,11 @@ class FileBrowser(BoxLayout):
                 'fullpath': fullpath,
                 'path': fullpath + os.path.sep,
                 'type': 'folder',
+                'file': '',
                 'owner': self,
-                'selected': False
+                'selected': False,
+                'multiselect': self.multiselect,
+                'selectable': self.directory_select
             })
         if not self.directory_select:
             if self.filters:
@@ -304,7 +346,9 @@ class FileBrowser(BoxLayout):
                     'type': file,
                     'file': file,
                     'owner': self,
-                    'selected': False
+                    'selected': False,
+                    'multiselect': self.multiselect,
+                    'selectable': True
                 })
 
         file_list.data = data
@@ -316,9 +360,11 @@ class FileBrowser(BoxLayout):
                     self.target_selected = True
             else:
                 self.file = ''
+                self.filename = ''
                 self.target_selected = False
         else:
-            self.filename = self.path
+            self.file = ''
+            self.filename = ''
             self.target_selected = True
 
     def go_up(self, *_):
@@ -330,22 +376,29 @@ class FileBrowser(BoxLayout):
         self.path = up_path
         self.refresh_folder()
 
-    def select(self, button):
-        if button.type == 'folder':
-            self.path = button.path
+    def double_click(self, instance):
+        if self.target_selected and not self.export_mode:
+            self.dispatch('on_ok')
+
+    def click_node(self, node):
+        self.clickfade(node)
+        item = node.data
+        if item['type'] == 'folder':
+            self.path = item['path']
             self.refresh_folder()
-            if self.directory_select:
-                self.filename = button.fullpath
+
+    def select_item(self, item):
+        if item:
+            if not self.directory_select and item['type'] != 'folder':
+                self.filename = item['fullpath']
+                self.file = item['file']
                 self.target_selected = True
-            elif self.export_mode:
-                self.target_selected = True
-            else:
-                self.filename = ''
-                self.target_selected = False
         else:
-            self.filename = button.fullpath
-            self.file = button.file
-            self.target_selected = True
+            if not self.directory_select:
+                self.target_selected = False
+            if not self.export_mode:
+                self.filename = ''
+                self.file = ''
 
     def on_cancel(self):
         pass
@@ -359,3 +412,17 @@ class FileBrowserItem(RecycleItem):
     fullpath = StringProperty()
     file = StringProperty()
     type = StringProperty('folder')
+    multiselect = BooleanProperty(False)
+
+    def on_selected(self, *_):
+        if self.type == 'folder' and self.multiselect and self.selected:
+            self.selected = False
+        self.set_color()
+
+    def on_touch_down(self, touch):
+        if not self.multiselect and touch.is_double_tap and self.collide_point(*touch.pos):
+            if self.parent.owner:
+                filebrowser = self.parent.owner
+                filebrowser.double_click(self)
+        else:
+            super(FileBrowserItem, self).on_touch_down(touch)

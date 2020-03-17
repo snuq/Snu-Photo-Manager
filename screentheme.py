@@ -7,7 +7,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty
 from filebrowser import FileBrowser
-from generalelements import NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton
+from generalelements import NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton
 from generalconstants import *
 from generalcommands import float_to_hex, hex_to_float
 
@@ -593,6 +593,10 @@ class ThemeScreen(Screen):
     filename = ''
     preset_drop = ObjectProperty()
 
+    def rescale_screen(self):
+        app = App.get_running_app()
+        self.ids['leftpanel'].width = app.left_panel_width()
+
     def drop_widget(self, fullpath, position, dropped_type='file', aspect=1):
         """Dummy function.  Here because the app can possibly call this function for any screen."""
         pass
@@ -684,7 +688,7 @@ class ThemeScreen(Screen):
                 break
 
     def load_theme(self):
-        content = FileBrowser(ok_text='Load', directory_select=False, file_editable=True, export_mode=False, file='theme.txt')
+        content = FileBrowser(ok_text='Load', file_editable=True, export_mode=False, file='theme.txt')
         content.bind(on_cancel=self.dismiss_popup)
         content.bind(on_ok=self.load_theme_finish)
         self.popup = NormalPopup(title="Select Theme To Load", content=content, size_hint=(0.9, 0.9))
@@ -708,7 +712,7 @@ class ThemeScreen(Screen):
         self.reload_colors()
 
     def save_theme(self):
-        content = FileBrowser(ok_text='Save', directory_select=False, file_editable=True, export_mode=True, file='theme.txt')
+        content = FileBrowser(ok_text='Save', file_editable=True, export_mode=True, file='theme.txt')
         content.bind(on_cancel=self.dismiss_popup)
         content.bind(on_ok=self.save_theme_check)
         self.popup = NormalPopup(title="Select File To Save Theme To", content=content, size_hint=(0.9, 0.9))
