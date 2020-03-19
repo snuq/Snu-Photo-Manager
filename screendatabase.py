@@ -2104,8 +2104,10 @@ class DatabaseRestoreScreen(Screen):
     def on_enter(self):
         app = App.get_running_app()
         completed = app.database_restore_process()
-        if completed != True:
+        if not completed:
             app.message("Error: "+completed)
+        else:
+            app.message("Restored database backup")
         app.setup_database(restore=True)
         Clock.schedule_once(app.show_database, 1)
 

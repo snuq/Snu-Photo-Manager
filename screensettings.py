@@ -41,6 +41,9 @@ Builder.load_string("""
             on_release: app.close_settings()
         HeaderLabel:
             text: "Settings"
+        InfoLabel:
+        DatabaseLabel:
+
 
 <-SettingItem>:
     size_hint: .25, None
@@ -153,6 +156,7 @@ Builder.load_string("""
         size: root.size
         pos: root.pos
         font_size: '15sp'
+        disabled: True if app.database_scanning or app.standalone else False
         on_release: root.database_restore()
 
 <SettingDatabaseBackup>:
@@ -161,7 +165,7 @@ Builder.load_string("""
         size: root.size
         pos: root.pos
         font_size: '15sp'
-        disabled: app.database_scanning
+        disabled: True if app.database_scanning or app.standalone else False
         on_release: root.database_backup()
 
 <FolderSettingsItem>:

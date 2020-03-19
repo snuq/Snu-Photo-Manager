@@ -21,7 +21,6 @@ Todo before 1.0:
         Maybe add import to year subfolders option
     Is there any way to do a right-click standalone thing with linux? 
     How to register file types with linux?
-    Bug: audio from video files will keep playing back after video ends
 
 Todo Possible Future:
     Export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
@@ -1398,6 +1397,7 @@ class PhotoManager(App):
             os.remove(imported_db_backup)
         if os.path.exists(imported_db):
             copyfile(imported_db, imported_db_backup)
+        self.message('Backed up databases')
 
     def database_restore(self):
         """Attempts to restore the backup databases"""
