@@ -2347,11 +2347,12 @@ Builder.load_string("""
             text: root.overall_process
             text_size: self.size
         Scroller:
+            id: logviewerscroller
             size_hint_y: 1
             NormalInput:
                 id: logviewer
                 size_hint: 1, None
-                height: self.minimum_height if self.minimum_height > self.parent.height else self.parent.height
+                height: self.minimum_height if self.minimum_height > self.parent.height else (self.parent.height + 1)
                 text: root.encode_log_text
                 multiline: True
                 on_text: self.text = root.encode_log_text
@@ -2547,6 +2548,10 @@ class ConversionScreen(Screen):
         """Signal to cancel the encodig process."""
 
         self.cancel_encoding = True
+        self.popup.scanning_text = "Canceling encoding process, please wait..."
+        Clock.schedule_once(self.cancel_popup_text, 0.5)
+
+    def cancel_popup_text(self, *_):
         if self.popup:
             self.popup.scanning_text = "Canceling encoding process, please wait..."
 
@@ -3867,7 +3872,7 @@ class VideoConverterScreen(ConversionScreen):
             if self.cancel_encoding:
                 break
 
-        self.encode_log_text = all_encode_log
+        #self.encode_log_text = all_encode_log
         app.save_log(all_encode_log, 'encode')
         self.dismiss_popup()
         Clock.schedule_once(self.edit_video)
@@ -4781,6 +4786,13 @@ class VideoProcessingPopup(NormalPopup):
     button_text = StringProperty('Cancel')
     scanning_percentage = NumericProperty(0)
     scanning_text = StringProperty('')
+
+    def on_open(self, *_):
+        Clock.schedule_once(self.scroll_to_bottom)
+
+    def scroll_to_bottom(self, *_):
+        logviewerscroller = self.ids['logviewerscroller']
+        logviewerscroller.scroll_y = 0
 
 
 class BatchPhoto(RecycleItem):
