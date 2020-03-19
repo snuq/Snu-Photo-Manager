@@ -361,7 +361,7 @@ Builder.load_string("""
                     #NormalButton:
                     #    text: 'Test Conversion Settings'
                     NormalButton:
-                        text: 'Convert Video'
+                        text: 'Convert Videos' if root.use_batch else 'Convert Video'
                         disabled: False if (root.photo or (root.use_batch and root.batch_list)) else True
                         on_release: root.save_edit()
                 ExpandablePanel:
@@ -486,7 +486,7 @@ Builder.load_string("""
                                     text: 'Conversion Log:'
                                 NormalButton:
                                     text: 'Clear Log'
-                                    on_release: root.encode_log_text = ''
+                                    on_release: root.clear_log()
                             Scroller:
                                 size_hint_y: 1
                                 NormalInput:
@@ -2321,13 +2321,13 @@ Builder.load_string("""
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, 1
+            ShortLabel:
+                text: 'Export To:'
+            NormalInput:
+                text: root.export_file
+                on_focus: root.set_export_file(self.text)
             NormalButton:
-                text: 'Clear'
-                on_release: root.clear_export()
-            WideButton:
-                size_hint_x: 0.66
-                halign: 'left'
-                text: '     Export To: '+os.path.join(root.export_path, root.export_file)
+                text: 'Browse...'
                 on_release: root.select_export()
             MenuStarterButtonWide:
                 size_hint_x: 0.34
@@ -2771,6 +2771,8 @@ class ConversionScreen(Screen):
         encoding_button = self.popup.ids['scanningButton']
         encoding_button.bind(on_press=self.cancel_encode)
 
+        self.clear_log()
+
         # Start encoding thread
         self.encodingthread = threading.Thread(target=self.save_video_process)
         self.encodingthread.start()
@@ -2844,7 +2846,6 @@ class ConversionScreen(Screen):
         if end_point is None:
             end_point = self.viewer.end_point
 
-        self.clear_log()
         #get general variables
         self.encoding = True
         app = App.get_running_app()
@@ -3363,12 +3364,16 @@ class VideoConverterScreen(ConversionScreen):
     def remove_batch(self, index):
         self.batch_list.remove(self.batch_list[index])
 
+    def set_batch_export_file(self, index, text):
+        self.batch_list[index]['export_file'] = text
+        batch_list = self.ids['photosContainer']
+        batch_list.refresh_from_data()
+
     def select_batch_export(self, index):
         batch = self.batch_list[index]
-        browse_folder = batch['export_path']
+        browse_folder, file = os.path.split(batch['export_file'])
         if not browse_folder:
             browse_folder = batch['path']
-        file = batch['export_file']
         if not file:
             file = batch['file']
         content = FileBrowser(ok_text='Select', path=browse_folder, file=file, file_editable=True, export_mode=True)
@@ -3380,7 +3385,6 @@ class VideoConverterScreen(ConversionScreen):
 
     def clear_batch_export(self, index):
         self.batch_list[index]['export_file'] = ''
-        self.batch_list[index]['export_path'] = ''
         batch_list = self.ids['photosContainer']
         batch_list.refresh_from_data()
 
@@ -3396,8 +3400,7 @@ class VideoConverterScreen(ConversionScreen):
             file = popup.content.file
             index = popup.content.remember
             self.dismiss_popup()
-            self.batch_list[index]['export_path'] = path
-            self.batch_list[index]['export_file'] = file
+            self.batch_list[index]['export_file'] = os.path.join(path, file)
             batch_list = self.ids['photosContainer']
             batch_list.refresh_from_data()
 
@@ -3447,7 +3450,6 @@ class VideoConverterScreen(ConversionScreen):
                     'owner': self,
                     'preset': None,
                     'preset_name': '',
-                    'export_path': '',
                     'export_file': '',
                     'edit': True,
                     'disable_edit': disable_edit,
@@ -3800,7 +3802,7 @@ class VideoConverterScreen(ConversionScreen):
             app.encoding_settings.store_current_encoding_preset()
             self.viewer.stop()
 
-            # Create popup to show progress
+            #Create popup to show progress
             self.cancel_encoding = False
             self.popup = VideoProcessingPopup(title='Processing Video', auto_dismiss=False, size_hint=(0.9, 0.9))
             self.popup.scanning_text = ''
@@ -3809,13 +3811,16 @@ class VideoConverterScreen(ConversionScreen):
             encoding_button = self.popup.ids['scanningButton']
             encoding_button.bind(on_press=self.cancel_encode)
 
-            # Start encoding thread
+            self.clear_log()
+
+            #Start encoding thread
             self.encodingthread = threading.Thread(target=self.save_video_process)
             self.encodingthread.start()
 
     def save_video_batch(self):
         app = App.get_running_app()
         all_encode_log = ''
+        self.clear_log()
 
         #Iterate through batches and encode each
         for index, file in enumerate(self.batch_list):
@@ -3825,8 +3830,8 @@ class VideoConverterScreen(ConversionScreen):
             all_encode_log += '[INFO] : '+status_text+'\n\n'
             if isfile2(photo):
                 photoinfo = []
-                if file['export_path'] or file['export_file']:
-                    export_file = os.path.join(file['export_path'], file['export_file'])
+                if file['export_file']:
+                    export_file = file['export_file']
                 elif self.export_file:
                     export_file = self.export_file
                 else:
@@ -4783,7 +4788,6 @@ class BatchPhoto(RecycleItem):
     path = StringProperty('')
     preset = ObjectProperty(allownone=True)
     preset_name = StringProperty('')
-    export_path = StringProperty('')
     export_file = StringProperty('')
     disable_edit = BooleanProperty(False)
     edit = BooleanProperty(False)
@@ -4832,6 +4836,9 @@ class BatchPhoto(RecycleItem):
         self.preset_drop.dismiss()
         preset = instance.remember
         self.owner.set_preset(self.index, preset)
+
+    def set_export_file(self, text):
+        self.owner.set_batch_export_file(self.index, text)
 
     def select_export(self):
         self.owner.select_batch_export(self.index)

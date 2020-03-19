@@ -1397,7 +1397,7 @@ class NormalInput(TextInput):
         if self.long_press_clock:
             self.long_press_clock.cancel()
             self.long_press_clock = None
-        super(NormalInput, self).on_touch_up(touch)
+        return super(NormalInput, self).on_touch_up(touch)
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -1408,7 +1408,7 @@ class NormalInput(TextInput):
                 app = App.get_running_app()
                 app.popup_bubble(self, pos, edit=not self.disabled)
                 return
-        super(NormalInput, self).on_touch_down(touch)
+        return super(NormalInput, self).on_touch_down(touch)
 
     def do_long_press(self, *_):
         app = App.get_running_app()
