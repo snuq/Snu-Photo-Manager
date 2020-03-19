@@ -442,6 +442,9 @@ Builder.load_string("""
                                         on_release: root.remove_selected_batch()
                                         disabled: not photos.selects
                                     WideButton:
+                                        text: 'Remove Completed'
+                                        on_release: root.remove_completed_batch()
+                                    WideButton:
                                         text: 'Clear All'
                                         on_release: root.clear_batch()
                                         disabled: not root.batch_list
@@ -2804,7 +2807,10 @@ class ConversionScreen(Screen):
                 self.append_log(line)
 
     def clear_log(self):
-        self.encode_log_text = ''
+        try:
+            self.encode_log_text = ''
+        except:
+            pass
 
     def append_log(self, text):
         Clock.schedule_once(lambda x: self.append_log_finish(text))
@@ -2910,12 +2916,7 @@ class ConversionScreen(Screen):
         #Poll process for new output until finished
         while True:
             if self.cancel_encoding:
-                try:
-                    self.encoding_process_thread.terminate()
-                    self.encoding_process_thread.kill()
-                    outs, errs = self.encoding_process_thread.communicate()
-                except:
-                    pass
+                self.kill_encoding_process_thread()
                 self.delete_temp_encode(output_file, output_file_folder_reencode)
                 if not self.use_batch:
                     self.dismiss_popup()
@@ -2933,6 +2934,7 @@ class ConversionScreen(Screen):
                 #there was an error with creating the frame, error is in the pts variable
                 message = "First encode failed on frame "+str(frame_number)+": "+str(pts)
                 self.failed_encode(message)
+                self.kill_encoding_process_thread()
                 return ["Error", message]
             try:
                 frame.save(self.encoding_process_thread.stdin, 'JPEG')
@@ -2941,6 +2943,7 @@ class ConversionScreen(Screen):
                     self.delete_temp_encode(output_file, output_file_folder_reencode)
                     message = 'Ffmpeg shut down, failed encoding on frame: '+str(frame_number)
                     self.failed_encode(message)
+                    self.kill_encoding_process_thread()
                     return ["Error", message]
             frame_number = frame_number+1
             scanning_percentage = ((pts - start_seconds)/length) * 95
@@ -2989,24 +2992,19 @@ class ConversionScreen(Screen):
 
                 self.append_log("[INFO] : "+"Encoding audio using the command:\n")
                 self.append_log(command+'\n\n')
-                #print(command)
-                #used to have shell=True in arguments... is it still needed?
-                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
-                #Poll process for new output until finished
                 deleted = self.delete_output(output_temp_file)
                 if not deleted:
                     message = 'File not encoded, temporary file already existed and could not be replaced'
                     self.failed_encode(message)
                     return ["Error", message]
+
+                #Poll process for new output until finished
+                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
                 while True:
                     if self.cancel_encoding:
                         if not self.use_batch:
                             self.dismiss_popup()
-                        try:
-                            self.encoding_process_thread.kill()
-                            outs, errs = self.encoding_process_thread.communicate()
-                        except:
-                            pass
+                        self.kill_encoding_process_thread()
                         self.delete_temp_encode(output_file, output_file_folder_reencode)
                         deleted = self.delete_output(output_temp_file)
                         self.encoding = False
@@ -3052,12 +3050,7 @@ class ConversionScreen(Screen):
                     no_audio = False
 
                 if self.encoding_process_thread:
-                    try:
-                        self.encoding_process_thread.kill()
-                        self.encoding_process_thread.terminate()
-                        outs, errs = self.encoding_process_thread.communicate()
-                    except:
-                        pass
+                    self.kill_encoding_process_thread()
 
             #encoding completed
             new_photoinfo = list(photoinfo)
@@ -3168,6 +3161,14 @@ class ConversionScreen(Screen):
         if no_audio:
             return ["Error", "Could not encode audio element, file may not have audio."]
         return ["Complete", "File saved as: "+output_file]
+
+    def kill_encoding_process_thread(self):
+        try:
+            self.encoding_process_thread.kill()
+            self.encoding_process_thread.terminate()
+            outs, errs = self.encoding_process_thread.communicate()
+        except:
+            pass
 
     def save_image(self):
         """Saves any temporary edits on the currently viewed image."""
@@ -3462,6 +3463,13 @@ class VideoConverterScreen(ConversionScreen):
             batch['disable_edit'] = disable_edit
         batch_list = self.ids['photosContainer']
         batch_list.refresh_from_data()
+
+    def remove_completed_batch(self):
+        for file in reversed(self.batch_list):
+            if file['encode_state'] == 'Complete':
+                self.batch_list.remove(file)
+        files_area = self.ids['photos']
+        files_area.clear_selects()
 
     def remove_selected_batch(self):
         for file in reversed(self.batch_list):
