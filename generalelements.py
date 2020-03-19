@@ -2649,6 +2649,7 @@ class CustomImage(KivyImage):
     temperature = NumericProperty(0)
     tint = ListProperty([1.0, 1.0, 1.0, 1.0])
     curve = ListProperty()
+    curve_points = ListProperty()
     crop_top = NumericProperty(0)
     crop_bottom = NumericProperty(0)
     crop_left = NumericProperty(0)

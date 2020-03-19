@@ -549,7 +549,7 @@ Builder.load_string("""
                     state: 'down' if root.view_panel == 'edit' else 'normal'
                     vertical_text: "Editing"
                     on_press: root.show_edit_panel()
-                    #disabled: root.use_batch
+                    disabled: not root.photo
 
 <TreeViewInfo>:
     color_selected: app.selected_color
@@ -2304,6 +2304,11 @@ Builder.load_string("""
             size_hint: 1, 1
             LeftNormalLabel:
                 text: os.path.join(root.path, root.file)
+            NormalToggle:
+                text: '   Apply Edit   '
+                state: 'down' if root.edit else 'normal'
+                disabled: root.disable_edit
+                on_release: root.set_edit()
             NormalButton:
                 size_hint_x: None
                 width: app.button_scale
@@ -2405,46 +2410,57 @@ class ConversionScreen(Screen):
     image_y = NumericProperty(0)  #Set when the image is loaded, used for orientation of cropping
 
     #Stored variables for editing
-    denoise = BooleanProperty(False)
-    edit_color = BooleanProperty(False)
-    equalize = NumericProperty(0)
     autocontrast = BooleanProperty(False)
-    adaptive = NumericProperty(0)
+    equalize = NumericProperty(0)
+    temperature = NumericProperty(0)
     brightness = NumericProperty(0)
-    gamma = NumericProperty(0)
     shadow = NumericProperty(0)
+    gamma = NumericProperty(0)
     contrast = NumericProperty(0)
     saturation = NumericProperty(0)
-    temperature = NumericProperty(0)
-    edit_advanced = BooleanProperty(False)
     tint = ListProperty([1.0, 1.0, 1.0, 1.0])
     curve = ListProperty([[0, 0], [1, 1]])
-    edit_filter = BooleanProperty(False)
+    curve_data = ListProperty()
+    denoise = BooleanProperty(False)
+    luminance_denoise = StringProperty('10')
+    color_denoise = StringProperty('10')
+    search_window = StringProperty('15')
+    block_size = StringProperty('5')
+    luminance_denoise_data = NumericProperty(10)
+    color_denoise_data = NumericProperty(10)
+    search_window_data = NumericProperty(15)
+    block_size_data = NumericProperty(5)
+    adaptive = NumericProperty(0)  #adaptive_clip
     sharpen = NumericProperty(0)
-    median = NumericProperty(0)
+    median = NumericProperty(0)  #median_blur
     bilateral = NumericProperty(0.5)
     bilateral_amount = NumericProperty(0)
     vignette_amount = NumericProperty(0)
     vignette_size = NumericProperty(0.5)
     edge_blur_amount = NumericProperty(0)
-    edge_blur_size = NumericProperty(0.5)
     edge_blur_intensity = NumericProperty(0.5)
-    edit_border = BooleanProperty(False)
+    edge_blur_size = NumericProperty(0.5)
     border_selected = StringProperty()
+    border_data = ListProperty()  #border_image
     border_x_scale = NumericProperty(0)
     border_y_scale = NumericProperty(0)
-    border_opacity = NumericProperty(1)
     border_tint = ListProperty([1.0, 1.0, 1.0, 1.0])
-    edit_denoise = BooleanProperty(False)
-    luminance_denoise = StringProperty('10')
-    color_denoise = StringProperty('10')
-    search_window = StringProperty('15')
-    block_size = StringProperty('5')
-    edit_crop = BooleanProperty(False)
+    border_opacity = NumericProperty(1)
+    flip_horizontal = BooleanProperty(False)
+    flip_vertical = BooleanProperty(False)
+    rotate_angle = NumericProperty(0)
+    fine_angle = NumericProperty(0)
     crop_top = NumericProperty(0)
-    crop_right = NumericProperty(0)
     crop_bottom = NumericProperty(0)
     crop_left = NumericProperty(0)
+    crop_right = NumericProperty(0)
+
+    edit_color = BooleanProperty(False)
+    edit_advanced = BooleanProperty(False)
+    edit_filter = BooleanProperty(False)
+    edit_border = BooleanProperty(False)
+    edit_denoise = BooleanProperty(False)
+    edit_crop = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3258,10 +3274,72 @@ class VideoConverterScreen(ConversionScreen):
     batch_list = ListProperty()
     photo_viewer_current = StringProperty('')
     show_log = BooleanProperty(False)
+    apply_edit = BooleanProperty(False)  #Determines if the edit will be applied to batch conversions
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.advanced_encode = True
+
+    def image_preset(self, image, to_image):
+        preset = self
+        if to_image:
+            #Store current preset to a CustomImage
+            save = image
+            load = preset
+            save.curve_points = load.curve
+            save.curve = load.curve_data
+            save.adaptive_clip = load.adaptive
+            save.median_blur = load.median
+            save.border_image = load.border_data
+            save.luminance_denoise = load.luminance_denoise_data
+            save.color_denoise = load.color_denoise_data
+            save.search_window = load.search_window_data
+            save.block_size = load.block_size_data
+
+        else:
+            #Store CoreImage edit settings to preset settings
+            save = preset
+            load = image
+            save.curve_data = load.curve
+            save.curve = load.curve_points
+            save.adaptive = load.adaptive_clip
+            save.median = load.median_blur
+            save.border_data = load.border_image
+            save.luminance_denoise_data = load.luminance_denoise
+            save.color_denoise_data = load.color_denoise
+            save.search_window_data = load.search_window
+            save.block_size_data = load.block_size
+
+        save.autocontrast = load.autocontrast
+        save.equalize = load.equalize
+        save.temperature = load.temperature
+        save.brightness = load.brightness
+        save.shadow = load.shadow
+        save.gamma = load.gamma
+        save.contrast = load.contrast
+        save.saturation = load.saturation
+        save.tint = load.tint
+        save.denoise = load.denoise
+        save.sharpen = load.sharpen
+        save.bilateral = load.bilateral
+        save.bilateral_amount = load.bilateral_amount
+        save.vignette_amount = load.vignette_amount
+        save.vignette_size = load.vignette_size
+        save.edge_blur_amount = load.edge_blur_amount
+        save.edge_blur_intensity = load.edge_blur_intensity
+        save.edge_blur_size = load.edge_blur_size
+        save.border_x_scale = load.border_x_scale
+        save.border_y_scale = load.border_y_scale
+        save.border_tint = load.border_tint
+        save.border_opacity = load.border_opacity
+        save.flip_horizontal = load.flip_horizontal
+        save.flip_vertical = load.flip_vertical
+        save.rotate_angle = load.rotate_angle
+        save.fine_angle = load.fine_angle
+        save.crop_top = load.crop_top
+        save.crop_bottom = load.crop_bottom
+        save.crop_left = load.crop_left
+        save.crop_right = load.crop_right
 
     def rescale_screen(self):
         app = App.get_running_app()
@@ -3276,9 +3354,10 @@ class VideoConverterScreen(ConversionScreen):
     def on_use_batch(self, *_):
         if self.use_batch:
             self.photo_viewer_current = 'batch'
-            self.show_conversion_panel(ensure=True)
+            #self.show_conversion_panel(ensure=True)
         else:
             self.photo_viewer_current = 'edit'
+        self.update_disable_edit()
 
     def remove_batch(self, index):
         self.batch_list.remove(self.batch_list[index])
@@ -3301,6 +3380,11 @@ class VideoConverterScreen(ConversionScreen):
     def clear_batch_export(self, index):
         self.batch_list[index]['export_file'] = ''
         self.batch_list[index]['export_path'] = ''
+        batch_list = self.ids['photosContainer']
+        batch_list.refresh_from_data()
+
+    def set_batch_edit(self, index):
+        self.batch_list[index]['edit'] = not self.batch_list[index]['edit']
         batch_list = self.ids['photosContainer']
         batch_list.refresh_from_data()
 
@@ -3354,6 +3438,7 @@ class VideoConverterScreen(ConversionScreen):
         for filepath in files:
             path, file = os.path.split(filepath)
             extension = os.path.splitext(filepath)[1].lower()
+            disable_edit = not self.photo
             if extension in movietypes:
                 self.batch_list.append({
                     'file': file,
@@ -3363,11 +3448,20 @@ class VideoConverterScreen(ConversionScreen):
                     'preset_name': '',
                     'export_path': '',
                     'export_file': '',
+                    'edit': True,
+                    'disable_edit': disable_edit,
                     'encode_state': 'Ready',
                     'message': '',
                     'selected': False,
                     'selectable': True
                 })
+
+    def update_disable_edit(self):
+        disable_edit = not self.photo
+        for batch in self.batch_list:
+            batch['disable_edit'] = disable_edit
+        batch_list = self.ids['photosContainer']
+        batch_list.refresh_from_data()
 
     def remove_selected_batch(self):
         for file in reversed(self.batch_list):
@@ -3667,8 +3761,13 @@ class VideoConverterScreen(ConversionScreen):
 
     def save_edit(self):
         app = App.get_running_app()
+        self.apply_edit = False
         if self.use_batch:
             if self.viewer:
+                if self.photo and self.viewer.edit_image:
+                    #save current image settings to local preset
+                    self.image_preset(self.viewer.edit_image, to_image=False)
+                    self.apply_edit = True
                 self.viewer.stop()
             self.clear_edit()
             app.encoding_settings.store_current_encoding_preset()
@@ -3687,6 +3786,7 @@ class VideoConverterScreen(ConversionScreen):
         else:
             if not self.photo:
                 return
+            self.apply_edit = True
             app.encoding_settings.store_current_encoding_preset()
             self.viewer.stop()
 
@@ -3727,6 +3827,9 @@ class VideoConverterScreen(ConversionScreen):
                 offset_audio_file = False
 
                 edit_image = CustomImage(photoinfo=photoinfo, source=photo)
+
+                if self.apply_edit and file['edit']:
+                    self.image_preset(edit_image, to_image=True)
 
                 result, reason = self.save_video_process(photo=photo, photoinfo=photoinfo, export_file=export_file, encoding_settings=encoding_settings, audio_file=audio_file, offset_audio_file=offset_audio_file, edit_image=edit_image, start_point=0, end_point=1)
 
@@ -4670,6 +4773,8 @@ class BatchPhoto(RecycleItem):
     preset_name = StringProperty('')
     export_path = StringProperty('')
     export_file = StringProperty('')
+    disable_edit = BooleanProperty(False)
+    edit = BooleanProperty(False)
     encode_state = StringProperty('Ready')
     owner = ObjectProperty()
     preset_drop = ObjectProperty(allownone=True)
@@ -4721,6 +4826,9 @@ class BatchPhoto(RecycleItem):
 
     def clear_export(self):
         self.owner.clear_batch_export(self.index)
+
+    def set_edit(self):
+        self.owner.set_batch_edit(self.index)
 
 
 class EditPanelBase(Screen):
