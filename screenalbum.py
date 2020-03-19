@@ -3663,6 +3663,8 @@ class VideoConverterScreen(ConversionScreen):
                 self.photo = ''
                 self.folder = ''
                 self.target = ''
+                self.export_file = ''
+                self.export_folder = ''
                 self.photoinfo = []
                 self.edit_video()
                 return
@@ -3676,13 +3678,13 @@ class VideoConverterScreen(ConversionScreen):
             self.photoinfo = []
             self.fullpath = ''
 
+        self.export_file = ''
+        self.export_folder = ''
         self.edit_video()
         self.refresh_photoinfo()
 
     def edit_video(self, *_):
         #Start the video editor functionality
-        self.export_file = ''
-        self.export_folder = ''
         if isfile2(self.photo):
             app = App.get_running_app()
             if self.viewer:
@@ -3781,7 +3783,7 @@ class VideoConverterScreen(ConversionScreen):
             app.encoding_settings.store_current_encoding_preset()
             self.cancel_encoding = False
             #Create popup to show progress
-            self.popup = VideoProcessingPopup(title='Processing Video', auto_dismiss=False, size_hint=(0.9, 0.9))
+            self.popup = VideoProcessingPopup(title='Processing Videos', auto_dismiss=False, size_hint=(0.9, 0.9))
             self.popup.scanning_text = ''
             self.popup.open()
             self.bind(encode_log_text=self.popup.setter('encode_log_text'))
@@ -3825,6 +3827,8 @@ class VideoConverterScreen(ConversionScreen):
                 photoinfo = []
                 if file['export_path'] or file['export_file']:
                     export_file = os.path.join(file['export_path'], file['export_file'])
+                elif self.export_file:
+                    export_file = self.export_file
                 else:
                     export_file = os.path.join(file['path'], file['file'])
                 if file['preset'] is not None:
