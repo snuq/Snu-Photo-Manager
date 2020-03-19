@@ -2548,10 +2548,6 @@ class ConversionScreen(Screen):
         """Signal to cancel the encodig process."""
 
         self.cancel_encoding = True
-        self.popup.scanning_text = "Canceling encoding process, please wait..."
-        Clock.schedule_once(self.cancel_popup_text, 0.5)
-
-    def cancel_popup_text(self, *_):
         if self.popup:
             self.popup.scanning_text = "Canceling encoding process, please wait..."
 
@@ -2915,7 +2911,11 @@ class ConversionScreen(Screen):
 
         self.append_log("[INFO] : "+"Encoding video using the command:\n")
         self.append_log(command+'\n\n')
-        self.encoding_process_thread = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+        if app.config.getboolean("Settings", "highencodingpriority"):
+            creationflags = subprocess.NORMAL_PRIORITY_CLASS
+        else:
+            creationflags = subprocess.IDLE_PRIORITY_CLASS
+        self.encoding_process_thread = subprocess.Popen(command, creationflags=creationflags, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
         read_stdout = threading.Thread(target=self.read_stdout_thread)
         read_stdout.start()
 
@@ -2966,7 +2966,8 @@ class ConversionScreen(Screen):
                 time_text = "  Time: " + time_done + "  Remaining: " + time_remaining
             except:
                 time_text = ""
-            self.popup.scanning_text = str(int(scanning_percentage))+"%"+time_text
+            if not self.cancel_encoding:
+                self.popup.scanning_text = str(int(scanning_percentage))+"%"+time_text
 
         outs, errors = self.encoding_process_thread.communicate()
         read_stdout.join()

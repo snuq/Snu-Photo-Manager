@@ -780,7 +780,8 @@ class PhotoManager(App):
                 'rescanstartup': 0,
                 'animations': 1,
                 'databasescale': 100,
-                'editvideo': 0
+                'editvideo': 0,
+                'highencodingpriority': 0
             })
         config.setdefaults(
             'Database Directories', {
@@ -975,6 +976,13 @@ class PhotoManager(App):
             "desc": "For older computers that show larger images as black, display all images at a smaller size",
             "section": "Settings",
             "key": "lowmem"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Higher Video Encoding Priority",
+            "desc": "Raise the priority of the video encoding thread.  WARNING: this can temporarily freeze the interface!",
+            "section": "Settings",
+            "key": "highencodingpriority"
         })
 
         settings.add_json_panel('App', self.config, data=json.dumps(settingspanel))
