@@ -350,6 +350,10 @@ Builder.load_string("""
                         state: 'down' if root.use_command else 'normal'
                         on_release: root.use_command = not root.use_command
                     NormalLabel:
+                    NormalToggle:
+                        text: '   Hide Log   ' if root.show_log else '   Show Log   '
+                        state: 'down' if root.show_log else 'normal'
+                        on_release: root.show_log = not root.show_log
                     NormalButton:
                         text: 'Browse Export Folder'
                         on_release: root.browse_export_folder()
@@ -463,9 +467,9 @@ Builder.load_string("""
                                         multiselect: True
                                         id: photos
                     BoxLayout:
-                        disabled: not root.encode_log_text
-                        opacity: 1 if root.encode_log_text else 0
-                        size_hint_x: 1 if root.encode_log_text else 0
+                        disabled: not root.show_log
+                        opacity: 1 if root.show_log else 0
+                        size_hint_x: .66 if root.show_log else 0
                         size_hint_y: 1
                         GridLayout:
                             cols: 1
@@ -485,7 +489,7 @@ Builder.load_string("""
                                 NormalInput:
                                     id: logviewer
                                     size_hint: 1, None
-                                    height: self.minimum_height
+                                    height: self.minimum_height if self.minimum_height > self.parent.height else self.parent.height
                                     text: root.encode_log_text
                                     multiline: True
                                     on_text: self.text = root.encode_log_text
@@ -2298,9 +2302,8 @@ Builder.load_string("""
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, 1
-            ShortLabel:
+            LeftNormalLabel:
                 text: os.path.join(root.path, root.file)
-            Label:
             NormalButton:
                 size_hint_x: None
                 width: app.button_scale
@@ -2340,7 +2343,7 @@ Builder.load_string("""
             NormalInput:
                 id: logviewer
                 size_hint: 1, None
-                height: self.minimum_height
+                height: self.minimum_height if self.minimum_height > self.parent.height else self.parent.height
                 text: root.encode_log_text
                 multiline: True
                 on_text: self.text = root.encode_log_text
@@ -3254,6 +3257,7 @@ class VideoConverterScreen(ConversionScreen):
     show_extra = BooleanProperty(False)
     batch_list = ListProperty()
     photo_viewer_current = StringProperty('')
+    show_log = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3535,6 +3539,7 @@ class VideoConverterScreen(ConversionScreen):
     def on_enter(self):
         super().on_enter()
         #self.clear_batch()
+        self.show_log = False
         self.show_extra = False
         self.use_batch = False
         self.photo_viewer_current = 'edit'
@@ -3573,13 +3578,14 @@ class VideoConverterScreen(ConversionScreen):
         self.refresh_photoinfo()
 
     def edit_video(self, *_):
+        #Start the video editor functionality
         self.export_file = ''
         self.export_folder = ''
         if isfile2(self.photo):
             app = App.get_running_app()
             if self.viewer:
                 self.viewer.stop()  #Ensure that an old video is no longer playing.
-                self.viewer.close()
+                self.viewer.close()  #Ensure old video is no longer loaded
 
             #Set up photo viewer
             container = self.ids['photoViewerContainer']
@@ -3660,11 +3666,11 @@ class VideoConverterScreen(ConversionScreen):
         self.show_extra = True
 
     def save_edit(self):
+        app = App.get_running_app()
         if self.use_batch:
             if self.viewer:
                 self.viewer.stop()
             self.clear_edit()
-            app = App.get_running_app()
             app.encoding_settings.store_current_encoding_preset()
             self.cancel_encoding = False
             #Create popup to show progress
@@ -3674,12 +3680,28 @@ class VideoConverterScreen(ConversionScreen):
             self.bind(encode_log_text=self.popup.setter('encode_log_text'))
             encoding_button = self.popup.ids['scanningButton']
             encoding_button.bind(on_press=self.cancel_encode)
+
+            #Start batch encoding thread
             save_batch_thread = threading.Thread(target=self.save_video_batch)
             save_batch_thread.start()
         else:
             if not self.photo:
                 return
-            self.save_video()
+            app.encoding_settings.store_current_encoding_preset()
+            self.viewer.stop()
+
+            # Create popup to show progress
+            self.cancel_encoding = False
+            self.popup = VideoProcessingPopup(title='Processing Video', auto_dismiss=False, size_hint=(0.9, 0.9))
+            self.popup.scanning_text = ''
+            self.popup.open()
+            self.bind(encode_log_text=self.popup.setter('encode_log_text'))
+            encoding_button = self.popup.ids['scanningButton']
+            encoding_button.bind(on_press=self.cancel_encode)
+
+            # Start encoding thread
+            self.encodingthread = threading.Thread(target=self.save_video_process)
+            self.encodingthread.start()
 
     def save_video_batch(self):
         app = App.get_running_app()
