@@ -72,7 +72,9 @@ Builder.load_string("""
                 size_hint_x: 1
                 id: locationsList
                 viewclass: 'FileBrowserItem'
-                SelectableRecycleBoxLayout:
+                FileBrowserSelectableRecycleBoxLayout:
+                    multiselect: False
+                    owner: root
             NormalButton:
                 text: root.ok_text
                 disabled: not (root.target_selected or (root.export_mode and len(root.file) > 0) or root.allow_no_file)

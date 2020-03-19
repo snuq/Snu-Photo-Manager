@@ -526,7 +526,6 @@ Builder.load_string("""
                         size: self.parent.size
                         padding: app.padding
                         GridLayout:
-                            disabled: app.database_scanning
                             id: panelEdit
                             cols: 1
                             size_hint: 1, 1
@@ -546,7 +545,7 @@ Builder.load_string("""
                     state: 'down' if root.view_panel == 'edit' else 'normal'
                     vertical_text: "Editing"
                     on_press: root.show_edit_panel()
-                    disabled: root.use_batch
+                    #disabled: root.use_batch
 
 <TreeViewInfo>:
     color_selected: app.selected_color
@@ -714,6 +713,9 @@ Builder.load_string("""
         size_hint: 1, None
         cols: 1
         height: self.minimum_height
+        WideButton:
+            text: "Clear All Edits"
+            on_release: root.reset_all()
         BoxLayout:
             canvas.before:
                 Color:
@@ -5443,6 +5445,14 @@ class EditPanelConvert(BoxLayout):
 
     def save_last(self, *_):
         pass
+
+    def reset_all(self, *_):
+        self.edit_panel_color.reset()
+        self.edit_panel_filter.reset()
+        self.edit_panel_border.reset()
+        self.edit_panel_denoise.reset()
+        self.edit_panel_rotate.reset()
+        self.edit_panel_crop.reset()
 
 
 class EditPanel(BoxLayout):
