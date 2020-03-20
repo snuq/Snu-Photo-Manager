@@ -11,6 +11,7 @@ import time
 from operator import itemgetter
 from functools import partial
 import multiprocessing
+from configparser import ConfigParser
 
 #all these are needed to get ffpyplayer working on linux
 import ffpyplayer.threading
@@ -3432,6 +3433,80 @@ class VideoConverterScreen(ConversionScreen):
         super().__init__(**kwargs)
         self.advanced_encode = True
 
+    def save_batch(self):
+        app = App.get_running_app()
+        encoding_preset = app.encoding_settings.store_current_encoding_preset(store_app=False)
+
+        configfile = ConfigParser(interpolation=None)
+        configfile.add_section('batch')
+        configfile.set('batch', 'export_file', self.export_file)
+        configfile.set('batch', 'encoding_preset', encoding_preset)
+
+        for index, batch in enumerate(self.batch_list):
+            section = str(index)
+            configfile.add_section(section)
+            configfile.set(section, 'file', batch['file'])
+            configfile.set(section, 'path', batch['path'])
+            configfile.set(section, 'preset', batch['preset_name'])
+            configfile.set(section, 'export_file', batch['export_file'])
+            configfile.set(section, 'encode_state', batch['encode_state'])
+            configfile.set(section, 'edit', str(batch['edit']))
+
+        with open(app.data_directory+os.path.sep+'batch.ini', 'w') as config:
+            configfile.write(config)
+
+    def load_batch(self):
+        app = App.get_running_app()
+
+        filename = app.data_directory+os.path.sep+'batch.ini'
+        if os.path.isfile(filename):
+            configfile = ConfigParser(interpolation=None)
+            configfile.read(filename)
+            batch_list = []
+            screen_export_file = configfile.get('batch', 'export_file', fallback='')
+            encoding_preset = configfile.get('batch', 'encoding_preset', fallback='')
+            sections = configfile.sections()
+            index = '0'
+            all_encoding_presets = app.encoding_presets + app.encoding_presets_extra + app.encoding_presets_user
+
+            while index in sections:
+                data = configfile[index]
+                file = data.get('file', '')
+                path = data.get('path', '')
+                preset_name = data.get('preset', '')
+                preset = None
+                export_file = data.get('export_file', '')
+                encode_state = data.get('encode_state', 'Ready')
+                edit = to_bool(data.get('edit', 'True'))
+                index = str(int(index) + 1)
+                full_path = os.path.join(path, file)
+                if os.path.isfile(full_path):
+                    for check_preset in all_encoding_presets:
+                        if check_preset.name == preset_name:
+                            preset_name = check_preset.name
+                            preset = check_preset
+                            break
+                    batch = {
+                        'file': file,
+                        'path': path,
+                        'owner': self,
+                        'preset': preset,
+                        'preset_name': preset_name,
+                        'export_file': export_file,
+                        'edit': edit,
+                        'disable_edit': not self.photo,
+                        'encode_state': encode_state,
+                        'message': '',
+                        'selected': False,
+                        'selectable': True
+                    }
+                    batch_list.append(batch)
+            if batch_list:
+                self.batch_list = batch_list
+                if encoding_preset:
+                    app.encoding_settings.load_current_encoding_preset(load_from=encoding_preset)
+                self.export_file = screen_export_file
+
     def image_preset(self, image, to_image):
         preset = self
         if to_image:
@@ -3692,6 +3767,7 @@ class VideoConverterScreen(ConversionScreen):
 
     def on_leave(self):
         super().on_leave()
+        self.save_batch()
         self.clear_edit()
 
     def clear_edit(self):
@@ -3799,12 +3875,14 @@ class VideoConverterScreen(ConversionScreen):
         self.photo_viewer_current = 'edit'
         self.update_encoding_settings()
         self.show_panel('conversion', ensure=True)
+        self.photo = ''
+        self.load_batch()
         Clock.schedule_once(self.load_app_photo)  #Delay this to give the previous screen a chance to clear out memory if needed
 
     def load_app_photo(self, *_):
         app = App.get_running_app()
-        self.photo = ''
-        self.photo = app.photo
+        if app.photo:
+            self.photo = app.photo
 
     def on_photo(self, *_):
         self.use_audio = False
@@ -3971,6 +4049,7 @@ class VideoConverterScreen(ConversionScreen):
         app = App.get_running_app()
         all_encode_log = ''
         self.clear_log()
+        self.save_batch()
 
         #Iterate through batches and encode each
         for index, file in enumerate(self.batch_list):
@@ -4013,6 +4092,8 @@ class VideoConverterScreen(ConversionScreen):
                 file['message'] = "File not found"
                 all_encode_log += "[WARNING] : File not found: "+photo
                 all_encode_log += '\n\n\n'
+
+            self.save_batch()
 
             if self.cancel_encoding:
                 break

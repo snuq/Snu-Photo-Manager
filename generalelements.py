@@ -1221,8 +1221,7 @@ class EncodingSettings(Widget):
         encoding_settings['deinterlace'] = self.deinterlace
         return encoding_settings
 
-    def store_current_encoding_preset(self):
-        app = App.get_running_app()
+    def store_current_encoding_preset(self, store_app=True):
         file_format = self.file_format
         video_codec = self.video_codec
         audio_codec = self.audio_codec
@@ -1235,11 +1234,18 @@ class EncodingSettings(Widget):
         deinterlace = str(self.deinterlace)
         command_line = self.command_line
         encoding_preset = file_format+','+video_codec+','+audio_codec+','+resize+','+resize_width+','+resize_height+','+video_bitrate+','+audio_bitrate+','+encoding_speed+','+deinterlace+','+command_line
-        app.config.set('Presets', 'encoding', encoding_preset)
+        if store_app:
+            app = App.get_running_app()
+            app.config.set('Presets', 'encoding', encoding_preset)
+        else:
+            return encoding_preset
 
-    def load_current_encoding_preset(self):
-        app = App.get_running_app()
-        encoding_preset_text = app.config.get('Presets', 'encoding')
+    def load_current_encoding_preset(self, load_from=None):
+        if load_from is None:
+            app = App.get_running_app()
+            encoding_preset_text = app.config.get('Presets', 'encoding')
+        else:
+            encoding_preset_text = load_from
         if encoding_preset_text:
             encoding_settings = encoding_preset_text.split(',', 10)
             try:
