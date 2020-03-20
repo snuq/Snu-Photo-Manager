@@ -2806,7 +2806,11 @@ class CustomImage(KivyImage):
         self.player.set_pause(False)
         frame = None
         while not frame:
-            frame, value = self.player.get_frame()
+            try:
+                frame, value = self.player.get_frame()
+            except Exception as e:
+                #getting the frame failed for some reason
+                return [None, e]
             if value == 'eof':
                 return None
         self.player.set_pause(True)
@@ -2814,14 +2818,24 @@ class CustomImage(KivyImage):
         if self.max_frames:
             if self.frame_number > self.max_frames:
                 return None
-        frame_image = frame[0]
-        frame_size = frame_image.get_size()
-        frame_converter = SWScale(frame_size[0], frame_size[1], frame_image.get_pixel_format(), ofmt='rgb24')
-        new_frame = frame_converter.scale(frame_image)
-        image_data = bytes(new_frame.to_bytearray()[0])
-        image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
-        #for some reason, video frames are read upside-down? fix it here...
-        image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        try:
+            frame_image, frame_data = frame
+            frame = None
+            frame_size = frame_image.get_size()
+            current_pixel_format = frame_image.get_pixel_format()
+            if current_pixel_format != 'rgb24':
+                frame_converter = SWScale(frame_size[0], frame_size[1], current_pixel_format, ofmt='rgb24')
+                frame_image = frame_converter.scale(frame_image)
+            frame_converter = None
+            image_data = bytes(frame_image.to_bytearray()[0])  #can cause out of memory errors...
+            frame_image = None
+            image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+            image_data = None
+            #for some reason, video frames are read upside-down? fix it here...
+            image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        except Exception as e:
+            #basic frame manipulation failed, probably a memory error...
+            return [None, e]
         if image.mode != 'RGB':
             image = image.convert('RGB')
         try:
@@ -2829,7 +2843,7 @@ class CustomImage(KivyImage):
         except Exception as e:
             #image creation may not succeed for various reasons.
             return [None, e]
-        return [image, frame[1]]
+        return [image, frame_data]
 
     def close_video(self):
         if self.player:

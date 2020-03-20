@@ -424,7 +424,7 @@ class PhotoManager(App):
 
             elif extension in movietypes:
                 #This is a video file, use ffpyplayer to generate a thumbnail
-                player = MediaPlayer(full_filename, ff_opts={'paused': True, 'ss': 1.0, 'an': True})
+                player = MediaPlayer(full_filename, ff_opts={'paused': True, 'ss': 1.0, 'an': True, 'lowres': 2})
                 frame = None
                 while not frame:
                     frame, value = player.get_frame(force_refresh=True)

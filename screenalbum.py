@@ -54,6 +54,8 @@ Cache.register('kv.loader', limit=5)
 from kivy.graphics import Rectangle, Color, Line
 from resizablebehavior import ResizableBehavior
 from colorpickercustom import ColorPickerCustom
+from kivy.core.video import Video as KivyCoreVideo
+from threading import Thread
 
 from generalcommands import interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
 from filebrowser import FileBrowser
@@ -177,7 +179,7 @@ Builder.load_string("""
                         disabled: app.database_scanning
             SplitterPanelRight:
                 id: rightpanel
-                #width: 0
+                width: 0
                 opacity: 0
                 PanelTabs:
                     tab: root.view_panel
@@ -2377,6 +2379,135 @@ Builder.load_string("""
 """)
 
 
+class CoreVideo(KivyCoreVideo):
+    def play(self):
+        if self._ffplayer and self._state == 'paused':
+            self._ffplayer.toggle_pause()
+            self._state = 'playing'
+            return
+
+        self.load()
+        self._out_fmt = 'rgba'
+        ff_opts = {
+            'paused': True,
+            'out_fmt': self._out_fmt,
+            'sn': True,
+            'volume': self._volume,
+        }
+        self._ffplayer = MediaPlayer(self._filename, callback=self._player_callback, thread_lib='SDL', loglevel='info', ff_opts=ff_opts)
+
+        #Added: wait for first frame to load before playing so audio doesnt get out of sync too badly
+        frame = None
+        while not frame:
+            frame, value = self._ffplayer.get_frame(force_refresh=True)
+            time.sleep(0.2)
+
+        self._thread = Thread(target=self._next_frame_run, name='Next frame')
+        self._thread.daemon = True
+        self._thread.start()
+
+    def _next_frame_run(self):
+        ffplayer = self._ffplayer
+        sleep = time.sleep
+        trigger = self._trigger
+        did_dispatch_eof = False
+        seek_queue = self._seek_queue
+
+        # fast path, if the source video is yuv420p, we'll use a glsl shader
+        # for buffer conversion to rgba
+        while not self._ffplayer_need_quit:
+            src_pix_fmt = ffplayer.get_metadata().get('src_pix_fmt')
+            if not src_pix_fmt:
+                sleep(0.005)
+                continue
+
+            if src_pix_fmt == 'yuv420p':
+                self._out_fmt = 'yuv420p'
+                ffplayer.set_output_pix_fmt(self._out_fmt)
+            self._ffplayer.toggle_pause()
+            break
+
+        if self._ffplayer_need_quit:
+            return
+
+        # wait until loaded or failed, shouldn't take long, but just to make
+        # sure metadata is available.
+        s = time.clock()
+        while not self._ffplayer_need_quit:
+            if ffplayer.get_metadata()['src_vid_size'] != (0, 0):
+                break
+            # XXX if will fail later then?
+            if time.clock() - s > 10.:
+                break
+            sleep(0.005)
+
+        if self._ffplayer_need_quit:
+            return
+
+        # we got all the informations, now, get the frames :)
+        self._change_state('playing')
+
+        while not self._ffplayer_need_quit:
+            seek_happened = False
+            if seek_queue:
+                vals = seek_queue[:]
+                del seek_queue[:len(vals)]
+                percent, precise = vals[-1]
+                ffplayer.seek(
+                    percent * ffplayer.get_metadata()['duration'],
+                    relative=False,
+                    accurate=precise
+                )
+                seek_happened = True
+                self._next_frame = None
+
+            # Get next frame if paused:
+            if seek_happened and ffplayer.get_pause():
+                ffplayer.set_volume(0.0)  # Try to do it silently.
+                ffplayer.set_pause(False)
+                try:
+                    # We don't know concrete number of frames to skip,
+                    # this number worked fine on couple of tested videos:
+                    to_skip = 6
+                    while True:
+                        frame, val = ffplayer.get_frame(show=False)
+                        # Exit loop on invalid val:
+                        if val in ('paused', 'eof'):
+                            break
+                        # Exit loop on seek_queue updated:
+                        if seek_queue:
+                            break
+                        # Wait for next frame:
+                        if frame is None:
+                            sleep(0.005)
+                            continue
+                        # Wait until we skipped enough frames:
+                        to_skip -= 1
+                        if to_skip == 0:
+                            break
+                    # Assuming last frame is actual, just get it:
+                    frame, val = ffplayer.get_frame(force_refresh=True)
+                finally:
+                    ffplayer.set_pause(bool(self._state == 'paused'))
+                    ffplayer.set_volume(self._volume)
+            # Get next frame regular:
+            else:
+                frame, val = ffplayer.get_frame()
+
+            if val == 'eof':
+                if not did_dispatch_eof:
+                    self._do_eos()
+                    did_dispatch_eof = True
+            elif val == 'paused':
+                did_dispatch_eof = False
+            else:
+                did_dispatch_eof = False
+                if frame:
+                    self._next_frame = frame
+                    trigger()
+                sleep(val)
+
+
 class ConversionScreen(Screen):
     #Display variables
     selected = StringProperty('')  #The current folder/album/tag being displayed
@@ -2944,6 +3075,7 @@ class ConversionScreen(Screen):
                 return ["Error", message]
             try:
                 frame.save(self.encoding_process_thread.stdin, 'JPEG')
+                frame = None
             except:
                 if not self.cancel_encoding:
                     self.delete_temp_encode(output_file, output_file_folder_reencode)
@@ -6191,6 +6323,28 @@ class PauseableVideo(Video):
     """modified Video class to allow clicking anywhere to pause/resume."""
 
     first_load = True
+
+    def _do_video_load(self, *largs):
+        if CoreVideo is None:
+            return
+        self.unload()
+        if not self.source:
+            self._video = None
+            self.texture = None
+        else:
+            filename = self.source
+            # Check if filename is not url
+            if '://' not in filename:
+                filename = kivy.resources.resource_find(filename)
+            self._video = CoreVideo(filename=filename, **self.options)
+            self._video.volume = self.volume
+            self._video.bind(on_load=self._on_load,
+                             on_frame=self._on_video_frame,
+                             on_eos=self._on_eos)
+            if self.state == 'play' or self.play:
+                self._video.play()
+            self.duration = 1.
+            self.position = 0.
 
     def on_texture(self, *kwargs):
         super(PauseableVideo, self).on_texture(*kwargs)
