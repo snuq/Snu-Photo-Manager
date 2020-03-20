@@ -12,8 +12,15 @@ if platform in ['win', 'linux', 'macosx', 'unknown']:
     desktop = True
 else:
     desktop = False
-import distutils.spawn
-ffmpeg_command = distutils.spawn.find_executable("ffmpeg")
+
+import os
+app_directory = os.path.dirname(os.path.realpath(__file__))
+ffmpeg_command = os.path.join(app_directory, 'ffmpeg')
+if not os.path.isfile(ffmpeg_command):
+    ffmpeg_command = ffmpeg_command + '.exe'
+if not os.path.isfile(ffmpeg_command):
+    import distutils.spawn
+    ffmpeg_command = distutils.spawn.find_executable("ffmpeg")
 if ffmpeg_command is None:
     print('FFMPEG not found, please install it for video conversion features.')
     ffmpeg = False

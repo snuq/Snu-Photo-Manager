@@ -2713,10 +2713,12 @@ class ConversionScreen(Screen):
         audio_bitrate_settings = "-b:a " + audio_bitrate + "k"
         audio_codec_settings = "-c:a " + audio_codec + " -strict -2"
 
-        command = 'ffmpeg -i "'+video_file+'"'+seek+' -i "'+audio_file+'" -map 0:v -map 1:a -codec copy '+audio_codec_settings+' '+audio_bitrate_settings+' -shortest "'+output_file+'"'
+        executable = '"'+ffmpeg_command+'"'
+
+        command = executable+' -i "'+video_file+'"'+seek+' -i "'+audio_file+'" -map 0:v -map 1:a -codec copy '+audio_codec_settings+' '+audio_bitrate_settings+' -shortest "'+output_file+'"'
         return [True, command, output_filename]
 
-    def get_ffmpeg_command(self, input_folder, input_filename, output_file_folder, output_filename, input_size, noaudio=False, input_images=False, input_file=None, input_framerate=None, input_pixel_format=None, encoding_settings=None, start=None, duration=None):
+    def get_ffmpeg_command(self, input_folder, input_filename, output_file_folder, output_filename, input_size, noaudio=False, input_images=False, input_file=None, input_framerate=None, input_pixel_format=None, encoding_settings=None, start=None, duration=None, gpu264=None, gpu265=None):
         threads = multiprocessing.cpu_count() - 2
         if threads > 1:
             threads_command = ' -threads '+str(threads)
@@ -2788,6 +2790,11 @@ class ConversionScreen(Screen):
         else:
             audio_bitrate_settings = ''
             audio_codec_settings = ''
+
+        if gpu264 and video_codec == 'libx264':
+            video_codec = 'h264_nvenc'
+        if gpu265 and video_codec == 'libx265':
+            video_codec = 'hevc_nvenc'
         video_codec_settings = "-c:v "+video_codec
         file_format_settings = "-f "+file_format
 
@@ -2811,6 +2818,9 @@ class ConversionScreen(Screen):
         else:
             filter_settings = ""
 
+
+        executable = '"'+ffmpeg_command+'"'
+
         if encoding_command and self.advanced_encode:
             #check if encoding command is valid
 
@@ -2832,12 +2842,12 @@ class ConversionScreen(Screen):
             output_file = output_file_folder+os.path.sep+output_filename
             input_settings = ' -i "'+input_file+'" '
             encoding_command_reformat = encoding_command.replace('%c', file_format_settings).replace('%v', video_codec_settings).replace('%a', audio_codec_settings).replace('%f', framerate_setting).replace('%p', pixel_format_setting).replace('%b', video_bitrate_settings).replace('%d', audio_bitrate_settings).replace('%i', input_settings).replace('%%', '%')
-            command = 'ffmpeg'+seek+' '+input_format_settings+encoding_command_reformat+duration+' "'+output_file+'"'
+            command = executable+seek+' '+input_format_settings+encoding_command_reformat+duration+' "'+output_file+'"'
         else:
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
             #command = 'ffmpeg '+file_format_settings+' -i "'+input_file+'"'+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+' "'+output_file+'"'
-            command = 'ffmpeg'+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
+            command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
         return [True, command, output_filename]
 
     def delete_output(self, output_file, timeout=20):
@@ -3021,9 +3031,11 @@ class ConversionScreen(Screen):
         total_frames_duration = (duration * (framerate[0] / framerate[1]))  #estimate of total frames in video
         total_frames = (total_frames_duration * (end_point - start_point))  #estimate of total frames to convert
         start_frame = int(total_frames_duration * start_point)
+        gpu264 = app.config.getboolean("Settings", "gpu264")
+        gpu265 = app.config.getboolean("Settings", "gpu265")
 
         #get ready for the encode process
-        command_valid, command, output_filename = self.get_ffmpeg_command(input_file_folder, input_filename, output_file_folder_reencode, output_filename, input_size, encoding_settings=encoding_settings, noaudio=True, input_file='-', input_images=True, input_framerate=framerate, input_pixel_format=pixel_format)
+        command_valid, command, output_filename = self.get_ffmpeg_command(input_file_folder, input_filename, output_file_folder_reencode, output_filename, input_size, encoding_settings=encoding_settings, noaudio=True, input_file='-', input_images=True, input_framerate=framerate, input_pixel_format=pixel_format, gpu264=gpu264, gpu265=gpu265)
         output_basename = os.path.splitext(output_filename)[0]
         if not command_valid:
             message = 'Command not valid: '+command
@@ -5189,33 +5201,35 @@ class EditPanelBorder(EditPanelBase):
 
     def populate_borders(self, *_):
         self.borders = [None]
-        for file in os.listdir('borders'):
-            if file.endswith('.txt'):
-                border_name = os.path.splitext(file)[0]
-                border_sizes = []
-                border_images = []
-                with open(os.path.join('borders', file)) as input_file:
-                    for line in input_file:
-                        if ':' in line and not line.startswith('#'):
-                            size, image = line.split(':')
-                            border_sizes.append(float(size))
-                            border_images.append(image.strip())
-                if border_sizes:
-                    self.borders.append([border_name, border_sizes, border_images])
+        borders_dir = os.path.join(app_directory, 'borders')
+        if os.path.isdir(borders_dir):
+            for file in os.listdir(borders_dir):
+                if file.endswith('.txt'):
+                    border_name = os.path.splitext(file)[0]
+                    border_sizes = []
+                    border_images = []
+                    with open(os.path.join(borders_dir, file)) as input_file:
+                        for line in input_file:
+                            if ':' in line and not line.startswith('#'):
+                                size, image = line.split(':')
+                                border_sizes.append(float(size))
+                                border_images.append(image.strip())
+                    if border_sizes:
+                        self.borders.append([border_name, border_sizes, border_images])
 
-        borders_tree = self.ids['borders']
-        nodes = list(borders_tree.iterate_all_nodes())
-        for node in nodes:
-            borders_tree.remove_node(node)
+            borders_tree = self.ids['borders']
+            nodes = list(borders_tree.iterate_all_nodes())
+            for node in nodes:
+                borders_tree.remove_node(node)
 
-        for index, border in enumerate(self.borders):
-            if border:
-                node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name=border[0])
-                borders_tree.add_node(node)
-            else:
-                node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name='None')
-                borders_tree.add_node(node)
-                borders_tree.select_node(node)
+            for index, border in enumerate(self.borders):
+                if border:
+                    node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name=border[0])
+                    borders_tree.add_node(node)
+                else:
+                    node = TreeViewButton(dragable=False, owner=self, target=str(index), folder_name='None')
+                    borders_tree.add_node(node)
+                    borders_tree.select_node(node)
 
     def select_border(self):
         borders_tree = self.ids['borders']

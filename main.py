@@ -212,6 +212,7 @@ class PhotoManager(App):
     folder_path = StringProperty('')  #The current folder/album/tag being displayed
     folder_name = StringProperty()  #The identifier of the album/folder/tag that is being viewed
 
+    app_directory = ''
     last_browse_folder = ''
 
     first_rescale = True
@@ -779,9 +780,11 @@ class PhotoManager(App):
                 'backupdatabase': 1,
                 'rescanstartup': 0,
                 'animations': 1,
-                'databasescale': 100,
+                'databasescale': 1,
                 'editvideo': 0,
-                'highencodingpriority': 0
+                'highencodingpriority': 0,
+                'gpu264': 0,
+                'gpu265': 0
             })
         config.setdefaults(
             'Database Directories', {
@@ -922,13 +925,6 @@ class PhotoManager(App):
             "section": "Settings",
             "key": "simpleinterface"
         })
-        settingspanel.append({
-            "type": "bool",
-            "title": "Animate Interface",
-            "desc": "Animate various elements of the interface.  Disable this on slow computers.",
-            "section": "Settings",
-            "key": "animations"
-        })
 
         #Browsing settings
         settingspanel.append({
@@ -958,17 +954,30 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "bool",
-            "title": "Auto-Cache Images When Browsing",
-            "desc": "Automatically cache the next and previous images when browsing an album",
-            "section": "Settings",
-            "key": "precache"
-        })
-        settingspanel.append({
-            "type": "bool",
             "title": "Remember Last Album View",
             "desc": "Remembers and returns to the last album or folder that was being viewed on last run",
             "section": "Settings",
             "key": "rememberview"
+        })
+
+        #Performance settings
+        settingspanel.append({
+            "type": "label",
+            "title": "        Performance Settings"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Animate Interface",
+            "desc": "Animate various elements of the interface.  Disable this on slow computers.",
+            "section": "Settings",
+            "key": "animations"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Auto-Cache Images When Browsing",
+            "desc": "Automatically cache the next and previous images when browsing an album",
+            "section": "Settings",
+            "key": "precache"
         })
         settingspanel.append({
             "type": "bool",
@@ -984,7 +993,20 @@ class PhotoManager(App):
             "section": "Settings",
             "key": "highencodingpriority"
         })
-
+        settingspanel.append({
+            "type": "bool",
+            "title": "NVIDIA GPU H.264 Encoding",
+            "desc": "Enable GPU encoding options for encoding H.264 videos.  WARNING: only enable this if you have an NVIDIA graphic card that supports this!",
+            "section": "Settings",
+            "key": "gpu264"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "NVIDIA GPU H.265 Encoding",
+            "desc": "Enable GPU encoding options for encoding H.265 videos.  WARNING: only enable this if you have an NVIDIA graphic card that supports this!",
+            "section": "Settings",
+            "key": "gpu265"
+        })
         settings.add_json_panel('App', self.config, data=json.dumps(settingspanel))
 
     def has_database(self, *_):
@@ -1681,6 +1703,8 @@ class PhotoManager(App):
             return minpanelsize
 
     def get_application_config(self, **kwargs):
+        self.app_directory = app_directory
+        print('App started from: '+self.app_directory)
         if platform == 'win':
             self.data_directory = os.getenv('APPDATA') + os.path.sep + "Snu Photo Manager"
             if not os.path.isdir(self.data_directory):
