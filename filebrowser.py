@@ -2,10 +2,11 @@ import fnmatch
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import os
+import datetime
 import string
 from kivy.app import App
 from kivy.clock import Clock
-from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty
+from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.utils import platform
@@ -13,6 +14,7 @@ if platform == 'win':
     from ctypes import windll, create_unicode_buffer
 
 from generalelements import ClickFade, InputPopup, NormalPopup, ConfirmPopup, RecycleItem, SelectableRecycleBoxLayout
+from generalcommands import format_size
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
@@ -97,6 +99,12 @@ Builder.load_string("""
         text: root.text
         halign: 'left'
         valign: 'center'
+    NormalLabel:
+        size_hint_x: 0 if root.is_folder else 0.25
+        text: root.file_size
+    NormalLabel:
+        size_hint_x: 0 if root.is_folder else 0.333
+        text: root.modified
 
 """)
 
@@ -166,7 +174,6 @@ class FileBrowser(FloatLayout):
     clickfade_object = ObjectProperty(allownone=True)
 
     popup = ObjectProperty(None, allownone=True)
-
     remember = None
 
     multiselect = BooleanProperty(False)
@@ -283,6 +290,10 @@ class FileBrowser(FloatLayout):
                 app.message("Could Not Delete Folder...")
         self.dismiss_popup()
 
+    def reset_folder_position(self, *_):
+        filelist = self.ids['fileList']
+        filelist.scroll_y = 1
+
     def refresh_locations(self, *_):
         locations_list = self.ids['locationsList']
         locations = get_drives()
@@ -294,6 +305,7 @@ class FileBrowser(FloatLayout):
                 'fullpath': location[0],
                 'path': location[0],
                 'type': 'folder',
+                'is_folder': True,
                 'owner': self,
                 'selectable': False
             })
@@ -329,9 +341,12 @@ class FileBrowser(FloatLayout):
                 'type': 'folder',
                 'file': '',
                 'owner': self,
+                'is_folder': True,
                 'selected': False,
                 'multiselect': self.multiselect,
-                'selectable': self.directory_select
+                'selectable': self.directory_select,
+                'file_size': '',
+                'modified': ''
             })
         if not self.directory_select:
             if self.filters:
@@ -341,16 +356,22 @@ class FileBrowser(FloatLayout):
                 files = filtered_files
             files = sorted(files, key=lambda s: s.lower())
             for file in files:
+                fullpath = os.path.join(self.path, file)
+                file_size = int(os.path.getsize(fullpath))
+                modified = int(os.path.getmtime(fullpath))
                 data.append({
                     'text': file,
-                    'fullpath': os.path.join(self.path, file),
+                    'fullpath': fullpath,
                     'path': self.path,
                     'type': file,
                     'file': file,
                     'owner': self,
+                    'is_folder': False,
                     'selected': False,
                     'multiselect': self.multiselect,
-                    'selectable': True
+                    'selectable': True,
+                    'file_size': format_size(file_size),
+                    'modified': datetime.datetime.fromtimestamp(modified).strftime('%Y-%m-%d, %I:%M%p')
                 })
 
         file_list.data = data
@@ -368,6 +389,8 @@ class FileBrowser(FloatLayout):
             self.file = ''
             self.filename = ''
             self.target_selected = True
+
+        self.reset_folder_position()
 
     def go_up(self, *_):
         up_path = os.path.realpath(os.path.join(self.path, '..'))
@@ -415,6 +438,9 @@ class FileBrowserItem(RecycleItem):
     file = StringProperty()
     type = StringProperty('folder')
     multiselect = BooleanProperty(False)
+    file_size = StringProperty()
+    modified = StringProperty()
+    is_folder = BooleanProperty(True)
 
     def on_selected(self, *_):
         if self.type == 'folder' and self.multiselect and self.selected:
