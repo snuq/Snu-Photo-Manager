@@ -322,7 +322,10 @@ class PhotoManager(App):
         if os.path.isfile(logfile_name):
             os.remove(logfile_name)
         logfile = open(logfile_name, 'w')
-        logfile.write(log)
+        log_text = ''
+        for line in log:
+            log_text = log_text+line['text']+'\n'
+        logfile.write(log_text)
         logfile.close()
 
     def timer(self, *_):

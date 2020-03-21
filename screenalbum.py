@@ -490,15 +490,18 @@ Builder.load_string("""
                                 NormalButton:
                                     text: 'Clear Log'
                                     on_release: root.clear_log()
-                            Scroller:
-                                size_hint_y: 1
-                                NormalInput:
-                                    id: logviewer
-                                    size_hint: 1, None
-                                    height: self.minimum_height if self.minimum_height > self.parent.height else self.parent.height
-                                    text: root.encode_log_text
-                                    multiline: True
-                                    on_text: self.text = root.encode_log_text
+                            NormalRecycleView:
+                                id: logviewerscroller
+                                size_hint: 1, 1
+                                data: root.encode_log
+                                viewclass: 'RecycleLabel'
+                                RecycleBoxLayout:
+                                    default_size: None, app.text_scale
+                                    default_size_hint: 1, None
+                                    orientation: 'vertical'
+                                    size_hint_x: 1
+                                    size_hint_y: None
+                                    height: self.minimum_height
             SplitterPanelRight:
                 id: rightpanel
                 width: app.right_panel_width()
@@ -2343,22 +2346,34 @@ Builder.load_string("""
         size_hint_x: None
         width: app.button_scale / 2
 
+<RecycleLabel@Label>:
+    mipmap: True
+    color: app.theme.text
+    font_size: app.text_scale
+    valign: 'top'
+    halign: 'left'
+    size_hint: 1, None
+    text_size: self.width, None
+    height: self.texture_size[1] if self.texture_size[1] > app.text_scale else app.text_scale
+
 <VideoProcessingPopup>:
     GridLayout:
         cols: 1
         NormalLabel:
             text: root.overall_process
             text_size: self.size
-        Scroller:
+        NormalRecycleView:
             id: logviewerscroller
-            size_hint_y: 1
-            NormalInput:
-                id: logviewer
-                size_hint: 1, None
-                height: self.minimum_height if self.minimum_height > self.parent.height else (self.parent.height + 1)
-                text: root.encode_log_text
-                multiline: True
-                on_text: self.text = root.encode_log_text
+            size_hint: 1, 1
+            data: root.encode_log
+            viewclass: 'RecycleLabel'
+            RecycleBoxLayout:
+                default_size: None, app.text_scale
+                default_size_hint: 1, None
+                orientation: 'vertical'
+                size_hint_x: 1
+                size_hint_y: None
+                height: self.minimum_height
         NormalLabel:
             size_hint_y: None
             height: app.button_scale
@@ -2518,7 +2533,7 @@ class ConversionScreen(Screen):
     photoinfo = []  #photoinfo for the currently viewed photo
     photo = StringProperty('')  #The absolute path to the currently visible photo
     fullpath = StringProperty()  #The database-relative path of the current visible photo
-    encode_log_text = StringProperty('')
+    encode_log = ListProperty()
 
     viewer = ObjectProperty(allownone=True)  #Holder for the photo viewer widget
     popup = None
@@ -2920,15 +2935,22 @@ class ConversionScreen(Screen):
         self.encodingthread = threading.Thread(target=self.save_video_process)
         self.encodingthread.start()
 
-    def failed_encode(self, message):
-        app = App.get_running_app()
-        self.append_log("[WARNING] : "+message+'\n')
+    def end_encode(self, message, end_type=''):
+        if end_type == 'fail':
+            prefix = "[WARNING] : "
+        elif end_type == 'info':
+            prefix = "[INFO] : "
+        else:
+            prefix = ''
+        self.append_log(prefix+message)
         if not self.use_batch:
             self.encoding = False
             self.cancel_encode()
             self.dismiss_popup()
             self.save_log()
-            Clock.schedule_once(lambda x: app.popup_message(text=message, title='Warning'))
+            app = App.get_running_app()
+            if end_type == 'fail':
+                Clock.schedule_once(lambda x: app.popup_message(text=message, title='Warning'))
 
     def delete_temp_encode(self, file, folder):
         #Function that will delete the file and the folder if it is empty
@@ -2949,22 +2971,14 @@ class ConversionScreen(Screen):
             if self.cancel_encoding:
                 return
             if line:
-                self.append_log(line)
+                if not line.startswith('frame='):
+                    self.append_log(line.strip())
 
     def clear_log(self):
-        try:
-            self.encode_log_text = ''
-        except:
-            pass
+        self.encode_log = []
 
     def append_log(self, text):
-        Clock.schedule_once(lambda x: self.append_log_finish(text))
-
-    def append_log_finish(self, text):
-        try:
-            self.encode_log_text += text  #Sometimes crashes kivy for some reason??
-        except:
-            pass
+        self.encode_log.append({'text': text})
 
     def save_video_process(self, photo=None, photoinfo=None, export_file=None, encoding_settings=None, audio_file=None, offset_audio_file=None, edit_image=None, start_point=None, end_point=None):
         #Function that applies effects to a video and encodes it
@@ -3013,13 +3027,14 @@ class ConversionScreen(Screen):
         output_file_folder_reencode = output_file_folder+os.path.sep+'reencode'
 
         #setup encoding settings
-        self.append_log("[INFO] : "+'Using FFMPEG from: '+ffmpeg_command+'\n\n')
+        self.append_log("[INFO] : "+'Using FFMPEG from: '+ffmpeg_command)
+        self.append_log('')
         if not os.path.isdir(output_file_folder_reencode):
             try:
                 os.makedirs(output_file_folder_reencode)
             except:
                 message = 'File not encoded, could not create temporary "reencode" folder'
-                self.failed_encode(message)
+                self.end_encode(message, end_type='fail')
                 return ['Error', message]
         pixel_format = edit_image.pixel_format
         input_size = [edit_image.original_width, edit_image.original_height]
@@ -3040,7 +3055,7 @@ class ConversionScreen(Screen):
         output_basename = os.path.splitext(output_filename)[0]
         if not command_valid:
             message = 'Command not valid: '+command
-            self.failed_encode(message)
+            self.end_encode(message, end_type='fail')
             return ['Error', message]
         output_file = output_file_folder_reencode+os.path.sep+output_filename
         if os.path.isfile(output_file):
@@ -3050,11 +3065,12 @@ class ConversionScreen(Screen):
                 deleted = False
             if not deleted:
                 message = 'File not encoded, temporary file already exists, could not delete'
-                self.failed_encode(message)
+                self.end_encode(message, end_type='fail')
                 return ["Error", message]
 
-        self.append_log("[INFO] : "+"Encoding video using the command:\n")
-        self.append_log(command+'\n\n')
+        self.append_log("[INFO] : "+"Encoding video using the command:")
+        self.append_log(command)
+        self.append_log('')
         if app.config.getboolean("Settings", "highencodingpriority"):
             creationflags = subprocess.NORMAL_PRIORITY_CLASS
         else:
@@ -3068,11 +3084,7 @@ class ConversionScreen(Screen):
             if self.cancel_encoding:
                 self.kill_encoding_process_thread()
                 self.delete_temp_encode(output_file, output_file_folder_reencode)
-                if not self.use_batch:
-                    self.dismiss_popup()
-                self.encoding = False
-                self.append_log("[INFO] : "+"Canceled video processing."+'\n')
-                app.message("Canceled video processing.")
+                self.end_encode("Canceled video processing", end_type='info')
                 return ["Canceled", "Encoding canceled by user"]
             frameinfo = edit_image.get_converted_frame()
             if frameinfo is None:
@@ -3083,7 +3095,7 @@ class ConversionScreen(Screen):
             if frame is None:
                 #there was an error with creating the frame, error is in the pts variable
                 message = "First encode failed on frame "+str(frame_number)+": "+str(pts)
-                self.failed_encode(message)
+                self.end_encode(message, end_type='fail')
                 self.kill_encoding_process_thread()
                 return ["Error", message]
             try:
@@ -3093,7 +3105,7 @@ class ConversionScreen(Screen):
                 if not self.cancel_encoding:
                     self.delete_temp_encode(output_file, output_file_folder_reencode)
                     message = 'Ffmpeg shut down, failed encoding on frame: '+str(frame_number)
-                    self.failed_encode(message)
+                    self.end_encode(message, end_type='fail')
                     self.kill_encoding_process_thread()
                     return ["Error", message]
             frame_number = frame_number+1
@@ -3120,8 +3132,9 @@ class ConversionScreen(Screen):
         self.encoding_process_thread.wait()
 
         exit_code = self.encoding_process_thread.returncode
-        self.append_log("[INFO] : "+"Video encode process ended with exit code "+str(exit_code)+'\n\n')
-        self.append_log(""+'\n')
+        self.append_log("[INFO] : "+"Video encode process ended with exit code "+str(exit_code))
+        self.append_log('')
+        self.append_log('')
 
         if self.encoding_process_thread:
             try:
@@ -3142,30 +3155,27 @@ class ConversionScreen(Screen):
                 command_valid, command, output_temp_filename = self.get_ffmpeg_audio_command(output_file_folder_reencode, output_filename, input_file_folder, input_filename, output_file_folder_reencode, audio_file, offset_audio_file, encoding_settings=encoding_settings, start=start_seconds)
                 output_temp_file = output_file_folder_reencode + os.path.sep + output_temp_filename
 
-                self.append_log("[INFO] : "+"Encoding audio using the command:\n")
-                self.append_log(command+'\n\n')
+                self.append_log("[INFO] : "+"Encoding audio using the command:")
+                self.append_log(command)
+                self.append_log('')
                 deleted = self.delete_output(output_temp_file)
                 if not deleted:
                     message = 'File not encoded, temporary file already existed and could not be replaced'
-                    self.failed_encode(message)
+                    self.end_encode(message, end_type='fail')
                     return ["Error", message]
 
                 #Poll process for new output until finished
                 self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
                 while True:
                     if self.cancel_encoding:
-                        if not self.use_batch:
-                            self.dismiss_popup()
                         self.kill_encoding_process_thread()
                         self.delete_temp_encode(output_file, output_file_folder_reencode)
                         deleted = self.delete_output(output_temp_file)
-                        self.encoding = False
-                        self.append_log("[INFO] : "+"Canceled video processing."+'\n')
-                        app.message("Canceled video processing.")
+                        self.end_encode("Canceled video processing", end_type='info')
                         return ["Canceled", "Encoding canceled by user"]
 
                     nextline = self.encoding_process_thread.stdout.readline()
-                    self.append_log(nextline)
+                    self.append_log(nextline.strip())
                     if nextline == '' and self.encoding_process_thread.poll() is not None:
                         break
                     if nextline.startswith('frame= '):
@@ -3186,10 +3196,11 @@ class ConversionScreen(Screen):
 
                 output = self.encoding_process_thread.communicate()[0]
                 if output:
-                    self.append_log(output)
+                    self.append_log(output.strip())
                 exit_code = self.encoding_process_thread.returncode
                 self.encoding_process_thread.wait()
-                self.append_log("[INFO] : "+"Audio encode process ended with exit code: "+str(exit_code)+'\n\n')
+                self.append_log("[INFO] : "+"Audio encode process ended with exit code: "+str(exit_code))
+                self.append_log('')
 
                 if exit_code != 0:
                     #Could not encode audio element, video file may not include audio, warn the user and continue
@@ -3224,7 +3235,7 @@ class ConversionScreen(Screen):
                     except:
                         self.export_folder = output_file_folder_reencode
                         message = 'Could not replace video, converted video left in "reencode" subfolder'
-                        self.failed_encode(message)
+                        self.end_encode(message, end_type='fail')
                         return ["Error", message]
                     if new_photoinfo:
                         new_photoinfo[10] = new_original_file_relative
@@ -3233,14 +3244,14 @@ class ConversionScreen(Screen):
                     if not deleted:
                         self.export_folder = output_file_folder_reencode
                         message = 'Could not replace video, converted video left in "reencode" subfolder'
-                        self.failed_encode(message)
+                        self.end_encode(message, end_type='fail')
                         return ["Error", message]
                 try:
                     os.rename(output_temp_file, new_encoded_file)
                 except:
                     self.export_folder = output_file_folder_reencode
                     message = 'Could not replace video, original file may be deleted, converted video left in "reencode" subfolder'
-                    self.failed_encode(message)
+                    self.end_encode(message, end_type='fail')
                     return ["Error", message]
 
                 if not os.listdir(output_file_folder_reencode):
@@ -3279,7 +3290,7 @@ class ConversionScreen(Screen):
                 except:
                     self.export_folder = output_file_folder_reencode
                     message = 'Could not rename video, converted video left in "reencode" subfolder'
-                    self.failed_encode(message)
+                    self.end_encode(message, end_type='fail')
                     return ["Error", message]
 
                 if not os.listdir(output_file_folder_reencode):
@@ -3288,11 +3299,11 @@ class ConversionScreen(Screen):
 
             #Notify user of success
             if no_audio:
-                self.append_log("[WARNING] : Could not encode audio track"+'\n')
+                self.append_log("[WARNING] : Could not encode audio track")
                 Clock.schedule_once(lambda x: app.message("Completed encoding file, could not find audio track."))
             else:
                 Clock.schedule_once(lambda x: app.message("Completed encoding file '"+new_encoded_file+"'"))
-            self.append_log("[INFO] : "+"Completed encoding file to: "+new_encoded_file+'\n')
+            self.append_log("[INFO] : "+"Completed encoding file to: "+new_encoded_file)
             # reload video in ui
             if new_photoinfo:
                 Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
@@ -3303,16 +3314,17 @@ class ConversionScreen(Screen):
         else:
             #failed first encode, clean up
             message = 'First file not encoded, FFMPEG gave exit code '+str(exit_code)
-            self.failed_encode(message)
+            self.end_encode(message, end_type='fail')
             self.delete_temp_encode(output_file, output_file_folder_reencode)
             return ["Error", message]
-        self.encoding = False
-        if not self.use_batch:
-            self.dismiss_popup()
-            self.save_log()
         if no_audio:
-            return ["Error", "Could not encode audio element, file may not have audio."]
-        return ["Complete", "File saved as: "+output_file]
+            return_prefix = "Error"
+            return_text = "Could not encode audio element, file may not have audio."
+        else:
+            return_prefix = "Complete"
+            return_text = "File saved as: "+output_file
+        self.end_encode(return_text, end_type='info')
+        return [return_prefix, return_text]
 
     def kill_encoding_process_thread(self):
         try:
@@ -3996,8 +4008,13 @@ class VideoConverterScreen(ConversionScreen):
 
     def save_log(self):
         app = App.get_running_app()
-        app.save_log(self.encode_log_text, 'encode')
+        app.save_log(self.encode_log, 'encode')
         self.show_extra = True
+
+    def on_encode_log(self, *_):
+        if self.popup:
+            if hasattr(self.popup, 'encode_log'):
+                self.popup.encode_log = self.encode_log
 
     def save_edit(self):
         app = App.get_running_app()
@@ -4016,7 +4033,6 @@ class VideoConverterScreen(ConversionScreen):
             self.popup = VideoProcessingPopup(title='Processing Videos', auto_dismiss=False, size_hint=(0.9, 0.9))
             self.popup.scanning_text = ''
             self.popup.open()
-            self.bind(encode_log_text=self.popup.setter('encode_log_text'))
             encoding_button = self.popup.ids['scanningButton']
             encoding_button.bind(on_press=self.cancel_encode)
 
@@ -4035,7 +4051,6 @@ class VideoConverterScreen(ConversionScreen):
             self.popup = VideoProcessingPopup(title='Processing Video', auto_dismiss=False, size_hint=(0.9, 0.9))
             self.popup.scanning_text = ''
             self.popup.open()
-            self.bind(encode_log_text=self.popup.setter('encode_log_text'))
             encoding_button = self.popup.ids['scanningButton']
             encoding_button.bind(on_press=self.cancel_encode)
 
@@ -4047,7 +4062,6 @@ class VideoConverterScreen(ConversionScreen):
 
     def save_video_batch(self):
         app = App.get_running_app()
-        all_encode_log = ''
         self.clear_log()
         self.save_batch()
 
@@ -4056,7 +4070,8 @@ class VideoConverterScreen(ConversionScreen):
             photo = os.path.join(file['path'], file['file'])
             status_text = 'Encoding file '+str(index + 1)+' of '+str(len(self.batch_list))+': '+photo
             self.popup.overall_process = status_text
-            all_encode_log += '[INFO] : '+status_text+'\n\n'
+            self.append_log('[INFO] : '+status_text)
+            self.append_log('')
             if isfile2(photo):
                 photoinfo = []
                 if file['export_file']:
@@ -4085,21 +4100,21 @@ class VideoConverterScreen(ConversionScreen):
                 edit_image.clear_image()
                 edit_image = None
 
-                all_encode_log += self.encode_log_text
-                all_encode_log += '\n\n'
+                self.append_log('')
+                self.append_log('')
             else:
                 file['encode_state'] = 'Error'
                 file['message'] = "File not found"
-                all_encode_log += "[WARNING] : File not found: "+photo
-                all_encode_log += '\n\n\n'
+                self.append_log("[WARNING] : File not found: "+photo)
+                self.append_log('')
+                self.append_log('')
 
             self.save_batch()
 
             if self.cancel_encoding:
                 break
 
-        #self.encode_log_text = all_encode_log
-        app.save_log(all_encode_log, 'encode')
+        self.save_log()
         self.dismiss_popup()
         Clock.schedule_once(self.edit_video)
         batch_list = self.ids['photosContainer']
@@ -5007,7 +5022,7 @@ class AlbumScreen(ConversionScreen):
 
 
 class VideoProcessingPopup(NormalPopup):
-    encode_log_text = StringProperty()
+    encode_log = ListProperty()
     overall_process = StringProperty()
     button_text = StringProperty('Cancel')
     scanning_percentage = NumericProperty(0)
