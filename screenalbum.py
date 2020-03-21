@@ -32,7 +32,7 @@ from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.animation import Animation
 from kivy.graphics.transformation import Matrix
-from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.behaviors import ButtonBehavior, DragBehavior
 from kivy.uix.screenmanager import Screen
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
@@ -2292,6 +2292,12 @@ Builder.load_string("""
     size_hint_x: 1
 
 <BatchPhoto>:
+    canvas.after:
+        Color:
+            rgba: 1, 1, 1, (0.5 if root.drag_to else 0)
+        Rectangle:
+            pos: root.pos[0], (root.pos[1] + root.size[1] - (app.button_scale / 4))
+            size: root.size[0], (app.button_scale / 2)
     orientation: 'horizontal'
     size_hint_y: None
     height: app.button_scale * (3 if root.message else 2)
@@ -3440,10 +3446,70 @@ class VideoConverterScreen(ConversionScreen):
     photo_viewer_current = StringProperty('')
     show_log = BooleanProperty(False)
     apply_edit = BooleanProperty(False)  #Determines if the edit will be applied to batch conversions
+    drag_image = ObjectProperty(allownone=True)
+    drag_offset = ListProperty()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.advanced_encode = True
+
+    def drag(self, widget, mode, touch_pos, offset=None):
+        if mode == 'start':
+            self.drag_offset = offset
+            self.drag_image = BatchPhoto()
+            self.drag_image.size_hint_x = None
+            self.drag_image.width = widget.width
+            self.drag_image.file = widget.file
+            self.drag_image.path = widget.path
+            self.drag_image.preset_name = widget.preset_name
+            self.drag_image.export_file = widget.export_file
+            self.drag_image.edit = widget.edit
+            self.drag_image.disable_edit = widget.disable_edit
+            self.drag_image.opacity = 0
+            app = App.get_running_app()
+            app.main_layout.add_widget(self.drag_image)
+            self.drag_image.pos = (touch_pos[0] - self.drag_offset[0], touch_pos[1] - self.drag_offset[1])
+
+        if mode == 'move':
+            if self.drag_image:
+                self.drag_image.pos = (touch_pos[0] - self.drag_offset[0], touch_pos[1] - self.drag_offset[1])
+                batch_container = self.ids['photos']
+                local_coords = batch_container.to_widget(*touch_pos)
+                self.drag_image.opacity = 0
+                for child in batch_container.children:
+                    if child != widget:
+                        if child.collide_point(*local_coords):
+                            child.drag_to = True
+                            self.drag_image.opacity = 0.5
+                            for index, batch in enumerate(self.batch_list):
+                                if index == widget.index:
+                                    batch['selected'] = True
+                                else:
+                                    batch['selected'] = False
+                            batch_list = self.ids['photosContainer']
+                            batch_list.refresh_from_data()
+                        else:
+                            child.drag_to = False
+
+        if mode == 'end':
+            if self.drag_image:
+                app = App.get_running_app()
+                app.main_layout.remove_widget(self.drag_image)
+                self.drag_image = None
+                batch_container = self.ids['photos']
+                local_coords = batch_container.to_widget(*touch_pos)
+                for child in batch_container.children:
+                    child.drag_to = False
+                    if child != widget:
+                        if child.collide_point(*local_coords):
+                            pop_index = widget.index
+                            insert_index = child.index
+                            if insert_index > pop_index:
+                                insert_index = insert_index - 1
+                            widget_data = self.batch_list.pop(pop_index)
+                            self.batch_list.insert(insert_index, widget_data)
+                            batch_list = self.ids['photosContainer']
+                            batch_list.refresh_from_data()
 
     def save_batch(self):
         app = App.get_running_app()
@@ -3781,6 +3847,15 @@ class VideoConverterScreen(ConversionScreen):
         super().on_leave()
         self.save_batch()
         self.clear_edit()
+        try:
+            app = App.get_running_app()
+            batch_container = self.ids['photos']
+            for child in batch_container.children:
+                child.drag_to = False
+            app.main_layout.remove_widget(self.drag_image)
+            self.drag_image = None
+        except:
+            pass
 
     def clear_edit(self):
         if self.viewer:
@@ -5036,7 +5111,7 @@ class VideoProcessingPopup(NormalPopup):
         logviewerscroller.scroll_y = 0
 
 
-class BatchPhoto(RecycleItem):
+class BatchPhoto(DragBehavior, RecycleItem):
     file = StringProperty('')
     path = StringProperty('')
     preset = ObjectProperty(allownone=True)
@@ -5048,6 +5123,30 @@ class BatchPhoto(RecycleItem):
     owner = ObjectProperty()
     preset_drop = ObjectProperty(allownone=True)
     message = StringProperty('')
+    drag = BooleanProperty(False)
+    drag_to = BooleanProperty(False)
+
+    def on_touch_down(self, touch):
+        super().on_touch_down(touch)
+        if self.collide_point(*touch.pos):
+            self.drag = True
+            touch.grab(self, exclusive=True)
+            window_coords = self.to_window(*touch.pos)
+            widget_coords = (touch.pos[0] - self.pos[0], touch.pos[1] - self.pos[1])
+            self.owner.drag(self, 'start', window_coords, offset=widget_coords)
+
+    def on_touch_move(self, touch):
+        #super().on_touch_move(touch)
+        if self.drag:
+            window_coords = self.to_window(touch.pos[0], touch.pos[1])
+            self.owner.drag(self, 'move', window_coords)
+
+    def on_touch_up(self, touch):
+        super().on_touch_up(touch)
+        if self.drag:
+            window_coords = self.to_window(touch.pos[0], touch.pos[1])
+            self.owner.drag(self, 'end', window_coords)
+            self.drag = False
 
     def add_presets_to_menu(self, preset_drop, presets):
         for index, preset in enumerate(presets):
