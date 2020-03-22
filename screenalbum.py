@@ -3110,6 +3110,7 @@ class ConversionScreen(Screen):
                 message = "First encode failed on frame "+str(frame_number)+": "+str(pts)
                 self.end_encode(message, end_type='fail')
                 self.kill_encoding_process_thread()
+                self.delete_temp_encode(output_file, output_file_folder_reencode)
                 return ["Error", message]
             try:
                 frame.save(self.encoding_process_thread.stdin, 'JPEG')
