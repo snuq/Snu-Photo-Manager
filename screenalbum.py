@@ -2540,6 +2540,7 @@ class ConversionScreen(Screen):
     photo = StringProperty('')  #The absolute path to the currently visible photo
     fullpath = StringProperty()  #The database-relative path of the current visible photo
     encode_log = ListProperty()
+    encoding_start = 0
 
     viewer = ObjectProperty(allownone=True)  #Holder for the photo viewer widget
     popup = None
@@ -2840,7 +2841,6 @@ class ConversionScreen(Screen):
         else:
             filter_settings = ""
 
-
         executable = '"'+ffmpeg_command+'"'
 
         if encoding_command and self.advanced_encode:
@@ -2864,11 +2864,10 @@ class ConversionScreen(Screen):
             output_file = output_file_folder+os.path.sep+output_filename
             input_settings = ' -i "'+input_file+'" '
             encoding_command_reformat = encoding_command.replace('%c', file_format_settings).replace('%v', video_codec_settings).replace('%a', audio_codec_settings).replace('%f', framerate_setting).replace('%p', pixel_format_setting).replace('%b', video_bitrate_settings).replace('%d', audio_bitrate_settings).replace('%i', input_settings).replace('%%', '%')
-            command = executable+seek+' '+input_format_settings+encoding_command_reformat+duration+' "'+output_file+'"'
+            command = executable+seek+' '+input_format_settings+' '+encoding_command_reformat+duration+' "'+output_file+'"'
         else:
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
-            #command = 'ffmpeg '+file_format_settings+' -i "'+input_file+'"'+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+' "'+output_file+'"'
             command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
         return [True, command, output_filename]
 
@@ -2938,6 +2937,8 @@ class ConversionScreen(Screen):
         self.clear_log()
 
         # Start encoding thread
+        self.encoding_start = time.perf_counter()
+        self.append_log("[INFO] : Beginning encode at "+time.strftime("%H:%M:%S", time.localtime()))
         self.encodingthread = threading.Thread(target=self.save_video_process)
         self.encodingthread.start()
 
@@ -2949,6 +2950,12 @@ class ConversionScreen(Screen):
         else:
             prefix = ''
         self.append_log(prefix+message)
+        if self.encoding_start:
+            encode_time = int(round(time.perf_counter() - self.encoding_start))
+            encode_length_formatted = ".  Encode took: "+time_index(encode_time)
+        else:
+            encode_length_formatted = ''
+        self.append_log("[INFO] : Encoding finished at: "+time.strftime("%H:%M:%S", time.localtime())+encode_length_formatted)
         if not self.use_batch:
             self.encoding = False
             self.cancel_encode()
@@ -3309,8 +3316,7 @@ class ConversionScreen(Screen):
                 Clock.schedule_once(lambda x: app.message("Completed encoding file, could not find audio track."))
             else:
                 Clock.schedule_once(lambda x: app.message("Completed encoding file '"+new_encoded_file+"'"))
-            self.append_log("[INFO] : "+"Completed encoding file to: "+new_encoded_file)
-            # reload video in ui
+            #reload video in ui
             if new_photoinfo:
                 Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
             #else:
@@ -3324,11 +3330,9 @@ class ConversionScreen(Screen):
             self.delete_temp_encode(output_file, output_file_folder_reencode)
             return ["Error", message]
         if no_audio:
-            return_prefix = "Error"
-            return_text = "Could not encode audio element, file may not have audio."
-        else:
-            return_prefix = "Complete"
-            return_text = "File saved as: "+output_file
+            self.append_log("[WARNING] : Could not encode audio element, file may not have audio.")
+        return_prefix = "Complete"
+        return_text = "Completed encoding file to: "+new_encoded_file
         self.end_encode(return_text, end_type='info')
         return [return_prefix, return_text]
 
@@ -4130,6 +4134,8 @@ class VideoConverterScreen(ConversionScreen):
             encoding_button.bind(on_press=self.cancel_encode)
 
             self.clear_log()
+            self.encoding_start = time.perf_counter()
+            self.append_log("[INFO] : Beginning encode at "+time.strftime("%H:%M:%S", time.localtime()))
 
             #Start encoding thread
             self.encodingthread = threading.Thread(target=self.save_video_process)
@@ -4139,6 +4145,8 @@ class VideoConverterScreen(ConversionScreen):
         app = App.get_running_app()
         self.clear_log()
         self.save_batch()
+
+        self.append_log("[INFO] : Beginning encode at "+time.strftime("%H:%M:%S", time.localtime()))
 
         #Iterate through batches and encode each
         for index, file in enumerate(self.batch_list):
@@ -4167,6 +4175,8 @@ class VideoConverterScreen(ConversionScreen):
                 if self.apply_edit and file['edit']:
                     self.image_preset(edit_image, to_image=True)
 
+                self.encoding_start = time.perf_counter()
+
                 result, reason = self.save_video_process(photo=photo, photoinfo=photoinfo, export_file=export_file, encoding_settings=encoding_settings, audio_file=audio_file, offset_audio_file=offset_audio_file, edit_image=edit_image, start_point=0, end_point=1)
 
                 file['encode_state'] = result
@@ -4189,6 +4199,7 @@ class VideoConverterScreen(ConversionScreen):
             if self.cancel_encoding:
                 break
 
+        self.encoding = False
         self.save_log()
         self.dismiss_popup()
         Clock.schedule_once(self.edit_video)
