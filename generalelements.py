@@ -3396,16 +3396,21 @@ class CustomImage(KivyImage):
             open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
             open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(open_cv_image)
+            open_cv_image = None
 
         if self.adaptive_clip > 0 and opencv:
             open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab)
             channels = cv2.split(open_cv_image)
             clahe = cv2.createCLAHE(clipLimit=(self.adaptive_clip * 4), tileGridSize=(8, 8))
             clahe_image = clahe.apply(channels[0])
+            clahe = None
             channels[0] = clahe_image
+            clahe_image = None
             open_cv_image = cv2.merge(channels)
+            channels = None
             open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_Lab2RGB)
             image = Image.fromarray(open_cv_image)
+            open_cv_image = None
 
         if self.sharpen != 0:
             enhancer = ImageEnhance.Sharpness(image)
@@ -3419,6 +3424,7 @@ class CustomImage(KivyImage):
             open_cv_image = cv2.medianBlur(open_cv_image, median)
             open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(open_cv_image)
+            open_cv_image = None
         if self.bilateral != 0 and self.bilateral_amount != 0 and opencv:
             diameter = int(self.bilateral * 10 * size_multiple)
             if diameter < 1:
@@ -3431,6 +3437,7 @@ class CustomImage(KivyImage):
             open_cv_image = cv2.bilateralFilter(open_cv_image, diameter, sigma_color, sigma_space)
             open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(open_cv_image)
+            open_cv_image = None
         if self.vignette_amount > 0 and self.vignette_size > 0:
             vignette = Image.new(mode='RGB', size=image.size, color=(0, 0, 0))
             filter_color = int((1-self.vignette_amount)*255)
