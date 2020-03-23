@@ -11,6 +11,20 @@ months_full = ['January', 'February', 'March', 'April', 'May', 'June', 'July', '
 months_short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 
+def find_dictionary(list_of_dicts, key_name, key_match):
+    for dictionary in list_of_dicts:
+        if dictionary[key_name] == key_match:
+            return dictionary
+    return None
+
+
+def get_keys_from_list(presets, key='name'):
+    names = []
+    for preset in presets:
+        names.append(preset[key])
+    return names
+
+
 def to_bool(value):
     """Function to convert various Non-Boolean true/false values to Boolean.
     Inputs that return True are:

@@ -576,6 +576,7 @@ class ExportScreen(Screen):
     def update_photolist(self, select=True):
         """Clears and refreshes the grid view of photos."""
 
+        app = App.get_running_app()
         #sort photo list
         if self.sort_method == 'Imported':
             sorted_photos = sorted(self.photos, key=lambda x: x[6], reverse=self.sort_reverse)
@@ -597,7 +598,7 @@ class ExportScreen(Screen):
             favorite = True if 'favorite' in tags else False
             fullpath = photo[0]
             database_folder = photo[2]
-            video = os.path.splitext(full_filename)[1].lower() in movietypes
+            video = os.path.splitext(full_filename)[1].lower() in app.movietypes
             data = {
                 'fullpath': fullpath,
                 'photoinfo': photo,
@@ -721,7 +722,7 @@ class ExportScreen(Screen):
                             ignore_file = True
                 if not preset['export_videos']:
                     path, extension = os.path.splitext(photo[0])
-                    if extension.lower() in movietypes:
+                    if extension.lower() in app.movietypes:
                         ignore_file = True
                 if not ignore_file:
                     photos.append(photo)
@@ -817,7 +818,7 @@ class ExportScreen(Screen):
                         if photofilename in ftp_filelist:
                             ftp.delete(photofilename)
 
-                        if extension.lower() in imagetypes and (preset['scale_image'] or preset['watermark']):
+                        if extension.lower() in app.imagetypes and (preset['scale_image'] or preset['watermark']):
                             #image needs to be edited in some way
                             imagedata = Image.open(photofile)
                             if imagedata.mode != 'RGB':
@@ -893,7 +894,7 @@ class ExportScreen(Screen):
                     savefile = os.path.join(save_location, photofilename)
                     if os.path.exists(savefile):
                         os.remove(savefile)
-                    if extension.lower() in imagetypes and (preset['scale_image'] or preset['watermark']):
+                    if extension.lower() in app.imagetypes and (preset['scale_image'] or preset['watermark']):
                         #image needs to be edited in some way
                         imagedata = Image.open(photofile)
                         if imagedata.mode != 'RGB':

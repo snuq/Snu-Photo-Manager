@@ -1,0 +1,6 @@
+.jpg
+.png
+.jpeg
+.bmp
+.gif
+.pcx

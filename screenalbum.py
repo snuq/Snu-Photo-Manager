@@ -58,7 +58,7 @@ from colorpickercustom import ColorPickerCustom
 from kivy.core.video import Video as KivyCoreVideo
 from threading import Thread
 
-from generalcommands import interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
+from generalcommands import find_dictionary, get_keys_from_list, interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
 from filebrowser import FileBrowser
 from generalelements import EncodingSettings, ExpandablePanel, ScrollerContainer, CustomImage, NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, LeftNormalLabel, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
 from generalconstants import *
@@ -2710,13 +2710,16 @@ class ConversionScreen(Screen):
         if not encoding_settings:
             encoding_preset = app.encoding_settings
             encoding_settings = encoding_preset.get_encoding_preset(replace_auto=True)
-        file_format = containers[containers_friendly.index(encoding_settings['file_format'])]
-        audio_codec = audio_codecs[audio_codecs_friendly.index(encoding_settings['audio_codec'])]
+        container_data = find_dictionary(app.containers, 'name', encoding_settings['file_format'])
+        audio_codec_data = find_dictionary(app.audio_codecs, 'name', encoding_settings['audio_codec'])
+        file_format = container_data['format']
+        audio_codec = audio_codec_data['codec']
+
         audio_bitrate = encoding_settings['audio_bitrate']
         if not audio_bitrate:
-            audio_bitrate = str(audio_codecs_bitrate[audio_codecs_friendly.index(encoding_settings['audio_codec'])])
+            audio_bitrate = audio_codec_data['bitrate']
 
-        extension = containers_extensions[containers.index(file_format)]
+        extension = container_data['extension']
 
         if start is not None:
             seek = ' -ss '+str(start)
@@ -2726,7 +2729,7 @@ class ConversionScreen(Screen):
         audio_file = audio_input_folder+os.path.sep+audio_input_filename
         if isfile2(audio_file_override):
             audio_extension = os.path.splitext(audio_file_override)[1].lower()
-            if audio_extension in movietypes + audiotypes:
+            if audio_extension in app.movietypes + app.audiotypes:
                 audio_file = audio_file_override
                 if not offset_audio_file:
                     seek = ''
@@ -2751,24 +2754,34 @@ class ConversionScreen(Screen):
         if not encoding_settings:
             encoding_preset = app.encoding_settings
             encoding_settings = encoding_preset.get_encoding_preset(replace_auto=True)
-        file_format = containers[containers_friendly.index(encoding_settings['file_format'])]
-        video_codec = video_codecs[video_codecs_friendly.index(encoding_settings['video_codec'])]
-        audio_codec = audio_codecs[audio_codecs_friendly.index(encoding_settings['audio_codec'])]
+
+        container_data = find_dictionary(app.containers, 'name', encoding_settings['file_format'])
+        audio_codec_data = find_dictionary(app.audio_codecs, 'name', encoding_settings['audio_codec'])
+        video_codec_data = find_dictionary(app.video_codecs, 'name', encoding_settings['video_codec'])
+        file_format = container_data['format']
+        video_codec = video_codec_data['codec']
+        audio_codec = audio_codec_data['codec']
+
         video_bitrate = encoding_settings['video_bitrate']
         if not video_bitrate:
             pixels_number = input_size[0] * input_size[1]
-            codec_divisor = video_codecs_bitrate_divisor[video_codecs_friendly.index(encoding_settings['video_codec'])]
+            try:
+                codec_divisor = int(video_codec_data['efficiency'])
+            except:
+                codec_divisor = 100
+            if codec_divisor == 0:
+                codec_divisor = 100
             video_bitrate = str(pixels_number / codec_divisor)
         audio_bitrate = encoding_settings['audio_bitrate']
         if not audio_bitrate:
-            audio_bitrate = str(audio_codecs_bitrate[audio_codecs_friendly.index(encoding_settings['audio_codec'])])
+            audio_bitrate = audio_codec_data['bitrate']
         encoding_speed = encoding_speeds[encoding_speeds_friendly.index(encoding_settings['encoding_speed'])]
         deinterlace = encoding_settings['deinterlace']
         resize = encoding_settings['resize']
         resize_width = encoding_settings['width']
         resize_height = encoding_settings['height']
         encoding_command = encoding_settings['command_line']
-        extension = containers_extensions[containers.index(file_format)]
+        extension = container_data['extension']
 
         if start is not None:
             seek = ' -ss '+str(start)
@@ -2840,6 +2853,12 @@ class ConversionScreen(Screen):
             filter_settings = filter_settings+'" '
         else:
             filter_settings = ""
+        if video_codec == 'copy':
+            input_format_settings = ''
+            input_file = os.path.join(input_folder, input_filename)
+            video_bitrate_settings = ''
+            framerate_setting = ''
+            filter_settings = ''
 
         executable = '"'+ffmpeg_command+'"'
 
@@ -2893,7 +2912,10 @@ class ConversionScreen(Screen):
         Returns: 2-Tuple, frame rate numerator, and denominator
         """
 
-        framerates = fftools.get_supported_framerates(codec_name=codec, rate=framerate)
+        try:
+            framerates = fftools.get_supported_framerates(codec_name=codec, rate=framerate)
+        except:
+            return framerate
         if framerates:
             return framerates[0]
         else:
@@ -2907,7 +2929,10 @@ class ConversionScreen(Screen):
         Returns: String, a pixel format name, or False if none found.
         """
 
-        available_pixel_formats = fftools.get_supported_pixfmts(codec_name=codec, pix_fmt=pixel_format)
+        try:
+            available_pixel_formats = fftools.get_supported_pixfmts(codec_name=codec, pix_fmt=pixel_format)
+        except:
+            return False
         if available_pixel_formats:
             return available_pixel_formats[0]
         else:
@@ -3088,62 +3113,97 @@ class ConversionScreen(Screen):
             creationflags = subprocess.NORMAL_PRIORITY_CLASS
         else:
             creationflags = subprocess.IDLE_PRIORITY_CLASS
-        self.encoding_process_thread = subprocess.Popen(command, creationflags=creationflags, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
-        read_stdout = threading.Thread(target=self.read_stdout_thread)
-        read_stdout.start()
+        video_codec_data = find_dictionary(app.video_codecs, 'name', encoding_settings['video_codec'])
+        video_codec = video_codec_data['codec']
 
-        #Poll process for new output until finished
-        while True:
-            if self.cancel_encoding:
-                self.kill_encoding_process_thread()
-                self.delete_temp_encode(output_file, output_file_folder_reencode)
-                self.end_encode("Canceled video processing", end_type='info')
-                return ["Canceled", "Encoding canceled by user"]
-            frameinfo = edit_image.get_converted_frame()
-            if frameinfo is None:
-                #finished encoding
-                break
-
-            frame, pts = frameinfo
-            if frame is None:
-                #there was an error with creating the frame, error is in the pts variable
-                message = "First encode failed on frame "+str(frame_number)+": "+str(pts)
-                self.end_encode(message, end_type='fail')
-                self.kill_encoding_process_thread()
-                self.delete_temp_encode(output_file, output_file_folder_reencode)
-                return ["Error", message]
-            try:
-                frame.save(self.encoding_process_thread.stdin, 'JPEG')
-                frame = None
-            except:
-                if not self.cancel_encoding:
+        if video_codec == 'copy':
+            #Copy video only, no processing to do
+            self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+            while True:
+                if self.cancel_encoding:
+                    self.kill_encoding_process_thread()
                     self.delete_temp_encode(output_file, output_file_folder_reencode)
-                    message = 'Ffmpeg shut down, failed encoding on frame: '+str(frame_number)
+                    self.end_encode("Canceled video processing", end_type='info')
+                    return ["Canceled", "Encoding canceled by user"]
+
+                nextline = self.encoding_process_thread.stdout.readline()
+                self.append_log(nextline.strip())
+                if nextline == '' and self.encoding_process_thread.poll() is not None:
+                    break
+                if nextline.startswith('frame= '):
+                    current_frame = int(nextline.split('frame=')[1].split('fps=')[0].strip())
+                    scanning_percentage = 95 + ((current_frame - start_frame) / total_frames * 5)
+                    self.popup.scanning_percentage = scanning_percentage
+                    elapsed_time = time.time() - start_time
+
+                    try:
+                        time_done = time_index(elapsed_time)
+                        time_text = "  Time: " + time_done
+                    except:
+                        time_text = ""
+                    self.popup.scanning_text = str(int(scanning_percentage)) + "%" + time_text
+
+            output = self.encoding_process_thread.communicate()[0]
+            if output:
+                self.append_log(output.strip())
+        else:
+            #Process video frame-by-frame and encode
+            self.encoding_process_thread = subprocess.Popen(command, creationflags=creationflags, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+            read_stdout = threading.Thread(target=self.read_stdout_thread)
+            read_stdout.start()
+
+            #Poll process for new output until finished
+            while True:
+                if self.cancel_encoding:
+                    self.kill_encoding_process_thread()
+                    self.delete_temp_encode(output_file, output_file_folder_reencode)
+                    self.end_encode("Canceled video processing", end_type='info')
+                    return ["Canceled", "Encoding canceled by user"]
+                frameinfo = edit_image.get_converted_frame()
+                if frameinfo is None:
+                    #finished encoding
+                    break
+
+                frame, pts = frameinfo
+                if frame is None:
+                    #there was an error with creating the frame, error is in the pts variable
+                    message = "First encode failed on frame "+str(frame_number)+": "+str(pts)
                     self.end_encode(message, end_type='fail')
                     self.kill_encoding_process_thread()
+                    self.delete_temp_encode(output_file, output_file_folder_reencode)
                     return ["Error", message]
-            frame_number = frame_number+1
-            scanning_percentage = ((pts - start_seconds)/length) * 95
-            self.popup.scanning_percentage = scanning_percentage
-            elapsed_time = time.time() - start_time
+                try:
+                    frame.save(self.encoding_process_thread.stdin, 'JPEG')
+                    frame = None
+                except:
+                    if not self.cancel_encoding:
+                        self.delete_temp_encode(output_file, output_file_folder_reencode)
+                        message = 'Ffmpeg shut down, failed encoding on frame: '+str(frame_number)
+                        self.end_encode(message, end_type='fail')
+                        self.kill_encoding_process_thread()
+                        return ["Error", message]
+                frame_number = frame_number+1
+                scanning_percentage = ((pts - start_seconds)/length) * 95
+                self.popup.scanning_percentage = scanning_percentage
+                elapsed_time = time.time() - start_time
 
-            try:
-                percentage_remaining = 95 - scanning_percentage
-                seconds_left = (elapsed_time * percentage_remaining) / scanning_percentage
-                if seconds_left < 0:
-                    seconds_left = 0
-                time_done = time_index(elapsed_time)
-                time_remaining = time_index(seconds_left)
-                time_text = "  Time: " + time_done + "  Remaining: " + time_remaining
-            except:
-                time_text = ""
-            if not self.cancel_encoding:
-                self.popup.scanning_text = str(int(scanning_percentage))+"%"+time_text
+                try:
+                    percentage_remaining = 95 - scanning_percentage
+                    seconds_left = (elapsed_time * percentage_remaining) / scanning_percentage
+                    if seconds_left < 0:
+                        seconds_left = 0
+                    time_done = time_index(elapsed_time)
+                    time_remaining = time_index(seconds_left)
+                    time_text = "  Time: " + time_done + "  Remaining: " + time_remaining
+                except:
+                    time_text = ""
+                if not self.cancel_encoding:
+                    self.popup.scanning_text = str(int(scanning_percentage))+"%"+time_text
 
-        outs, errors = self.encoding_process_thread.communicate()
-        read_stdout.join()
-        self.encoding_process_thread.stdin.close()
-        self.encoding_process_thread.wait()
+            outs, errors = self.encoding_process_thread.communicate()
+            read_stdout.join()
+            self.encoding_process_thread.stdin.close()
+            self.encoding_process_thread.wait()
 
         exit_code = self.encoding_process_thread.returncode
         self.append_log("[INFO] : "+"Video encode process ended with exit code "+str(exit_code))
@@ -3204,9 +3264,6 @@ class ConversionScreen(Screen):
                         except:
                             time_text = ""
                         self.popup.scanning_text = str(int(scanning_percentage)) + "%" + time_text
-
-                    #sys.stdout.write(nextline)
-                    #sys.stdout.flush()
 
                 output = self.encoding_process_thread.communicate()[0]
                 if output:
@@ -3747,11 +3804,12 @@ class VideoConverterScreen(ConversionScreen):
             self.add_files_to_batch(files)
 
     def add_files_to_batch(self, files):
+        app = App.get_running_app()
         for filepath in files:
             path, file = os.path.split(filepath)
             extension = os.path.splitext(filepath)[1].lower()
             disable_edit = not self.photo
-            if extension in movietypes:
+            if extension in app.movietypes:
                 self.batch_list.append({
                     'file': file,
                     'path': path,
@@ -3908,7 +3966,10 @@ class VideoConverterScreen(ConversionScreen):
             browse_folder = app.last_browse_folder
         else:
             browse_folder = self.folder
-        content = FileBrowser(ok_text='Load', path=browse_folder, file_editable=True, export_mode=False, file=self.target)
+        audio_filter = []
+        for audiotype in app.audiotypes:
+            audio_filter.append('*'+audiotype)
+        content = FileBrowser(ok_text='Load', path=browse_folder, filters=audio_filter, file_editable=True, export_mode=False, file=self.target)
         content.bind(on_cancel=self.dismiss_popup)
         content.bind(on_ok=self.load_audio_check)
         self.popup = NormalPopup(title="Select An Audio File", content=content, size_hint=(0.9, 0.9))
@@ -3923,7 +3984,7 @@ class VideoConverterScreen(ConversionScreen):
             file = popup.content.file
             self.dismiss_popup()
             extension = os.path.splitext(file)[1].lower()
-            if extension in movietypes + audiotypes:
+            if extension in app.movietypes + app.audiotypes:
                 self.audio_file = os.path.join(path, file)
                 app.message('Selected file: '+file)
                 return
@@ -3935,7 +3996,10 @@ class VideoConverterScreen(ConversionScreen):
             browse_folder = app.last_browse_folder
         else:
             browse_folder = self.folder
-        content = FileBrowser(ok_text='Load', path=browse_folder, file_editable=True, export_mode=False, file=self.target)
+        video_filter = []
+        for movietype in app.movietypes:
+            video_filter.append('*'+movietype)
+        content = FileBrowser(ok_text='Load', path=browse_folder, filters=video_filter, file_editable=True, export_mode=False, file=self.target)
         content.bind(on_cancel=self.dismiss_popup)
         content.bind(on_ok=self.load_video_check)
         self.popup = NormalPopup(title="Select A Video File", content=content, size_hint=(0.9, 0.9))
@@ -3950,7 +4014,7 @@ class VideoConverterScreen(ConversionScreen):
             file = popup.content.file
             self.dismiss_popup()
             extension = os.path.splitext(file)[1].lower()
-            if extension in movietypes:
+            if extension in app.movietypes:
                 self.folder = path
                 self.target = file
                 self.photo = os.path.join(path, file)
@@ -3977,11 +4041,12 @@ class VideoConverterScreen(ConversionScreen):
             self.photo = app.photo
 
     def on_photo(self, *_):
+        app = App.get_running_app()
         self.use_audio = False
         self.audio_file = ''
         if self.photo:
             extension = os.path.splitext(self.photo)[1].lower()
-            if extension not in movietypes:
+            if extension not in app.movietypes:
                 self.photo = ''
                 self.folder = ''
                 self.target = ''
@@ -3990,7 +4055,6 @@ class VideoConverterScreen(ConversionScreen):
                 self.photoinfo = []
                 self.edit_video()
                 return
-        app = App.get_running_app()
         self.folder, self.target = os.path.split(self.photo)
         photoinfo = app.file_in_database(self.photo)
         if photoinfo:
@@ -4679,7 +4743,7 @@ class AlbumScreen(ConversionScreen):
             self.mirror = True
         else:
             self.mirror = False
-        if os.path.splitext(self.photo)[1].lower() in imagetypes:
+        if os.path.splitext(self.photo)[1].lower() in app.imagetypes:
             #a photo is selected
             self.view_image = True
             if app.canprint():
@@ -4712,6 +4776,7 @@ class AlbumScreen(ConversionScreen):
     def cache_nearby_images(self, *_):
         """Determines the next and previous images in the list, and caches them to speed up browsing."""
 
+        app = App.get_running_app()
         current_photo_index = self.current_photo_index()
         if current_photo_index == len(self.photos) - 1:
             next_photo_index = 0
@@ -4721,7 +4786,7 @@ class AlbumScreen(ConversionScreen):
         prev_photo_info = self.photos[current_photo_index-1]
         next_photo_filename = os.path.join(next_photo_info[2], next_photo_info[0])
         prev_photo_filename = os.path.join(prev_photo_info[2], prev_photo_info[0])
-        if next_photo_filename != self.photo and os.path.splitext(next_photo_filename)[1].lower() in imagetypes:
+        if next_photo_filename != self.photo and os.path.splitext(next_photo_filename)[1].lower() in app.imagetypes:
             try:
                 if os.path.splitext(next_photo_filename)[1].lower() == '.bmp':
                     next_photo = ImageLoaderPIL(next_photo_filename)
@@ -4729,7 +4794,7 @@ class AlbumScreen(ConversionScreen):
                     next_photo = Loader.image(next_photo_filename)
             except:
                 pass
-        if prev_photo_filename != self.photo and os.path.splitext(prev_photo_filename)[1].lower() in imagetypes:
+        if prev_photo_filename != self.photo and os.path.splitext(prev_photo_filename)[1].lower() in app.imagetypes:
             try:
                 if os.path.splitext(prev_photo_filename)[1].lower() == '.bmp':
                     prev_photo = ImageLoaderPIL(prev_photo_filename)
@@ -4801,6 +4866,8 @@ class AlbumScreen(ConversionScreen):
 
     def refresh_photoview(self):
         #refresh recycleview
+
+        app = App.get_running_app()
         photolist = self.ids['albumContainer']
         photodatas = []
         for photo in self.photos:
@@ -4812,7 +4879,7 @@ class AlbumScreen(ConversionScreen):
             photodata['owner'] = self
             photodata['favorite'] = True if 'favorite' in photo[8].split(',') else False
             photodata['fullpath'] = photo[0]
-            photodata['video'] = os.path.splitext(source)[1].lower() in movietypes
+            photodata['video'] = os.path.splitext(source)[1].lower() in app.movietypes
             photodata['selectable'] = True
             photodata['selected'] = False
             #if self.fullpath == photo[0]:
@@ -5766,7 +5833,11 @@ class EditPanelVideo(EditPanelBase):
                 self.add_presets_to_menu(self.preset_drop, app.encoding_presets_user, user=True)
 
     def setup_video(self, *_):
+        app = App.get_running_app()
         self.setup_presets_menu()
+        containers_friendly = get_keys_from_list(app.containers)
+        video_codecs_friendly = get_keys_from_list(app.video_codecs)
+        audio_codecs_friendly = get_keys_from_list(app.audio_codecs)
 
         all_containers = ['Auto'] + containers_friendly
         self.container_drop = NormalDropDown()

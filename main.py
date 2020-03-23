@@ -204,6 +204,12 @@ class PhotoManager(App):
     #Global variables
     ffmpeg = BooleanProperty(False)
     opencv = BooleanProperty(False)
+    containers = ListProperty()
+    video_codecs = ListProperty()
+    audio_codecs = ListProperty()
+    imagetypes = ListProperty()
+    movietypes = ListProperty()
+    audiotypes = ListProperty()
 
     #Display variables
     photosinfo = ListProperty()  #List of all photoinfo from currently displayed photos
@@ -306,6 +312,353 @@ class PhotoManager(App):
     imported = None
 
     about_text = StringProperty()
+
+    def build(self):
+        """Called when the app starts.  Load and set up all variables, data, and screens."""
+
+        self.ffmpeg = ffmpeg
+        self.opencv = opencv
+
+        self.encoding_settings = EncodingSettings()
+        self.encoding_settings.load_current_encoding_preset()
+
+        self.load_formats()
+
+        self.theme = Theme()
+        self.theme_default()
+        themefile = os.path.realpath(os.path.join(self.data_directory, "theme.txt"))
+        if themefile and os.path.exists(themefile):
+            print('Loading theme file...')
+            loaded, data = self.load_theme_data(themefile)
+            if loaded:
+                self.data_to_theme(data)
+        Window.clearcolor = list(self.theme.background)
+        if int(self.config.get("Settings", "buttonsize")) < 50:
+            self.config.set("Settings", "buttonsize", 50)
+        if int(self.config.get("Settings", "textsize")) < 50:
+            self.config.set("Settings", "textsize", 50)
+        if int(self.config.get("Settings", "thumbsize")) < 100:
+            self.config.set("Settings", "thumbsize", 100)
+
+        self.thumbsize = int(self.config.get("Settings", "thumbsize"))
+        self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
+        #Load data
+        self.tag_directory = os.path.join(self.data_directory, 'Tags')
+        self.album_directory = os.path.join(self.data_directory, 'Albums')
+        about_file = open(kivy.resources.resource_find('about.txt'), 'r')
+        self.about_text = about_file.read()
+        about_file.close()
+        self.program_import()  #Load external program presets
+        self.setup_import_presets()  #Load import presets
+        self.setup_export_presets()  #Load export presets
+        self.tags_load()  #Load tags
+        self.album_load_all()  #Load albums
+        self.load_encoding_presets()
+
+        database_directory = self.data_directory+os.path.sep+'Databases'
+        if not os.path.exists(database_directory):
+            os.makedirs(database_directory)
+        self.photos_name = os.path.join(database_directory, 'photos.db')
+        self.folders_name = os.path.join(database_directory, 'folders.db')
+        self.thumbnails_name = os.path.join(database_directory, 'thumbnails.db')
+        self.imported_name = os.path.join(database_directory, 'imported.db')
+        self.setup_database()  #Import or set up databases
+
+        #Parse open with commands and see if file is valid
+        for possible_photo in sys.argv:
+            if '.' in possible_photo:
+                extension = '.' + possible_photo.lower().split('.')[-1]
+                if extension in self.imagetypes or extension in self.movietypes:
+                    if os.path.isfile(possible_photo):
+                        print('Loading file: ' + possible_photo)
+                        self.standalone_file = possible_photo
+                        self.standalone = True
+                        break
+
+        #check if standalone file is in database
+        if self.standalone:
+            abspath = os.path.abspath(self.standalone_file)
+            photoinfo = self.file_in_database(self.standalone_file)
+            if photoinfo:
+                self.standalone_in_database = True
+                self.photo = abspath
+                self.fullpath = photoinfo[0]
+                self.target = photoinfo[1]
+                self.type = 'Folder'
+                self.standalone_text = 'Stand-Alone Mode, Using Database'
+            else:
+                self.standalone_in_database = False
+
+            if not self.standalone_in_database:
+                #File/folder is not in database, use temp databases
+                self.tempthumbnails.close()
+                self.tempthumbnails.join()
+                self.thumbnails.close()
+                self.thumbnails.join()
+                self.photos.close()
+                self.photos.join()
+                self.folders.close()
+                self.folders.join()
+                self.imported.close()
+                self.imported.join()
+
+                self.photos_name = ':memory:'
+                self.folders_name = ':memory:'
+                self.thumbnails_name = ':memory:'
+                self.imported_name = ':memory:'
+                self.setup_database()
+
+                #determine temp folder and database from passed in file
+                full_folder, file = os.path.split(abspath)
+                database_path, folder = os.path.split(full_folder)
+                self.standalone_in_database = False
+                self.standalone_database = database_path
+                self.photo = abspath
+                self.fullpath = os.path.relpath(abspath, database_path)
+                self.target = folder
+                self.type = 'Folder'
+                self.scan_folder(self.standalone_database, self.target)
+                self.standalone_text = 'Stand-Alone Mode, Not Using Database'
+
+        else:
+            #Not standalone mode, setup default settings
+            viewtype = 'None'
+            viewtarget = ''
+            viewdisplayable = False
+            if self.config.getboolean("Settings", "rememberview"):
+                config_viewtype = self.config.get("Settings", "viewtype")
+                if config_viewtype:
+                    viewtype = config_viewtype
+                    viewtarget = self.config.get("Settings", "viewtarget")
+                    viewdisplayable = to_bool(self.config.get("Settings", "viewdisplayable"))
+            self.database_screen = DatabaseScreen(name='database', type=viewtype, selected=viewtarget, displayable=viewdisplayable)
+            #self.screen_manager.add_widget(self.database_screen)
+            self.database_restore_screen = DatabaseRestoreScreen(name='database_restore')
+            if self.config.getboolean("Settings", "rescanstartup"):
+                self.database_import()
+        self.set_single_database()
+
+        #Set up widgets
+        self.main_layout = MainWindow()
+        self.drag_image = PhotoDrag()
+        self.drag_treenode = TreenodeDrag()
+        self.clickfade_object = ClickFade()
+
+        #Set up screens
+        self.screen_manager = ScreenManager()
+        self.animations = to_bool(self.config.get("Settings", "animations"))
+        self.set_transition()
+        self.main_layout.add_widget(self.screen_manager)
+
+        #Set up keyboard catchers
+        Window.bind(on_key_down=self.key_down)
+        Window.bind(on_key_up=self.key_up)
+        return self.main_layout
+
+    def on_start(self):
+        """Function called when the app is first started.
+        Add a custom keyboard hook so key buttons can be intercepted.
+        """
+
+        EventLoop.window.bind(on_keyboard=self.hook_keyboard)
+        if not self.has_database():
+            self.open_settings()
+        self.database_auto_rescan_timer = float(self.config.get("Settings", "autoscan"))
+        self.database_auto_rescanner = Clock.schedule_interval(self.database_auto_rescan, 60)
+        Window.bind(on_draw=self.rescale_interface)
+
+    def on_pause(self):
+        """Function called when the app is paused or suspended on a mobile platform.
+        Saves all settings and data.
+        """
+
+        if self.main_layout:
+            self.config.write()
+            self.thumbnails.commit()
+            self.photos.commit()
+            self.folders.commit()
+            self.imported.commit()
+        return True
+
+    def on_resume(self):
+        print('Resuming App...')
+
+    def on_stop(self):
+        """Function called just before the app is closed.
+        Saves all settings and data.
+        """
+
+        if self.database_scanning:
+            self.cancel_database_import()
+            self.scanningthread.join()
+        self.encoding_settings.store_current_encoding_preset()
+        self.config.write()
+        self.tempthumbnails.close()
+        self.tempthumbnails.join()
+        self.thumbnails.close()
+        self.thumbnails.join()
+        self.photos.close()
+        self.photos.join()
+        self.folders.close()
+        self.folders.join()
+        self.imported.close()
+        self.imported.join()
+
+    def key_down(self, key, scancode=None, *_):
+        """Intercepts various key presses and sends commands to the current screen."""
+        del key
+        if scancode == 303 or scancode == 304:
+            #shift keys
+            self.shift_pressed = True
+
+    def key_up(self, key, scancode=None, *_):
+        """Checks for the shift key released."""
+
+        del key
+        if scancode == 303 or scancode == 304:
+            self.shift_pressed = False
+
+    def hook_keyboard(self, window, scancode, *_):
+        """This function receives keyboard events"""
+
+        self.close_bubble()
+
+        if self.settings_open:
+            if scancode == 27:
+                if self.popup:
+                    self.popup.dismiss()
+                    self.popup = None
+                    return True
+                else:
+                    self.close_settings()
+                    return True
+        else:
+            del window
+            current_screen = self.screen_manager.current_screen
+            if scancode == 97:
+                #a key
+                current_screen.key('a')
+            if scancode == 276:
+                #left key
+                current_screen.key('left')
+            if scancode == 275:
+                #right key
+                current_screen.key('right')
+            if scancode == 273:
+                #up key
+                current_screen.key('up')
+            if scancode == 274:
+                #down key
+                current_screen.key('down')
+            if scancode == 32:
+                #space key
+                current_screen.key('space')
+            if scancode == 13:
+                #enter key
+                current_screen.key('enter')
+            if scancode == 127 or scancode == 8:
+                #delete and backspace key
+                current_screen.key('delete')
+            if scancode == 9:
+                #tab key
+                current_screen.key('tab')
+            if scancode == 282:
+                #f1 key
+                current_screen.key('f1')
+            if scancode == 283:
+                #f2 key
+                current_screen.key('f2')
+            if scancode == 284:
+                #f3 key
+                current_screen.key('f3')
+            if scancode == 285:
+                #f4 key
+                current_screen.key('f4')
+            if scancode == 27:  #Escape
+                self.clear_drags()
+                if self.standalone:
+                    match_screen = 'album'
+                else:
+                    match_screen = 'database'
+                if Window.keyboard_height > 0:
+                    Window.release_all_keyboards()
+                    return True
+                elif not self.screen_manager.current_screen:
+                    return False
+                #elif self.database_scanning:
+                #    self.cancel_database_import()
+                #    return True
+                elif self.screen_manager.current_screen.dismiss_extra():
+                    return True
+                elif self.screen_manager.current_screen.has_popup():
+                    self.screen_manager.current_screen.dismiss_popup()
+                    return True
+                elif self.screen_manager.current != match_screen:
+                    if self.screen_manager.current in ['photo', 'video']:
+                        self.show_album(back=True)
+                    else:
+                        self.show_database()
+                    return True
+
+    def load_formats(self):
+        self.containers = self.parse_preset_config_file(os.path.join('data', 'containers.ini'), keys=['format', 'extension'], section_key='name')
+        self.video_codecs = self.parse_preset_config_file(os.path.join('data', 'video_codecs.ini'), keys=['codec', 'efficiency'], section_key='name')
+        self.video_codecs.append({'name': 'Copy Video', 'codec': 'copy', 'efficiency': '0'})
+        self.audio_codecs = self.parse_preset_config_file(os.path.join('data', 'audio_codecs.ini'), keys=['codec', 'bitrate'], section_key='name')
+        self.audio_codecs.append({'name': 'None/Remove', 'codec': '', 'bitrate': '0'})
+        self.audio_codecs.append({'name': 'Copy Audio', 'codec': 'copy', 'bitrate': '0'})
+        self.imagetypes = self.parse_list_file(os.path.join('data', 'imagetypes.txt'))
+        self.movietypes = self.parse_list_file(os.path.join('data', 'movietypes.txt'))
+        self.audiotypes = self.parse_list_file(os.path.join('data', 'audiotypes.txt'))
+
+    def parse_list_file(self, filename):
+        """Function that parses lines of a text file into a list, strips the lines and skips empty lines.
+        Returns an empty list if file is not found or if empty."""
+
+        elements = []
+        filepath = kivy.resources.resource_find(filename)
+        try:
+            with open(filepath) as list_file:
+                for line in list_file:
+                    line = line.strip()
+                    if line:
+                        elements.append(line)
+        except:
+            pass
+        return elements
+
+    def parse_preset_config_file(self, preset_file, keys, ignore_sections=[], section_key=''):
+        """Function that returns a list of presets loaded from a .ini file.
+        keys: list of required keys for each preset to have, preset will not be returned if it does not have all of these
+        ignore_sections: list of section names to ignore (optional)
+        section_key: string, name of the dictionary key to store the section in.  if blank, will not be stored.
+
+        Returns a list of dictionaries, each with the required keys.  Returns an empty list if none are found, or if file cannot be loaded."""
+
+        try:
+            presets = []
+            configfile = ConfigParser(interpolation=None)
+            config_filename = kivy.resources.resource_find(preset_file)
+            configfile.read(config_filename)
+            sections = configfile.sections()
+        except:
+            return []
+
+        for section in sections:
+            if section not in ignore_sections:
+                valid = True
+                preset = {}
+                if section_key:
+                    preset[section_key] = section
+                for key in keys:
+                    try:
+                        preset[key] = configfile.get(section, key)
+                    except:
+                        valid = False
+                if valid:
+                    presets.append(preset)
+
+        return presets
 
     def clickfade(self, widget, mode='opacity'):
         try:
@@ -416,7 +769,7 @@ class PhotoManager(App):
         extension = os.path.splitext(fullpath)[1].lower()
 
         try:
-            if extension in imagetypes:
+            if extension in self.imagetypes:
                 #This is an image file, use PIL to generate a thumnail
                 image = Image.open(full_filename)
                 image.thumbnail((self.thumbsize, self.thumbsize), Image.ANTIALIAS)
@@ -426,7 +779,7 @@ class PhotoManager(App):
                 image.save(output, 'jpeg')
                 thumbnail = output.getvalue()
 
-            elif extension in movietypes:
+            elif extension in self.movietypes:
                 #This is a video file, use ffpyplayer to generate a thumbnail
                 player = MediaPlayer(full_filename, ff_opts={'paused': True, 'ss': 1.0, 'an': True, 'lowres': 2})
                 frame = None
@@ -1027,65 +1380,16 @@ class PhotoManager(App):
                 self.database_rescan()
                 self.database_auto_rescan_timer = rescan_time
 
-    def on_start(self):
-        """Function called when the app is first started.
-        Add a custom keyboard hook so key buttons can be intercepted.
-        """
-
-        EventLoop.window.bind(on_keyboard=self.hook_keyboard)
-        if not self.has_database():
-            self.open_settings()
-        self.database_auto_rescan_timer = float(self.config.get("Settings", "autoscan"))
-        self.database_auto_rescanner = Clock.schedule_interval(self.database_auto_rescan, 60)
-        Window.bind(on_draw=self.rescale_interface)
-
     def start_screen_layout(self, *_):
         #Show correct screen layout:
         if ffmpeg:
             if self.config.getboolean("Settings", "editvideo"):
                 if self.photo:
                     extension = os.path.splitext(self.photo)[1].lower()
-                    if extension in movietypes:
+                    if extension in self.movietypes:
                         Clock.schedule_once(self.show_video_converter)
                         return
         Clock.schedule_once(self.show_database)
-
-    def on_pause(self):
-        """Function called when the app is paused or suspended on a mobile platform.
-        Saves all settings and data.
-        """
-
-        if self.main_layout:
-            self.config.write()
-            self.thumbnails.commit()
-            self.photos.commit()
-            self.folders.commit()
-            self.imported.commit()
-        return True
-
-    def on_resume(self):
-        print('Resuming App...')
-
-    def on_stop(self):
-        """Function called just before the app is closed.
-        Saves all settings and data.
-        """
-
-        if self.database_scanning:
-            self.cancel_database_import()
-            self.scanningthread.join()
-        self.encoding_settings.store_current_encoding_preset()
-        self.config.write()
-        self.tempthumbnails.close()
-        self.tempthumbnails.join()
-        self.thumbnails.close()
-        self.thumbnails.join()
-        self.photos.close()
-        self.photos.join()
-        self.folders.close()
-        self.folders.join()
-        self.imported.close()
-        self.imported.join()
 
     def open_settings(self, *largs):
         self.clear_drags()
@@ -1095,88 +1399,6 @@ class PhotoManager(App):
     def close_settings(self, *largs):
         self.settings_open = False
         super().close_settings(*largs)
-
-    def hook_keyboard(self, window, scancode, *_):
-        """This function receives keyboard events"""
-
-        self.close_bubble()
-
-        if self.settings_open:
-            if scancode == 27:
-                if self.popup:
-                    self.popup.dismiss()
-                    self.popup = None
-                    return True
-                else:
-                    self.close_settings()
-                    return True
-        else:
-            del window
-            current_screen = self.screen_manager.current_screen
-            if scancode == 97:
-                #a key
-                current_screen.key('a')
-            if scancode == 276:
-                #left key
-                current_screen.key('left')
-            if scancode == 275:
-                #right key
-                current_screen.key('right')
-            if scancode == 273:
-                #up key
-                current_screen.key('up')
-            if scancode == 274:
-                #down key
-                current_screen.key('down')
-            if scancode == 32:
-                #space key
-                current_screen.key('space')
-            if scancode == 13:
-                #enter key
-                current_screen.key('enter')
-            if scancode == 127 or scancode == 8:
-                #delete and backspace key
-                current_screen.key('delete')
-            if scancode == 9:
-                #tab key
-                current_screen.key('tab')
-            if scancode == 282:
-                #f1 key
-                current_screen.key('f1')
-            if scancode == 283:
-                #f2 key
-                current_screen.key('f2')
-            if scancode == 284:
-                #f3 key
-                current_screen.key('f3')
-            if scancode == 285:
-                #f4 key
-                current_screen.key('f4')
-            if scancode == 27:  #Escape
-                self.clear_drags()
-                if self.standalone:
-                    match_screen = 'album'
-                else:
-                    match_screen = 'database'
-                if Window.keyboard_height > 0:
-                    Window.release_all_keyboards()
-                    return True
-                elif not self.screen_manager.current_screen:
-                    return False
-                #elif self.database_scanning:
-                #    self.cancel_database_import()
-                #    return True
-                elif self.screen_manager.current_screen.dismiss_extra():
-                    return True
-                elif self.screen_manager.current_screen.has_popup():
-                    self.screen_manager.current_screen.dismiss_popup()
-                    return True
-                elif self.screen_manager.current != match_screen:
-                    if self.screen_manager.current in ['photo', 'video']:
-                        self.show_album(back=True)
-                    else:
-                        self.show_database()
-                    return True
 
     def setup_import_presets(self):
         """Reads the import presets from the config file and saves them to the app.imports variable."""
@@ -1885,7 +2107,7 @@ class PhotoManager(App):
 
         for index, file in enumerate(files):
             extension = os.path.splitext(file)[1].lower()
-            if extension in imagetypes or extension in movietypes:
+            if extension in self.imagetypes or extension in self.movietypes:
                 file_info = [os.path.join(folder, file), database_folder]
                 file_info = get_file_info(file_info)
                 self.database_add(file_info)
@@ -1907,160 +2129,6 @@ class PhotoManager(App):
                     #File is in database, use current database
                     return photoinfo
         return None
-
-    def build(self):
-        """Called when the app starts.  Load and set up all variables, data, and screens."""
-
-        self.ffmpeg = ffmpeg
-        self.opencv = opencv
-
-        self.encoding_settings = EncodingSettings()
-        self.encoding_settings.load_current_encoding_preset()
-
-        self.theme = Theme()
-        self.theme_default()
-        themefile = os.path.realpath(os.path.join(self.data_directory, "theme.txt"))
-        if themefile and os.path.exists(themefile):
-            print('Loading theme file...')
-            loaded, data = self.load_theme_data(themefile)
-            if loaded:
-                self.data_to_theme(data)
-        Window.clearcolor = list(self.theme.background)
-        if int(self.config.get("Settings", "buttonsize")) < 50:
-            self.config.set("Settings", "buttonsize", 50)
-        if int(self.config.get("Settings", "textsize")) < 50:
-            self.config.set("Settings", "textsize", 50)
-        if int(self.config.get("Settings", "thumbsize")) < 100:
-            self.config.set("Settings", "thumbsize", 100)
-
-        self.thumbsize = int(self.config.get("Settings", "thumbsize"))
-        self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
-        #Load data
-        self.tag_directory = os.path.join(self.data_directory, 'Tags')
-        self.album_directory = os.path.join(self.data_directory, 'Albums')
-        about_file = open(kivy.resources.resource_find('about.txt'), 'r')
-        self.about_text = about_file.read()
-        about_file.close()
-        self.program_import()  #Load external program presets
-        self.setup_import_presets()  #Load import presets
-        self.setup_export_presets()  #Load export presets
-        self.tags_load()  #Load tags
-        self.album_load_all()  #Load albums
-        self.load_encoding_presets()
-
-        database_directory = self.data_directory+os.path.sep+'Databases'
-        if not os.path.exists(database_directory):
-            os.makedirs(database_directory)
-        self.photos_name = os.path.join(database_directory, 'photos.db')
-        self.folders_name = os.path.join(database_directory, 'folders.db')
-        self.thumbnails_name = os.path.join(database_directory, 'thumbnails.db')
-        self.imported_name = os.path.join(database_directory, 'imported.db')
-        self.setup_database()  #Import or set up databases
-
-        #Parse open with commands and see if file is valid
-        for possible_photo in sys.argv:
-            if '.' in possible_photo:
-                extension = '.' + possible_photo.lower().split('.')[-1]
-                if extension in imagetypes or extension in movietypes:
-                    if os.path.isfile(possible_photo):
-                        print('Loading file: ' + possible_photo)
-                        self.standalone_file = possible_photo
-                        self.standalone = True
-                        break
-
-        #check if standalone file is in database
-        if self.standalone:
-            abspath = os.path.abspath(self.standalone_file)
-            photoinfo = self.file_in_database(self.standalone_file)
-            if photoinfo:
-                self.standalone_in_database = True
-                self.photo = abspath
-                self.fullpath = photoinfo[0]
-                self.target = photoinfo[1]
-                self.type = 'Folder'
-                self.standalone_text = 'Stand-Alone Mode, Using Database'
-            else:
-                self.standalone_in_database = False
-
-            if not self.standalone_in_database:
-                #File/folder is not in database, use temp databases
-                self.tempthumbnails.close()
-                self.tempthumbnails.join()
-                self.thumbnails.close()
-                self.thumbnails.join()
-                self.photos.close()
-                self.photos.join()
-                self.folders.close()
-                self.folders.join()
-                self.imported.close()
-                self.imported.join()
-
-                self.photos_name = ':memory:'
-                self.folders_name = ':memory:'
-                self.thumbnails_name = ':memory:'
-                self.imported_name = ':memory:'
-                self.setup_database()
-
-                #determine temp folder and database from passed in file
-                full_folder, file = os.path.split(abspath)
-                database_path, folder = os.path.split(full_folder)
-                self.standalone_in_database = False
-                self.standalone_database = database_path
-                self.photo = abspath
-                self.fullpath = os.path.relpath(abspath, database_path)
-                self.target = folder
-                self.type = 'Folder'
-                self.scan_folder(self.standalone_database, self.target)
-                self.standalone_text = 'Stand-Alone Mode, Not Using Database'
-
-        else:
-            #Not standalone mode, setup default settings
-            viewtype = 'None'
-            viewtarget = ''
-            viewdisplayable = False
-            if self.config.getboolean("Settings", "rememberview"):
-                config_viewtype = self.config.get("Settings", "viewtype")
-                if config_viewtype:
-                    viewtype = config_viewtype
-                    viewtarget = self.config.get("Settings", "viewtarget")
-                    viewdisplayable = to_bool(self.config.get("Settings", "viewdisplayable"))
-            self.database_screen = DatabaseScreen(name='database', type=viewtype, selected=viewtarget, displayable=viewdisplayable)
-            #self.screen_manager.add_widget(self.database_screen)
-            self.database_restore_screen = DatabaseRestoreScreen(name='database_restore')
-            if self.config.getboolean("Settings", "rescanstartup"):
-                self.database_import()
-        self.set_single_database()
-
-        #Set up widgets
-        self.main_layout = MainWindow()
-        self.drag_image = PhotoDrag()
-        self.drag_treenode = TreenodeDrag()
-        self.clickfade_object = ClickFade()
-
-        #Set up screens
-        self.screen_manager = ScreenManager()
-        self.animations = to_bool(self.config.get("Settings", "animations"))
-        self.set_transition()
-        self.main_layout.add_widget(self.screen_manager)
-
-        #Set up keyboard catchers
-        Window.bind(on_key_down=self.key_down)
-        Window.bind(on_key_up=self.key_up)
-        return self.main_layout
-
-    def key_down(self, key, scancode=None, *_):
-        """Intercepts various key presses and sends commands to the current screen."""
-        del key
-        if scancode == 303 or scancode == 304:
-            #shift keys
-            self.shift_pressed = True
-
-    def key_up(self, key, scancode=None, *_):
-        """Checks for the shift key released."""
-
-        del key
-        if scancode == 303 or scancode == 304:
-            self.shift_pressed = False
 
     def remove_tag(self, tag):
         """Deletes a tag.
@@ -2872,7 +2940,7 @@ class PhotoManager(App):
             if self.cancel_scanning:
                 break
             extension = os.path.splitext(file_info[0])[1].lower()
-            if extension in imagetypes or extension in movietypes:
+            if extension in self.imagetypes or extension in self.movietypes:
                 exists = self.database_exists(file_info[0])
                 if not exists:
                     #photo not in database, add it or ceck if moved

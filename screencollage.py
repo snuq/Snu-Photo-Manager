@@ -1014,7 +1014,7 @@ class CollageScreen(Screen):
         temp_photos = []
         for photo in self.photos:
             source = os.path.join(photo[2], photo[0])
-            isvideo = os.path.splitext(source)[1].lower() in movietypes
+            isvideo = os.path.splitext(source)[1].lower() in app.movietypes
             if not isvideo:
                 temp_photos.append(photo)
         self.photos = temp_photos

@@ -617,7 +617,7 @@ class ImportingScreen(Screen):
                     self.scanningpopup.scanning_percentage = self.percent_completed
 
                     extension = os.path.splitext(file_info[0])[1].lower()
-                    if extension in imagetypes or extension in movietypes:
+                    if extension in app.imagetypes or extension in app.movietypes:
                         photo_info = get_file_info(file_info, import_mode=True)
                         is_in_database = app.in_database(photo_info)
                         if not is_in_database:
@@ -1037,6 +1037,7 @@ class ImportingScreen(Screen):
     def update_photolist(self):
         """Redraw the photo list view for the currently selected folder."""
 
+        app = App.get_running_app()
         folder_name = self.ids['folderName']
         photos = []
         name = ''
@@ -1084,7 +1085,7 @@ class ImportingScreen(Screen):
             full_filename = os.path.join(photo[2], photo[0])
             fullpath = photo[0]
             database_folder = photo[2]
-            video = os.path.splitext(full_filename)[1].lower() in movietypes
+            video = os.path.splitext(full_filename)[1].lower() in app.movietypes
             data = {
                 'fullpath': fullpath,
                 'temporary': True,

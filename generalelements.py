@@ -48,7 +48,7 @@ from kivy.uix.recycleview.layout import LayoutSelectionBehavior
 from kivy.uix.slider import Slider
 
 from generalconstants import *
-from generalcommands import to_bool, isfile2, rotated_rect_with_max_area
+from generalcommands import get_keys_from_list, to_bool, isfile2, rotated_rect_with_max_area
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
@@ -1121,15 +1121,21 @@ class EncodingSettings(Widget):
     video_quality = StringProperty('Auto')
 
     def on_file_format(self, *_):
+        app = App.get_running_app()
+        containers_friendly = get_keys_from_list(app.containers)
         if self.file_format not in containers_friendly+['Auto']:
             self.file_format = 'Auto'
 
     def on_video_codec(self, *_):
+        app = App.get_running_app()
+        video_codecs_friendly = get_keys_from_list(app.video_codecs)
         if self.video_codec not in video_codecs_friendly+['Auto']:
             self.video_codec = 'Auto'
             self.video_bitrate = ''
 
     def on_audio_codec(self, *_):
+        app = App.get_running_app()
+        audio_codecs_friendly = get_keys_from_list(app.audio_codecs)
         if self.audio_codec not in audio_codecs_friendly+['Auto']:
             self.audio_codec = 'Auto'
             self.audio_bitrate = ''
@@ -1188,6 +1194,11 @@ class EncodingSettings(Widget):
             self.encoding_speed = 'Auto'
 
     def get_encoding_preset(self, replace_auto=False):
+        app = App.get_running_app()
+        containers_friendly = get_keys_from_list(app.containers)
+        video_codecs_friendly = get_keys_from_list(app.video_codecs)
+        audio_codecs_friendly = get_keys_from_list(app.audio_codecs)
+
         encoding_settings = {}
         if replace_auto and self.file_format == 'Auto':
             encoding_settings['file_format'] = containers_friendly[0]
@@ -3180,7 +3191,8 @@ class CustomImage(KivyImage):
     def on_source(self, *_):
         """The source file has been changed, reload image and regenerate preview."""
 
-        self.video = os.path.splitext(self.source)[1].lower() in movietypes
+        app = App.get_running_app()
+        self.video = os.path.splitext(self.source)[1].lower() in app.movietypes
         if self.video:
             self.open_video()
         self.reload_edit_image()

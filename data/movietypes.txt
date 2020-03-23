@@ -1,0 +1,12 @@
+.avi
+.mov
+.mp4
+.mpeg4
+.mts
+.mpg
+.mpeg
+.vob
+.mkv
+.ogv
+.m2v
+.webm

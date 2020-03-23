@@ -1533,7 +1533,7 @@ class DatabaseScreen(Screen):
                     favorite = True if 'favorite' in tags else False
                     fullpath = photo[0]
                     database_folder = photo[2]
-                    video = os.path.splitext(full_filename)[1].lower() in movietypes
+                    video = os.path.splitext(full_filename)[1].lower() in app.movietypes
                     data = {
                         'fullpath': fullpath,
                         'photoinfo': photo,
