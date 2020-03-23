@@ -1,8 +1,13 @@
 # Snu Photo Manager
 
-A feature-rich photo manager and editor written in python and using the Kivy library.  
+A feature-rich photo manager with photo and video editing capabilities, written in python and using the Kivy library.
+* Sort photos and videos with a database, easily import files from your camera or phone.
+* Edit photos and videos with color adjustments, filters, rotation, cropping and more.
+* Export your photos for websites, create collages, or convert your videos to a smaller format.
+
 It should run on any platform that the required libraries can be run on.  So far, I have made Windows, Linux (Ubuntu 16+) and Android binaries.  It should be possible to create OSX and ios binaries as well, but I do not have the required hardware to do so.  
 Download latest binaries at: www.snuq.com/snuphotomanager/  
+
 Note that the android version is very beta - some features are missing, it is pretty slow, and it is not yet a signed executable (debug only for now).  
 
 This program is released under the GNU General Public License.
@@ -22,8 +27,8 @@ Watch the demo video:
 * Simple and advanced filters: sharpen, soften, vignette, edge blur.  
 * Noise reduction: Despeckle, edge-preserve blur, non-local means denoise.  
 * Image edits: rotate (and straighten), crop, image border overlays (frames).  
-* All editing features apply to videos as well.  
-* Video conversions (reencoding using presets).  
+* All editing features can apply to videos as well.  
+* Video conversion, simple with presets, or use the video editing screen to tweak settings or batch process videos.
 * Collage creation from any number of photos.
 * Exporting with watermarks and resizing, export to a folder or FTP.  
 
@@ -52,7 +57,7 @@ For now, side-loading of apps is required to be enabled.  Depending on your devi
 
 
 ### Manual Installation:  
-* Install Python 3, tested with 3.4.4, 3.5.2 and 3.7.3.  
+* Install Python 3, tested with 3.5.2 and 3.7.3.  
 * Install the Python packages:  
    * Kivy (Tested with 1.10.0 and 1.11.0)  
    * ffpyplayer (Tested with 4.0.1 and 4.2.0)  
