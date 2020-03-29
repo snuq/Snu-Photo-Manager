@@ -20,7 +20,6 @@ Todo before 1.0:
         Maybe manually added 'markers' that can be jumped to
         Maybe add import to year subfolders option
     Is there any way to do a right-click standalone thing with linux? 
-    How to register file types with linux?
 
 Todo Possible Future:
     Export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
