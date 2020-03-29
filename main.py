@@ -785,18 +785,26 @@ class PhotoManager(App):
                 frame = None
                 while not frame:
                     frame, value = player.get_frame(force_refresh=True)
+                metadata = player.get_metadata()
+                aspect_ratio = metadata['aspect_ratio']
+                aspect = aspect_ratio[1]/aspect_ratio[0]
                 player.close_player()
                 player = None
                 frame = frame[0]
                 frame_size = frame.get_size()
-                frame_converter = SWScale(frame_size[0], frame_size[1], frame.get_pixel_format(), ofmt='rgb24')
-                new_frame = frame_converter.scale(frame)
-                image_data = bytes(new_frame.to_bytearray()[0])
+                current_pixel_format = frame.get_pixel_format()
+                if current_pixel_format != 'rgb24':
+                    frame_converter = SWScale(frame_size[0], frame_size[1], current_pixel_format, ofmt='rgb24')
+                    frame = frame_converter.scale(frame)
+                image_data = bytes(frame.to_bytearray()[0])
 
                 image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
                 image = image.transpose(1)
+                if aspect != 1:
+                    image = image.resize(size=(frame_size[0], int(frame_size[1] * aspect)))
 
                 image.thumbnail((self.thumbsize, self.thumbsize), Image.ANTIALIAS)
+
                 output = BytesIO()
                 image.save(output, 'jpeg')
                 thumbnail = output.getvalue()

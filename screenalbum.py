@@ -34,7 +34,7 @@ from kivy.animation import Animation
 from kivy.graphics.transformation import Matrix
 from kivy.uix.behaviors import ButtonBehavior, DragBehavior
 from kivy.uix.screenmanager import Screen
-from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
+from kivy.properties import AliasProperty, ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.relativelayout import RelativeLayout
@@ -2402,6 +2402,8 @@ Builder.load_string("""
 
 
 class CoreVideo(KivyCoreVideo):
+    aspect = NumericProperty(1)
+
     def play(self):
         if self._ffplayer and self._state == 'paused':
             self._ffplayer.toggle_pause()
@@ -2423,6 +2425,10 @@ class CoreVideo(KivyCoreVideo):
         while not frame:
             frame, value = self._ffplayer.get_frame(force_refresh=True)
             time.sleep(0.2)
+
+        metadata = self._ffplayer.get_metadata()
+        aspect_ratio = metadata['aspect_ratio']
+        self.aspect = aspect_ratio[1]/aspect_ratio[0]
 
         self._thread = Thread(target=self._next_frame_run, name='Next frame')
         self._thread.daemon = True
@@ -6615,6 +6621,35 @@ class PauseableVideo(Video):
     """modified Video class to allow clicking anywhere to pause/resume."""
 
     first_load = True
+    aspect = NumericProperty(1)
+
+    def get_norm_image_size(self):
+        if not self.texture:
+            return self.size
+        ratio = self.image_ratio / self.aspect
+        w, h = self.size
+        tw, th = self.texture.size
+
+        # ensure that the width is always maximized to the containter width
+        if self.allow_stretch:
+            if not self.keep_ratio:
+                return w, h
+            iw = w
+        else:
+            iw = min(w, tw)
+        # calculate the appropriate height
+        ih = iw / ratio
+        # if the height is too higher, take the height of the container
+        # and calculate appropriate width. no need to test further. :)
+        if ih > h:
+            if self.allow_stretch:
+                ih = h
+            else:
+                ih = min(h, th)
+            iw = ih * ratio
+        return iw, ih
+
+    norm_image_size = AliasProperty(get_norm_image_size, bind=('texture', 'size', 'allow_stretch', 'image_ratio', 'keep_ratio'), cache=True)
 
     def _do_video_load(self, *largs):
         if CoreVideo is None:
@@ -6630,9 +6665,7 @@ class PauseableVideo(Video):
                 filename = kivy.resources.resource_find(filename)
             self._video = CoreVideo(filename=filename, **self.options)
             self._video.volume = self.volume
-            self._video.bind(on_load=self._on_load,
-                             on_frame=self._on_video_frame,
-                             on_eos=self._on_eos)
+            self._video.bind(on_load=self._on_load, on_frame=self._on_video_frame, on_eos=self._on_eos)
             if self.state == 'play' or self.play:
                 self._video.play()
             self.duration = 1.
@@ -6643,6 +6676,7 @@ class PauseableVideo(Video):
         if self.first_load:
             app = App.get_running_app()
             app.album_screen.refresh_photoinfo_full(video=self._video)
+            self.aspect = self._video.aspect
         self.first_load = False
 
     def on_touch_down(self, touch):
