@@ -19,7 +19,6 @@ Todo before 1.0:
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to
         Maybe add import to year subfolders option
-    Is there any way to do a right-click standalone thing with linux? 
 
 Todo Possible Future:
     Export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
@@ -88,7 +87,7 @@ lock = threading.Lock()
 if desktop:
     Config.set('input', 'mouse', 'mouse,disable_multitouch')
     #Config.set('kivy', 'keyboard_mode', 'system')
-    Window.minimum_height = 768
+    Window.minimum_height = 600
     Window.minimum_width = 1024
     Window.maximize()
 else:
