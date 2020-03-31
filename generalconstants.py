@@ -1,4 +1,5 @@
 import kivy
+from kivy.logger import Logger
 from kivy.utils import platform
 from collections import OrderedDict
 try:
@@ -22,10 +23,10 @@ if not os.path.isfile(ffmpeg_command):
     import distutils.spawn
     ffmpeg_command = distutils.spawn.find_executable("ffmpeg")
 if ffmpeg_command is None:
-    print('FFMPEG not found, please install it for video conversion features.')
+    Logger.warning('FFMPEG not found, please install it for video conversion features.')
     ffmpeg = False
 else:
-    print('Using FFMPEG from: '+str(ffmpeg_command))
+    Logger.info('Using FFMPEG from '+str(ffmpeg_command))
     ffmpeg = True
 
 kivy_version = kivy.__version__.split('.')

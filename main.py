@@ -29,6 +29,7 @@ Todo Possible Future:
 import time
 start = time.perf_counter()
 
+import datetime
 import json
 import sys
 from PIL import Image, ImageEnhance, ImageFile
@@ -77,7 +78,6 @@ from generalcommands import list_folders, get_folder_info, local_thumbnail, isfi
 from generalelements import ClickFade, EncodingSettings, PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu
 from screendatabase import DatabaseScreen, DatabaseRestoreScreen, TransferScreen
 from screensettings import PhotoManagerSettings, AboutPopup
-print('Startup Time: '+str(time.perf_counter() - start))
 
 
 version = sys.version_info
@@ -238,6 +238,7 @@ class PhotoManager(App):
     database_update_text = StringProperty('')
     showhelp = BooleanProperty(True)
     infotext = StringProperty('')
+    infotext_history = ListProperty()
     infotext_setter = ObjectProperty()
     single_database = BooleanProperty(True)
     simple_interface = BooleanProperty(False)
@@ -326,7 +327,7 @@ class PhotoManager(App):
         self.theme_default()
         themefile = os.path.realpath(os.path.join(self.data_directory, "theme.txt"))
         if themefile and os.path.exists(themefile):
-            print('Loading theme file...')
+            Logger.info('Loading theme file...')
             loaded, data = self.load_theme_data(themefile)
             if loaded:
                 self.data_to_theme(data)
@@ -368,7 +369,7 @@ class PhotoManager(App):
                 extension = '.' + possible_photo.lower().split('.')[-1]
                 if extension in self.imagetypes or extension in self.movietypes:
                     if os.path.isfile(possible_photo):
-                        print('Loading file: ' + possible_photo)
+                        Logger.info('Loading file: ' + possible_photo)
                         self.standalone_file = possible_photo
                         self.standalone = True
                         break
@@ -464,6 +465,8 @@ class PhotoManager(App):
         self.database_auto_rescan_timer = float(self.config.get("Settings", "autoscan"))
         self.database_auto_rescanner = Clock.schedule_interval(self.database_auto_rescan, 60)
         Window.bind(on_draw=self.rescale_interface)
+        startup_message = 'Startup Time: '+str(time.perf_counter() - start)
+        Logger.info(startup_message)
 
     def on_pause(self):
         """Function called when the app is paused or suspended on a mobile platform.
@@ -479,7 +482,7 @@ class PhotoManager(App):
         return True
 
     def on_resume(self):
-        print('Resuming App...')
+        Logger.info('Resuming App...')
 
     def on_stop(self):
         """Function called just before the app is closed.
@@ -820,6 +823,9 @@ class PhotoManager(App):
     def message(self, text, timeout=20):
         """Sets the app.infotext variable to a specific message, and clears it after a set amount of time."""
 
+        time_index = datetime.datetime.now().strftime('%I:%M%p')
+        self.infotext_history.append([time_index, text])
+        self.infotext_history = self.infotext_history[-10:]
         self.infotext = text
         if self.infotext_setter:
             self.infotext_setter.cancel()
@@ -1935,7 +1941,7 @@ class PhotoManager(App):
 
     def get_application_config(self, **kwargs):
         self.app_directory = app_directory
-        print('App started from: '+self.app_directory)
+        Logger.info('App Folder: '+self.app_directory)
         if platform == 'win':
             self.data_directory = os.getenv('APPDATA') + os.path.sep + "Snu Photo Manager"
             if not os.path.isdir(self.data_directory):
@@ -1957,7 +1963,7 @@ class PhotoManager(App):
         #if __location__.endswith('.zip'):
         #    __location__ = os.path.dirname(__location__)
         config_file = os.path.realpath(os.path.join(self.data_directory, "snuphotomanager.ini"))
-        print("Config File: "+config_file)
+        Logger.info("Config File: "+config_file)
         return config_file
 
     def load_encoding_presets(self):

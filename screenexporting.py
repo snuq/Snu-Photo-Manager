@@ -37,6 +37,7 @@ Builder.load_string("""
                 text: 'Export Photos'
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'

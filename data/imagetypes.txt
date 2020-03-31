@@ -3,8 +3,6 @@
 .jpeg
 .bmp
 .gif
-.pcx
 .tga
-.exr
 .tif
 .tiff

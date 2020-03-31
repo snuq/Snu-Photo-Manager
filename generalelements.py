@@ -504,6 +504,12 @@ Builder.load_string("""
     background_down: 'data/settings.png' if app.simple_interface else 'data/button.png'
     on_release: app.open_settings()
 
+<InfoButton>:
+    width: (self.texture_size[0] + app.button_scale) if app.infotext_history else 0
+    opacity: 1 if app.infotext_history else 0
+    disabled: False if app.infotext_history else True
+    text: "Messages"
+
 <VerticalButton>:
     size_hint_y: None
     size_hint: None, None
@@ -580,6 +586,12 @@ Builder.load_string("""
     separator_color: 1, 1, 1, .25
     title_size: app.text_scale * 1.25
     title_color: app.theme.header_text
+
+<InfotextPopup>:
+    size_hint: .5, None
+    title: ''
+    title_size: 0
+    separator_height: 0
 
 <MessagePopup>:
     cols:1
@@ -2167,6 +2179,16 @@ class MenuButton(ButtonBase):
     remember = None
 
 
+class InfoButton(NormalButton):
+    history_popup = ObjectProperty(allownone=True)
+
+    def on_release(self, *_):
+        self.history_popup = None
+        window_pos = self.to_window(*self.pos)
+        self.history_popup = InfotextPopup(ypos=window_pos[1])
+        self.history_popup.open(self)
+
+
 class RemoveButton(ButtonBase):
     """Base class for a button to remove an item from a list."""
 
@@ -2377,6 +2399,24 @@ class NormalPopup(Popup):
 
     def finish_dismiss(self, *_):
         super(NormalPopup, self).dismiss()
+
+
+class InfotextPopup(NormalPopup):
+    ypos = NumericProperty(0)
+
+    def open(self, *args, **kwargs):
+        app = App.get_running_app()
+        if not app.infotext_history:
+            return
+        top_pos = self.ypos / Window.height
+        self.height = (.5 + len(app.infotext_history)) * app.button_scale
+        self.pos_hint = {'right': 1, 'top': top_pos}
+        content = BoxLayout(orientation='vertical')
+        for data in app.infotext_history:
+            date, text = data
+            content.add_widget(LeftNormalLabel(text='['+date+'] '+text))
+        self.add_widget(content)
+        super().open(*args, **kwargs)
 
 
 class MessagePopup(GridLayout):

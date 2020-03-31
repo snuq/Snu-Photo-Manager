@@ -171,6 +171,8 @@ Builder.load_string("""
             HeaderLabel:
                 text: 'Theme Settings'
             InfoLabel:
+            DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'

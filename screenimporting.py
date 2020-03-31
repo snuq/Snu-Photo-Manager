@@ -40,6 +40,7 @@ Builder.load_string("""
                 text: 'Import Photos'
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'
@@ -191,6 +192,7 @@ Builder.load_string("""
                 text: 'Import Photos'
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         MainArea:
             orientation: 'horizontal'

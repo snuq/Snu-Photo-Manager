@@ -158,6 +158,7 @@ Builder.load_string("""
                 text: 'Create Collage'
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'

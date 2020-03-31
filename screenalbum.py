@@ -89,6 +89,7 @@ Builder.load_string("""
                 text: root.folder_title
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'
@@ -332,6 +333,7 @@ Builder.load_string("""
                 text: "Editing "+root.target
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'
@@ -3437,7 +3439,6 @@ class ConversionScreen(Screen):
             try:
                 os.rename(photo_file_original, backup_photo_file)
             except Exception as e:
-                print(e)
                 pass
         if not os.path.isfile(backup_photo_file):
             app.popup_message(text='Could not create backup photo', title='Warning')
@@ -4951,9 +4952,11 @@ class AlbumScreen(ConversionScreen):
             #Add resolution info
             try:
                 pil_image = Image.open(self.photo)
-                exif = pil_image._getexif()
             except:
                 pil_image = False
+            try:
+                exif = pil_image._getexif()
+            except:
                 exif = []
             if pil_image:
                 self.image_x, self.image_y = pil_image.size
@@ -4977,6 +4980,7 @@ class AlbumScreen(ConversionScreen):
                 megapixels = round(((self.image_x * self.image_y) / 1000000), 2)
                 info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
             else:
+                self.viewer.scale_max = 2
                 self.image_x = 0
                 self.image_y = 0
 

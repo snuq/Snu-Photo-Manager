@@ -64,6 +64,7 @@ Builder.load_string("""
                 text: 'Photo Database'
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'
@@ -264,6 +265,7 @@ Builder.load_string("""
                 text: 'Database Folder Transfer'
             InfoLabel:
             DatabaseLabel:
+            InfoButton:
             SettingsButton:
         BoxLayout:
             orientation: 'horizontal'
@@ -2104,10 +2106,10 @@ class DatabaseRestoreScreen(Screen):
     def on_enter(self):
         app = App.get_running_app()
         completed = app.database_restore_process()
-        if not completed:
-            app.message("Error: "+completed)
-        else:
+        if completed is True:
             app.message("Restored database backup")
+        else:
+            app.message("Error: "+completed)
         app.setup_database(restore=True)
         Clock.schedule_once(app.show_database, 1)
 
