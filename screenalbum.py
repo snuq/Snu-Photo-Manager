@@ -2798,9 +2798,16 @@ class ConversionScreen(Screen):
         else:
             gop_setting = ''
 
+        resize = encoding_settings['resize']
+        resize_width = encoding_settings['width']
+        resize_height = encoding_settings['height']
         video_bitrate = encoding_settings['video_bitrate']
-        if not video_bitrate:
+        if resize:
+            pixels_number = int(resize_width) * int(resize_height)
+        else:
             pixels_number = input_size[0] * input_size[1]
+
+        if not video_bitrate:
             try:
                 codec_divisor = int(video_codec_data['efficiency'])
             except:
@@ -2820,9 +2827,6 @@ class ConversionScreen(Screen):
             speed_setting = ''
 
         deinterlace = encoding_settings['deinterlace']
-        resize = encoding_settings['resize']
-        resize_width = encoding_settings['width']
-        resize_height = encoding_settings['height']
         encoding_command = encoding_settings['command_line']
         extension = container_data['extension']
 
