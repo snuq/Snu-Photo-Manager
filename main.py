@@ -2012,7 +2012,9 @@ class PhotoManager(App):
             configfile.set(section, 'encoding_speed', preset.encoding_speed)
             configfile.set(section, 'deinterlace', str(preset.deinterlace))
             configfile.set(section, 'command_line', preset.command_line)
-            configfile.set(section, 'video_quality', preset.video_quality)
+            configfile.set(section, 'quality', preset.quality)
+            configfile.set(section, 'gop', preset.gop)
+            configfile.set(section, 'description', preset.description)
 
         with open(user_preset_file, 'w') as config:
             configfile.write(config)
@@ -2071,6 +2073,18 @@ class PhotoManager(App):
                 pass
             try:
                 preset.command_line = configfile.get(preset_name, 'command_line')
+            except:
+                pass
+            try:
+                preset.quality = configfile.get(preset_name, 'quality')
+            except:
+                pass
+            try:
+                preset.gop = configfile.get(preset_name, 'gop')
+            except:
+                pass
+            try:
+                preset.description = configfile.get(preset_name, 'description')
             except:
                 pass
             presets.append(preset)

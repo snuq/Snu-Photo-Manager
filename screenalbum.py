@@ -1864,17 +1864,17 @@ Builder.load_string("""
                             text: app.encoding_settings.video_codec
                             on_release: root.video_codec_drop.open(self)
                             id: videoCodecDrop
-                    #BoxLayout:
-                    #    orientation: 'horizontal'
-                    #    size_hint_y: None
-                    #    height: app.button_scale
-                    #    LeftNormalLabel:
-                    #        text: 'Video Quality:'
-                    #    MenuStarterButtonWide:
-                    #        size_hint_x: 1
-                    #        text: app.encoding_settings.video_quality
-                    #        on_release: root.video_quality_drop.open(self)
-                    #        id: videoQualityDrop
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Encoding Quality:'
+                        MenuStarterButtonWide:
+                            size_hint_x: 1
+                            text: app.encoding_settings.quality
+                            on_release: root.quality_drop.open(self)
+                            id: qualityDrop
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -1886,6 +1886,17 @@ Builder.load_string("""
                             text: app.encoding_settings.encoding_speed
                             on_release: root.encoding_speed_drop.open(self)
                             id: encodingSpeedDrop
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'GOP Size:'
+                        FloatInput:
+                            hint_text: "Auto"
+                            id:videoGOPInput
+                            text: app.encoding_settings.gop
+                            on_text: app.encoding_settings.gop = self.text
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -1920,6 +1931,12 @@ Builder.load_string("""
                             id: audioBitrateInput
                             text: app.encoding_settings.audio_bitrate
                             on_text: app.encoding_settings.audio_bitrate = self.text
+                    LeftNormalLabel:
+                        opacity: 1 if app.encoding_settings.description else 0
+                        height: app.button_scale if app.encoding_settings.description else 0
+                        text: 'Preset Description:'
+                    MultilineLabel:
+                        text: app.encoding_settings.description
                 SmallBufferY:
                 GridLayout:
                     canvas.before:
@@ -2722,10 +2739,14 @@ class ConversionScreen(Screen):
         audio_codec_data = find_dictionary(app.audio_codecs, 'name', encoding_settings['audio_codec'])
         file_format = container_data['format']
         audio_codec = audio_codec_data['codec']
+        quality = encoding_settings['quality']
+        quality_multiplier = encoding_quality[encoding_quality_friendly.index(quality)]
 
         audio_bitrate = encoding_settings['audio_bitrate']
         if not audio_bitrate:
-            audio_bitrate = audio_codec_data['bitrate']
+            audio_bitrate = int(audio_codec_data['bitrate']) * quality_multiplier
+            closest_audio_bitrate = min(audio_encode_values, key=lambda x: abs(x-audio_bitrate))
+            audio_bitrate = str(closest_audio_bitrate)
 
         extension = container_data['extension']
 
@@ -2769,6 +2790,13 @@ class ConversionScreen(Screen):
         file_format = container_data['format']
         video_codec = video_codec_data['codec']
         audio_codec = audio_codec_data['codec']
+        quality = encoding_settings['quality']
+        quality_multiplier = encoding_quality[encoding_quality_friendly.index(quality)]
+        gop = encoding_settings['gop']
+        if gop:
+            gop_setting = " -g "+gop
+        else:
+            gop_setting = ''
 
         video_bitrate = encoding_settings['video_bitrate']
         if not video_bitrate:
@@ -2779,11 +2807,18 @@ class ConversionScreen(Screen):
                 codec_divisor = 100
             if codec_divisor == 0:
                 codec_divisor = 100
-            video_bitrate = str(pixels_number / codec_divisor)
+            video_bitrate = str(int((pixels_number / codec_divisor) * quality_multiplier))
         audio_bitrate = encoding_settings['audio_bitrate']
         if not audio_bitrate:
-            audio_bitrate = audio_codec_data['bitrate']
-        encoding_speed = encoding_speeds[encoding_speeds_friendly.index(encoding_settings['encoding_speed'])]
+            audio_bitrate = int(audio_codec_data['bitrate']) * quality_multiplier
+            closest_audio_bitrate = min(audio_encode_values, key=lambda x: abs(x-audio_bitrate))
+            audio_bitrate = str(closest_audio_bitrate)
+        if encoding_settings['encoding_speed'] != 'Auto':
+            encoding_speed = encoding_speeds[encoding_speeds_friendly.index(encoding_settings['encoding_speed'])]
+            speed_setting = "-preset "+encoding_speed
+        else:
+            speed_setting = ''
+
         deinterlace = encoding_settings['deinterlace']
         resize = encoding_settings['resize']
         resize_width = encoding_settings['width']
@@ -2821,11 +2856,6 @@ class ConversionScreen(Screen):
             pixel_format_setting = "-pix_fmt "+str(output_pixel_format)
         else:
             pixel_format_setting = ""
-
-        if video_codec == 'libx264':
-            speed_setting = "-preset "+encoding_speed
-        else:
-            speed_setting = ''
 
         video_bitrate_settings = "-b:v "+video_bitrate+"k"
         if not noaudio:
@@ -2895,7 +2925,7 @@ class ConversionScreen(Screen):
         else:
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
-            command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
+            command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+gop_setting+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
         return [True, command, output_filename]
 
     def delete_output(self, output_file, timeout=20):
@@ -5801,7 +5831,7 @@ class EditPanelVideo(EditPanelBase):
     preset_drop = ObjectProperty()
     container_drop = ObjectProperty()
     video_codec_drop = ObjectProperty()
-    #video_quality_drop = ObjectProperty()
+    quality_drop = ObjectProperty()
     encoding_speed_drop = ObjectProperty()
     audio_codec_drop = ObjectProperty()
     advanced = BooleanProperty(False)
@@ -5864,12 +5894,12 @@ class EditPanelVideo(EditPanelBase):
             menu_button.bind(on_release=self.change_video_codec_to)
             self.video_codec_drop.add_widget(menu_button)
 
-        #video_qualities = ['Auto', 'Constant Bitrate', 'High', 'Medium', 'Low', 'Very Low']
-        #self.video_quality_drop = NormalDropDown()
-        #for quality in video_qualities:
-        #    menu_button = MenuButton(text=quality)
-        #    menu_button.bind(on_release=self.change_video_quality_to)
-        #    self.video_quality_drop.add_widget(menu_button)
+        qualities = ['Auto']+encoding_quality_friendly
+        self.quality_drop = NormalDropDown()
+        for quality in qualities:
+            menu_button = MenuButton(text=quality)
+            menu_button.bind(on_release=self.change_quality_to)
+            self.quality_drop.add_widget(menu_button)
 
         all_encoding_speeds = ['Auto'] + encoding_speeds_friendly
         self.encoding_speed_drop = NormalDropDown()
@@ -5938,12 +5968,12 @@ class EditPanelVideo(EditPanelBase):
         else:
             app.encoding_settings.deinterlace = False
 
-    def change_video_quality_to(self, instance):
-        """Sets the video_quality value."""
+    def change_quality_to(self, instance):
+        """Sets the quality value."""
 
         app = App.get_running_app()
-        self.video_quality_drop.dismiss()
-        app.encoding_settings.video_quality = instance.text
+        self.quality_drop.dismiss()
+        app.encoding_settings.quality = instance.text
 
 
 class EditPanelConvert(BoxLayout):

@@ -260,6 +260,15 @@ Builder.load_string("""
     height: app.button_scale
     bold: True
 
+<MultilineLabel@Label>:
+    mipmap: True
+    color: app.theme.text
+    font_size: app.text_scale
+    size_hint_y: None
+    multiline: True
+    text_size: self.width, None
+    size: self.texture_size
+
 
 <BubbleContent>:
     canvas:
@@ -1130,7 +1139,24 @@ class EncodingSettings(Widget):
     encoding_speed = StringProperty('Auto')
     deinterlace = BooleanProperty(False)
     command_line = StringProperty('')
-    video_quality = StringProperty('Auto')
+    quality = StringProperty('Auto')
+    gop = StringProperty('')
+    description = StringProperty('')
+
+    def on_gop(self, *_):
+        if self.gop:
+            try:
+                gop = str(abs(int(self.gop)))
+                if gop == '0':
+                    self.gop = ''
+                elif gop != self.gop:
+                    self.gop = gop
+            except:
+                self.gop = ''
+
+    def on_quality(self, *_):
+        if self.quality not in encoding_quality_friendly+['Auto']:
+            self.quality = 'Auto'
 
     def on_file_format(self, *_):
         app = App.get_running_app()
@@ -1235,11 +1261,13 @@ class EncodingSettings(Widget):
             encoding_settings['resize'] = True
         encoding_settings['video_bitrate'] = self.video_bitrate
         encoding_settings['audio_bitrate'] = self.audio_bitrate
-
-        if replace_auto and self.encoding_speed == 'Auto':
-            encoding_settings['encoding_speed'] = 'Fast'
+        encoding_settings['gop'] = self.gop
+        if replace_auto and self.quality == 'Auto':
+            encoding_settings['quality'] = 'High'
         else:
-            encoding_settings['encoding_speed'] = self.encoding_speed
+            encoding_settings['quality'] = self.quality
+
+        encoding_settings['encoding_speed'] = self.encoding_speed
         encoding_settings['command_line'] = self.command_line
         encoding_settings['deinterlace'] = self.deinterlace
         return encoding_settings
@@ -1255,8 +1283,10 @@ class EncodingSettings(Widget):
         audio_bitrate = self.audio_bitrate
         encoding_speed = self.encoding_speed
         deinterlace = str(self.deinterlace)
+        gop = self.gop
+        quality = self.quality
         command_line = self.command_line
-        encoding_preset = file_format+','+video_codec+','+audio_codec+','+resize+','+resize_width+','+resize_height+','+video_bitrate+','+audio_bitrate+','+encoding_speed+','+deinterlace+','+command_line
+        encoding_preset = file_format+','+video_codec+','+audio_codec+','+resize+','+resize_width+','+resize_height+','+video_bitrate+','+audio_bitrate+','+encoding_speed+','+deinterlace+','+gop+','+quality+','+command_line
         if store_app:
             app = App.get_running_app()
             app.config.set('Presets', 'encoding', encoding_preset)
@@ -1270,7 +1300,7 @@ class EncodingSettings(Widget):
         else:
             encoding_preset_text = load_from
         if encoding_preset_text:
-            encoding_settings = encoding_preset_text.split(',', 10)
+            encoding_settings = encoding_preset_text.split(',', 12)
             try:
                 self.file_format = encoding_settings[0]
                 self.video_codec = encoding_settings[1]
@@ -1282,7 +1312,9 @@ class EncodingSettings(Widget):
                 self.audio_bitrate = encoding_settings[7]
                 self.encoding_speed = encoding_settings[8]
                 self.deinterlace = to_bool(encoding_settings[9])
-                self.command_line = encoding_settings[10]
+                self.gop = encoding_settings[10]
+                self.quality = encoding_settings[11]
+                self.command_line = encoding_settings[12]
             except:
                 pass
 
@@ -1298,8 +1330,10 @@ class EncodingSettings(Widget):
         self.audio_bitrate = preset.audio_bitrate
         self.encoding_speed = preset.encoding_speed
         self.deinterlace = preset.deinterlace
+        self.gop = preset.gop
         self.command_line = preset.command_line
-        self.video_quality = preset.video_quality
+        self.quality = preset.quality
+        self.description = preset.description
 
 
 class ExpandablePanel(GridLayout):
