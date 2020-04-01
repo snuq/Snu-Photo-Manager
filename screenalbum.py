@@ -4456,20 +4456,21 @@ class AlbumScreen(ConversionScreen):
         self.edit_panel = panelname
         if self.edit_panel_object:
             self.edit_panel_object.save_last()
-        if panelname != 'main' and self.viewer and isfile2(self.photo):
-            #Start edit mode
-            self.viewer.stop()
-            self.viewer.edit_mode = self.edit_panel
-            self.viewer.init_edit_mode()
-            self.viewer.bypass = True
-            self.edit_panel_object = EditPanel(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
-            self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
-        else:
-            #Close edit mode
-            self.edit_panel_object = EditMain(owner=self)
-            self.edit_panel_object.update_programs()
-            self.viewer.edit_mode = 'main'
-            self.viewer.bypass = False
+        if self.viewer:
+            if panelname != 'main' and self.viewer and isfile2(self.photo):
+                #Start edit mode
+                self.viewer.stop()
+                self.viewer.edit_mode = self.edit_panel
+                self.viewer.init_edit_mode()
+                self.viewer.bypass = True
+                self.edit_panel_object = EditPanel(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
+                self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
+            else:
+                #Close edit mode
+                self.edit_panel_object = EditMain(owner=self)
+                self.edit_panel_object.update_programs()
+                self.viewer.edit_mode = 'main'
+                self.viewer.bypass = False
 
         self.edit_panel_object.refresh_buttons()
         edit_panel_container.add_widget(self.edit_panel_object)
