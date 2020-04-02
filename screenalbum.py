@@ -2862,6 +2862,10 @@ class ConversionScreen(Screen):
             pixel_format_setting = ""
 
         video_bitrate_settings = "-b:v "+video_bitrate+"k"
+        #if video_codec == 'mpeg2video':
+        #    buffsize = str(int(int(video_bitrate)*0))
+        #    video_bitrate_settings = video_bitrate_settings+' -maxrate '+video_bitrate+'k -bufsize '+buffsize+'k'
+
         if not noaudio:
             audio_bitrate_settings = "-b:a "+audio_bitrate+"k"
             audio_codec_settings = "-c:a " + audio_codec + " -strict -2"
@@ -3051,13 +3055,16 @@ class ConversionScreen(Screen):
             if self.cancel_encoding:
                 return
             if line:
-                if not line.startswith('frame='):
-                    self.append_log(line.strip())
+                self.append_log(line.strip())
 
     def clear_log(self):
         self.encode_log = []
 
     def append_log(self, text):
+        if text.startswith('[mpeg @ ') and ('packet too large' in text or 'buffer underflow' in text):
+            return
+        if text.startswith('frame='):
+            return
         self.encode_log.append({'text': text})
 
     def save_video_process(self, photo=None, photoinfo=None, export_file=None, encoding_settings=None, audio_file=None, offset_audio_file=None, edit_image=None, start_point=None, end_point=None):
