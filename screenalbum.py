@@ -4568,31 +4568,56 @@ class AlbumScreen(ConversionScreen):
                     self.show_edit_panel()
                 if key == 'f4':
                     self.show_tags_panel()
+                if key == 'end':
+                    self.photo_index(-1)
+                if key == 'home':
+                    self.photo_index(0)
+                if key == 'pgup':
+                    self.previous_photo(page=True)
+                if key == 'pgdn':
+                    self.next_photo(page=True)
             elif self.popup and self.popup.open:
                 if key == 'enter':
                     self.popup.content.dispatch('on_answer', 'yes')
 
-    def next_photo(self):
+    def photo_index(self, index, wrap=True):
+        photos_length = len(self.photos)
+        if index < 0:
+            if wrap:
+                index = photos_length - 1
+            else:
+                index = 0
+        elif index >= photos_length - 1:
+            if wrap:
+                index = 0
+            else:
+                index = photos_length - 1
+        new_photo = self.photos[index]
+        self.fullpath = new_photo[0]
+        self.photo = os.path.join(new_photo[2], new_photo[0])
+        self.scroll_photolist()
+
+    def next_photo(self, page=False):
         """Changes the viewed photo to the next photo in the album index."""
 
         current_photo_index = self.current_photo_index()
-        if current_photo_index == len(self.photos) - 1:
-            next_photo_index = 0
+        album = self.ids['album']
+        album_length = len(album.children) - 1
+        if page:
+            self.photo_index(current_photo_index + album_length, wrap=False)
         else:
-            next_photo_index = current_photo_index + 1
-        new_photo = self.photos[next_photo_index]
-        self.fullpath = new_photo[0]
-        self.photo = os.path.join(new_photo[2], new_photo[0])
-        self.scroll_photolist()
+            self.photo_index(current_photo_index + 1)
 
-    def previous_photo(self):
+    def previous_photo(self, page=False):
         """Changes the viewed photo to the previous photo in the album index."""
 
         current_photo_index = self.current_photo_index()
-        new_photo = self.photos[current_photo_index-1]
-        self.fullpath = new_photo[0]
-        self.photo = os.path.join(new_photo[2], new_photo[0])
-        self.scroll_photolist()
+        album = self.ids['album']
+        album_length = len(album.children) - 1
+        if page:
+            self.photo_index(current_photo_index - album_length, wrap=False)
+        else:
+            self.photo_index(current_photo_index - 1)
 
     def set_favorite(self):
         """Toggles the currently viewed photo as favorite."""
@@ -4854,17 +4879,19 @@ class AlbumScreen(ConversionScreen):
 
     def show_selected(self, *_):
         album_container = self.ids['albumContainer']
-        album_container.refresh_from_data()
         album = self.ids['album']
         selected = self.fullpath
         data = album_container.data
+        selected_album = {}
         for i, node in enumerate(data):
             if node['fullpath'] == selected:
                 node['selected'] = True
-                album_container.scroll_to_selected()
-                album.refresh_selection()
+                selected_album = node
             else:
                 node['selected'] = False
+        album_container.refresh_from_data()
+        album.selected = selected_album
+        album_container.scroll_to_selected()
 
     def scroll_photolist(self, *_):
         """Scroll the right-side photo list to the current active photo."""

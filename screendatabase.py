@@ -628,73 +628,90 @@ class DatabaseScreen(Screen):
                     self.delete()
                 if key == 'a':
                     self.toggle_select()
+                if key == 'end':
+                    self.database_index(-1)
+                if key == 'home':
+                    self.database_index(0)
+                if key == 'pgup':
+                    self.previous_album(page=True)
+                if key == 'pgdn':
+                    self.next_album(page=True)
             elif self.popup and self.popup.open:
                 if key == 'enter':
                     self.popup.content.dispatch('on_answer', 'yes')
 
-    def previous_album(self):
+    def database_index(self, index, wrap=True):
+        database = self.ids['database']
+        database_interior = self.ids['databaseInterior']
+        data = database.data
+        database_length = len(data)
+        if index < 0:
+            if wrap:
+                index = database_length - 1
+            else:
+                index = 0
+        elif index >= database_length - 1:
+            if wrap:
+                index = 0
+            else:
+                index = database_length - 1
+        new_folder = data[index]
+        self.displayable = new_folder['displayable']
+        self.type = new_folder['type']
+        self.selected = new_folder['target']
+        database_interior.selected = new_folder
+        database.scroll_to_selected()
+        self.show_selected()
+
+    def database_current_index(self):
+        database = self.ids['database']
+        selected = self.selected
+        data = database.data
+        current_index = None
+        for i, node in enumerate(data):
+            if node['target'] == selected and node['type'] == self.type:
+                current_index = i
+        return current_index
+
+    def previous_album(self, page=False):
         """Selects the previous album in the database."""
 
-        database = self.ids['database']
-        database_interior = self.ids['databaseInterior']
-        selected = self.selected
-        data = database.data
-        current_index = None
-        for i, node in enumerate(data):
-            if node['target'] == selected and node['type'] == self.type:
-                current_index = i
-                break
-        if current_index is not None:
-            if current_index == 0:
-                next_index = len(data) - 1
-            else:
-                next_index = current_index - 1
-            new_folder = data[next_index]
-            self.displayable = new_folder['displayable']
-            self.type = new_folder['type']
-            self.selected = new_folder['target']
-            database_interior.selected = new_folder
-            database.scroll_to_selected()
-        self.show_selected()
+        current_index = self.database_current_index()
+        if page:
+            database_interior = self.ids['databaseInterior']
+            page_length = len(database_interior.children) - 1
+            self.database_index(current_index - page_length, wrap=False)
+        else:
+            self.database_index(current_index - 1)
 
-    def next_album(self):
+    def next_album(self, page=False):
         """Selects the next album in the database."""
 
-        database = self.ids['database']
-        database_interior = self.ids['databaseInterior']
-        selected = self.selected
-        data = database.data
-        current_index = None
-        for i, node in enumerate(data):
-            if node['target'] == selected and node['type'] == self.type:
-                current_index = i
-                break
-        if current_index is not None:
-            if current_index == len(data) - 1:
-                next_index = 0
-            else:
-                next_index = current_index + 1
-            new_folder = data[next_index]
-            self.displayable = new_folder['displayable']
-            self.type = new_folder['type']
-            self.selected = new_folder['target']
-            database_interior.selected = new_folder
-            database.scroll_to_selected()
-        self.show_selected()
+        current_index = self.database_current_index()
+        if page:
+            database_interior = self.ids['databaseInterior']
+            page_length = len(database_interior.children) - 1
+            self.database_index(current_index + page_length, wrap=False)
+        else:
+            self.database_index(current_index + 1)
 
-    def show_selected(self):
+    def show_selected(self, *_):
         """Scrolls the treeview to the currently selected folder"""
 
         database = self.ids['database']
         selected = self.selected
         data = database.data
+        selected_data = {}
         for i, node in enumerate(data):
             if node['target'] == selected and node['type'] == self.type:
+                selected_data = node
                 node['selected'] = True
-                database.scroll_to_selected()
             else:
                 node['selected'] = False
         database.refresh_from_data()
+        database_interior = self.ids['databaseInterior']
+        database_interior.selected = selected_data
+        database.scroll_to_selected()
 
     def delete(self):
         """Begins the file delete process.  Will call 'delete_selected_confirm' if an album is active."""
@@ -1662,9 +1679,11 @@ class DatabaseScreen(Screen):
         self.album_sort_dropdown.bind(on_select=lambda instance, x: self.album_resort_method(x))
         self.album_sort_method = app.config.get('Sorting', 'album_sort')
         self.album_sort_reverse = to_bool(app.config.get('Sorting', 'album_sort_reverse'))
+
         self.update_folders = True
         self.update_treeview()
         self.on_selected()
+        Clock.schedule_once(self.show_selected)
 
 
 class TransferScreen(Screen):

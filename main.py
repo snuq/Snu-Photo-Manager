@@ -15,7 +15,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    add home/end shortcuts
     Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to
@@ -523,6 +522,7 @@ class PhotoManager(App):
     def hook_keyboard(self, window, scancode, *_):
         """This function receives keyboard events"""
 
+        #print(scancode)
         self.close_bubble()
 
         if self.settings_open:
@@ -576,6 +576,18 @@ class PhotoManager(App):
             if scancode == 285:
                 #f4 key
                 current_screen.key('f4')
+            if scancode == 278:
+                #Home key
+                current_screen.key('home')
+            if scancode == 279:
+                #End key
+                current_screen.key('end')
+            if scancode == 280:
+                #PgUp key
+                current_screen.key('pgup')
+            if scancode == 281:
+                #PgDn key
+                current_screen.key('pgdn')
             if scancode == 27:  #Escape
                 self.clear_drags()
                 if self.standalone:
