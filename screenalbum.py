@@ -4854,6 +4854,7 @@ class AlbumScreen(ConversionScreen):
 
     def show_selected(self, *_):
         album_container = self.ids['albumContainer']
+        album_container.refresh_from_data()
         album = self.ids['album']
         selected = self.fullpath
         data = album_container.data
@@ -4864,12 +4865,10 @@ class AlbumScreen(ConversionScreen):
                 album.refresh_selection()
                 break
 
-    def scroll_photolist(self):
+    def scroll_photolist(self, *_):
         """Scroll the right-side photo list to the current active photo."""
 
-        photolist = self.ids['albumContainer']
         self.show_selected()
-        photolist.scroll_to_selected()
 
     def refresh_all(self, *_):
         self.refresh_photolist()
@@ -5110,7 +5109,7 @@ class AlbumScreen(ConversionScreen):
         app = App.get_running_app()
         app.config.set('Sorting', 'album_sort', method)
         self.refresh_all()
-        Clock.schedule_once(lambda *dt: self.scroll_photolist())
+        Clock.schedule_once(self.scroll_photolist)
 
     def resort_reverse(self, reverse):
         """Sets the album sort reverse.
@@ -5123,7 +5122,7 @@ class AlbumScreen(ConversionScreen):
         app.config.set('Sorting', 'album_sort_reverse', sort_reverse)
         self.sort_reverse = sort_reverse
         self.refresh_all()
-        Clock.schedule_once(lambda *dt: self.scroll_photolist())
+        Clock.schedule_once(self.scroll_photolist)
 
     def add_program(self):
         """Add a new external program to the programs panel."""
@@ -5220,7 +5219,7 @@ class AlbumScreen(ConversionScreen):
                 photoinfo = self.photos[0]
                 self.fullpath = photoinfo[0]
                 self.photo = os.path.join(photoinfo[2], photoinfo[0])
-            Clock.schedule_once(lambda *dt: self.scroll_photolist())
+            Clock.schedule_once(self.scroll_photolist)
         self.refresh_photoview()
 
         #reset edit panel

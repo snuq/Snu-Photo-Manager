@@ -15,6 +15,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
+    bug: album screen: up/down does not deselect photos, database screen: up/down does not change selection at all
+    add home/end shortcuts
     Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to

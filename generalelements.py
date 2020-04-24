@@ -1900,8 +1900,11 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout, LayoutSelectionBehavior):
 
     def refresh_selection(self):
         for node in self.children:
-            data = self.parent.data[node.index]
-            node.selected = data['selected']
+            try:  #possible for nodes to not be synched with data
+                data = self.parent.data[node.index]
+                node.selected = data['selected']
+            except:
+                pass
 
     def deselect_all(self):
         for data in self.parent.data:
