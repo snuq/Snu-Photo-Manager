@@ -655,6 +655,7 @@ class DatabaseScreen(Screen):
             self.selected = new_folder['target']
             database_interior.selected = new_folder
             database.scroll_to_selected()
+        self.show_selected()
 
     def next_album(self):
         """Selects the next album in the database."""
@@ -679,6 +680,7 @@ class DatabaseScreen(Screen):
             self.selected = new_folder['target']
             database_interior.selected = new_folder
             database.scroll_to_selected()
+        self.show_selected()
 
     def show_selected(self):
         """Scrolls the treeview to the currently selected folder"""
@@ -690,7 +692,9 @@ class DatabaseScreen(Screen):
             if node['target'] == selected and node['type'] == self.type:
                 node['selected'] = True
                 database.scroll_to_selected()
-                break
+            else:
+                node['selected'] = False
+        database.refresh_from_data()
 
     def delete(self):
         """Begins the file delete process.  Will call 'delete_selected_confirm' if an album is active."""

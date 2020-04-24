@@ -4863,7 +4863,8 @@ class AlbumScreen(ConversionScreen):
                 node['selected'] = True
                 album_container.scroll_to_selected()
                 album.refresh_selection()
-                break
+            else:
+                node['selected'] = False
 
     def scroll_photolist(self, *_):
         """Scroll the right-side photo list to the current active photo."""
