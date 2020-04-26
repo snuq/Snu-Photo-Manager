@@ -410,7 +410,6 @@ class PhotoManager(App):
                 #determine temp folder and database from passed in file
                 full_folder, file = os.path.split(abspath)
                 database_path, folder = os.path.split(full_folder)
-                self.standalone_in_database = False
                 self.standalone_database = database_path
                 self.photo = abspath
                 self.fullpath = os.path.relpath(abspath, database_path)
@@ -1017,6 +1016,8 @@ class PhotoManager(App):
             newnames:
         """
 
+        if not self.config.get("Settings", "photoinfo") or (self.standalone and not self.standalone_in_database):
+            return
         description = ''
         title = ''
 
