@@ -4593,7 +4593,7 @@ class AlbumScreen(ConversionScreen):
                 index = photos_length - 1
             else:
                 index = 0
-        elif index >= photos_length - 1:
+        elif index >= photos_length:
             if wrap:
                 index = 0
             else:

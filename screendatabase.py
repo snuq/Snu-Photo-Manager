@@ -650,7 +650,7 @@ class DatabaseScreen(Screen):
                 index = database_length - 1
             else:
                 index = 0
-        elif index >= database_length - 1:
+        elif index >= database_length:
             if wrap:
                 index = 0
             else:
