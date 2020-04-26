@@ -3530,6 +3530,8 @@ class ConversionScreen(Screen):
         #regenerate thumbnail
         app.database_thumbnail_update(update_photoinfo[0], update_photoinfo[2], update_photoinfo[7], update_photoinfo[13])
 
+        self.set_edit_panel('main')
+
         #reload photo image in ui
         self.clear_cache()
 
