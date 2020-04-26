@@ -2050,17 +2050,20 @@ Builder.load_string("""
         WideButton:
             id: deleteOriginal
             text: 'Delete Unedited Original File'
+            disabled: True
             warn: True
             on_release: root.owner.delete_original()
         SmallBufferY:
         WideButton:
             id: deleteOriginalAll
+            disabled: True
             text: 'Delete All Originals In Folder'
             warn: True
             on_release: root.owner.delete_original_all()
         SmallBufferY:
         WideButton:
             id: undoEdits
+            disabled: True
             text: 'Restore Original Unedited File'
             on_release: root.owner.restore_original()
         LargeBufferY:
@@ -3462,6 +3465,7 @@ class ConversionScreen(Screen):
         #new_exif = exif[:274] + b'1' + exif[275:]
         #exif = new_exif
         self.viewer.stop()
+        error = ''
 
         #back up old image and save new edit
         photo_file_original = self.photo
@@ -3480,7 +3484,7 @@ class ConversionScreen(Screen):
             try:
                 os.rename(photo_file_original, backup_photo_file)
             except Exception as e:
-                pass
+                error = str(e)
         if not os.path.isfile(backup_photo_file):
             app.popup_message(text='Could not create backup photo', title='Warning')
             return
@@ -3493,7 +3497,8 @@ class ConversionScreen(Screen):
         photo_file = os.path.splitext(photo_file_original)[0]+'.jpg'
         try:
             edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
-        except:
+        except Exception as e:
+            error = str(e)
             if os.path.isfile(photo_file):
                 os.remove(photo_file)
         if not os.path.isfile(photo_file):
@@ -3527,9 +3532,6 @@ class ConversionScreen(Screen):
 
         #reload photo image in ui
         self.clear_cache()
-
-        #close edit panel
-        self.set_edit_panel('main')
 
         #update interface and switch active photo in photo list back to image
         self.photoinfo = update_photoinfo
@@ -4434,6 +4436,9 @@ class AlbumScreen(ConversionScreen):
         original_filename = os.path.split(original_file)[1]
         edited_filename = os.path.split(edited_file)[1]
         new_original_file = os.path.join(os.path.split(edited_file)[0], original_filename)
+        if original_file == new_original_file:
+            app.popup_message(text='Could not restore original file, original does not exist', title='Warning')
+            return
         if os.path.isfile(original_file):
             if os.path.isfile(edited_file):
                 try:
@@ -4441,14 +4446,14 @@ class AlbumScreen(ConversionScreen):
                 except:
                     pass
             if os.path.isfile(edited_file):
-                app.popup_message(text='Could not restore original file', title='Warning')
+                app.popup_message(text='Could not restore original file, error deleting edited file', title='Warning')
                 return
             try:
                 os.rename(original_file, new_original_file)
-            except:
+            except Exception as e:
                 pass
             if os.path.isfile(original_file) or not os.path.isfile(new_original_file):
-                app.popup_message(text='Could not restore original file', title='Warning')
+                app.popup_message(text='Could not restore original file, unable to move original file', title='Warning')
                 return
 
             #update photo info
@@ -4477,12 +4482,12 @@ class AlbumScreen(ConversionScreen):
 
             #reload photo image in ui
             self.fullpath = self.photoinfo[0]
-            self.refresh_all()
             self.photo = new_original_file
-            self.on_photo()
-            self.clear_cache()
             app.message("Restored original file.")
             self.set_edit_panel('main')
+            self.clear_cache()
+            #self.on_photo()
+            self.refresh_all()
 
             #switch active photo in photo list back to image
             self.show_selected()
@@ -4492,11 +4497,12 @@ class AlbumScreen(ConversionScreen):
     def set_edit_panel(self, panelname):
         """Switches the current edit panel to another."""
 
-        edit_panel_container = self.ids['panelEdit']
-        edit_panel_container.clear_widgets()
-        self.edit_panel = panelname
         if self.edit_panel_object:
             self.edit_panel_object.save_last()
+        edit_panel_container = self.ids['panelEdit']
+        edit_panel_container.clear_widgets()
+        self.edit_panel_object = None
+        self.edit_panel = panelname
         if self.viewer:
             if panelname != 'main' and self.viewer and isfile2(self.photo):
                 #Start edit mode
@@ -4513,8 +4519,8 @@ class AlbumScreen(ConversionScreen):
                 self.viewer.edit_mode = 'main'
                 self.viewer.bypass = False
 
-        self.edit_panel_object.refresh_buttons()
-        edit_panel_container.add_widget(self.edit_panel_object)
+            self.edit_panel_object.refresh_buttons()
+            edit_panel_container.add_widget(self.edit_panel_object)
 
     def export(self):
         """Switches to export screen."""
@@ -6452,8 +6458,8 @@ class PhotoViewer(BoxLayout):
 
     def stop(self):
         self.fullscreen = False
-        #if self.edit_image:
-        #    self.edit_image.close_image()
+        if self.edit_image:
+            self.edit_image.close_image()
 
     def close(self):
         self.end_edit_mode()
@@ -6775,6 +6781,14 @@ class EditMain(GridLayout):
 
     def load_last(self):
         pass
+
+    def disable_buttons(self):
+        undo_button = self.ids['undoEdits']
+        undo_button.disabled = True
+        delete_original_button = self.ids['deleteOriginal']
+        delete_original_button.disabled = True
+        delete_original_all_button = self.ids['deleteOriginalAll']
+        delete_original_all_button.disabled = True
 
     def refresh_buttons(self):
         self.update_undo()

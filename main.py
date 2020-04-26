@@ -791,6 +791,7 @@ class PhotoManager(App):
                     image = image.convert('RGB')
                 output = BytesIO()
                 image.save(output, 'jpeg')
+                image = None
                 thumbnail = output.getvalue()
 
             elif extension in self.movietypes:
@@ -821,6 +822,7 @@ class PhotoManager(App):
 
                 output = BytesIO()
                 image.save(output, 'jpeg')
+                image = None
                 thumbnail = output.getvalue()
             return thumbnail
         except:
