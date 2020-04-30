@@ -890,11 +890,13 @@ class ExportScreen(Screen):
                 if os.path.exists(photofile):
                     photo_size = os.path.getsize(photofile)
                     extension = os.path.splitext(photofile)[1]
-                    #photofilename = os.path.basename(photofile)
                     photofilename = export_photos[index]
+                    photofilename_base, photofilename_ext = os.path.splitext(photofilename)
                     savefile = os.path.join(save_location, photofilename)
-                    if os.path.exists(savefile):
-                        os.remove(savefile)
+                    while os.path.exists(savefile):
+                        photofilename_base = photofilename_base + '_export'
+                        savefile = os.path.join(save_location, photofilename_base+photofilename_ext)
+                        #app.delete_file(savefile)
                     if extension.lower() in app.imagetypes and (preset['scale_image'] or preset['watermark']):
                         #image needs to be edited in some way
                         imagedata = Image.open(photofile)
