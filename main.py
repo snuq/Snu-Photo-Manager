@@ -2121,9 +2121,19 @@ class PhotoManager(App):
                 button_multiplier = 1
             else:
                 button_multiplier = 2
-            self.button_scale = int((Window.height / interface_multiplier) * int(self.config.get("Settings", "buttonsize")) / 100) * button_multiplier
+            buttonsize = int(self.config.get("Settings", "buttonsize"))
+            if buttonsize < 50:
+                buttonsize = 50
+            button_scale = int((Window.height / interface_multiplier) * buttonsize / 100) * button_multiplier
+            if self.button_scale < 10:
+                button_scale = 10
+            self.button_scale = button_scale
             self.padding = self.button_scale / 4
-            self.text_scale = int((self.button_scale / 3) * int(self.config.get("Settings", "textsize")) / 100)
+
+            textsize = int(self.config.get("Settings", "textsize"))
+            if textsize < 50:
+                textsize = 50
+            self.text_scale = int((self.button_scale / 3) * textsize / 100)
             if self.first_rescale:
                 self.first_rescale = False
                 self.start_screen_layout()
