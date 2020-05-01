@@ -2450,7 +2450,10 @@ class CoreVideo(KivyCoreVideo):
 
         metadata = self._ffplayer.get_metadata()
         aspect_ratio = metadata['aspect_ratio']
-        self.aspect = aspect_ratio[1]/aspect_ratio[0]
+        try:
+            self.aspect = aspect_ratio[1]/aspect_ratio[0]
+        except:
+            self.aspect = 1
 
         self._thread = Thread(target=self._next_frame_run, name='Next frame')
         self._thread.daemon = True

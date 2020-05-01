@@ -373,7 +373,7 @@ class SettingMultiDirectory(SettingItem):
             folderdata = []
             for folder in folders:
                 folderdata.append({'text': folder})
-            self.folderlist = folderlist = FolderSettingsList(size_hint=(1, .8), id='folderlist')
+            self.folderlist = folderlist = FolderSettingsList(size_hint=(1, .8))
             folderlist.data = folderdata
             content.add_widget(folderlist)
         buttons = BoxLayout(orientation='horizontal', size_hint=(1, None), height=app.button_scale)

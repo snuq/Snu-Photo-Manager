@@ -227,7 +227,7 @@ Builder.load_string("""
                     MenuStarterButton:
                         width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
                         opacity: 0 if app.simple_interface else 1
-                        size_hint_x: 0.0001 if app.simple_interface else 1
+                        size_hint_x: None
                         id: albumButton
                         text: 'Add To Album...'
                         disabled: not root.photos_selected or app.database_scanning
@@ -235,7 +235,7 @@ Builder.load_string("""
                     MenuStarterButton:
                         width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
                         opacity: 0 if app.simple_interface else 1
-                        size_hint_x: 0.0001 if app.simple_interface else 1
+                        size_hint_x: None
                         id: tagButton
                         text: 'Add Tag To...'
                         disabled: not root.photos_selected or app.database_scanning

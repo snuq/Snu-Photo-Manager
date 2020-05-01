@@ -148,11 +148,13 @@ def get_drives():
         ]
         from android.storage import primary_external_storage_path
         primary_ext_storage = primary_external_storage_path()
-        paths.append((primary_ext_storage, 'Primary Storage'))
+        if primary_ext_storage:
+            paths.append((primary_ext_storage, 'Primary Storage'))
 
         from android.storage import secondary_external_storage_path
         secondary_ext_storage = secondary_external_storage_path()
-        paths.append((secondary_ext_storage, 'Secondary Storage'))
+        if secondary_ext_storage:
+            paths.append((secondary_ext_storage, 'Secondary Storage'))
 
         for path in paths:
             realpath = os.path.realpath(path[0]) + os.path.sep
