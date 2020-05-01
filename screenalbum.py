@@ -2485,12 +2485,12 @@ class CoreVideo(KivyCoreVideo):
 
         # wait until loaded or failed, shouldn't take long, but just to make
         # sure metadata is available.
-        s = time.clock()
+        s = time.perf_counter()
         while not self._ffplayer_need_quit:
             if ffplayer.get_metadata()['src_vid_size'] != (0, 0):
                 break
             # XXX if will fail later then?
-            if time.clock() - s > 10.:
+            if time.perf_counter() - s > 10.:
                 break
             sleep(0.005)
 
