@@ -3367,6 +3367,8 @@ class CustomImage(KivyImage):
         lower = pos_y + width
         upper = pos_y
         original_image = self.get_original_image()
+        if not original_image:
+            return None
         preview = original_image.crop(box=(left, upper, right, lower))
         if preview.mode != 'RGB':
             preview = preview.convert('RGB')
@@ -3382,17 +3384,18 @@ class CustomImage(KivyImage):
     def update_preview(self, *_, denoise=False, recrop=True):
         """Update the preview image."""
 
-        image = self.adjust_image(self.edit_image)
-        if denoise and opencv:
-            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
-            open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
-            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(open_cv_image)
+        if self.edit_image:
+            image = self.adjust_image(self.edit_image)
+            if denoise and opencv:
+                open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
+                open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
+                open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
+                image = Image.fromarray(open_cv_image)
 
-        self.update_texture(image)
-        self.histogram = image.histogram()
-        if recrop:
-            self.update_cropper(setup=True)
+            self.update_texture(image)
+            self.histogram = image.histogram()
+            if recrop:
+                self.update_cropper(setup=True)
 
     def adjust_image(self, image, preview=True):
         """Applies all current editing opterations to an image.

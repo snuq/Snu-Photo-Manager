@@ -507,10 +507,11 @@ class PhotoManager(App):
 
     def drop_file(self, window, filepath):
         current_screen = self.screen_manager.current_screen
+        pos = Window.mouse_pos
         if type(filepath) == bytes:
             filepath = filepath.decode("utf-8")
         if hasattr(current_screen, 'drop_file'):
-            current_screen.drop_file(filepath)
+            current_screen.drop_file(filepath, pos)
 
     def key_down(self, key, scancode=None, *_):
         """Intercepts various key presses and sends commands to the current screen."""

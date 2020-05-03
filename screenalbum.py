@@ -2654,9 +2654,6 @@ class ConversionScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def drop_file(self, filepath):
-        pass
-
     def clear_cache(self, *_):
         pass
 
@@ -3573,14 +3570,45 @@ class VideoConverterScreen(ConversionScreen):
         super().__init__(**kwargs)
         self.advanced_encode = True
 
-    def drop_file(self, filepath):
-        if self.use_batch:
-            #add file to batch list
-            self.add_files_to_batch([filepath])
+    def drop_file(self, filepath, pos):
+        if os.path.isdir(filepath):
+            path = filepath
+            file = ''
         else:
-            #set file as current
             path, file = os.path.split(filepath)
-            self.load_video_check(path, file)
+        drop_widget = None
+        if pos[0] != 0 or pos[1] != 0:
+            for child in self.walk(restrict=True):
+                point = child.to_parent(*pos)
+                if child.collide_point(*point):
+                    drop_widget = child
+
+        audio_input = self.ids['audioInput']
+        export_to = self.ids['exportInput']
+        if drop_widget == audio_input:
+            self.load_audio_check(path, file)
+        elif drop_widget == export_to:
+            self.browse_export_check(path, file)
+        else:
+            if self.use_batch:
+                #import code; vars = globals().copy(); vars.update(locals()); shell = code.InteractiveConsole(vars); shell.interact()
+
+                #add file to batch list
+                if os.path.isdir(filepath):
+                    #Add all files in folder to batch
+                    files = os.listdir(filepath)
+                    filepaths = []
+                    for file in files:
+                        filename = os.path.join(filepath, file)
+                        if os.path.isfile(filename):
+                            filepaths.append(filename)
+                    if filepaths:
+                        self.add_files_to_batch(filepaths)
+                else:
+                    self.add_files_to_batch([filepath])
+            else:
+                #set file as current
+                self.load_video_check(path, file)
 
     def drag(self, widget, mode, touch_pos, offset=None):
         if mode == 'start':
@@ -4012,11 +4040,11 @@ class VideoConverterScreen(ConversionScreen):
             file = ''
         content = FileBrowser(ok_text='Select', path=browse_folder, file=file, export_mode=True, allow_no_file=True, file_editable=True)
         content.bind(on_cancel=self.dismiss_popup)
-        content.bind(on_ok=self.browse_export_check)
+        content.bind(on_ok=self.browse_export_finish)
         self.popup = NormalPopup(title="Select Export Folder", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
 
-    def browse_export_check(self, *_):
+    def browse_export_finish(self, *_):
         popup = self.popup
         if popup:
             app = App.get_running_app()
@@ -4024,8 +4052,12 @@ class VideoConverterScreen(ConversionScreen):
             app.last_browse_folder = path
             file = popup.content.file
             self.dismiss_popup()
-            self.export_file = os.path.join(path, file)
-            app.message('Export to: '+self.export_file)
+            self.browse_export_check(path, file)
+
+    def browse_export_check(self, path, file):
+        app = App.get_running_app()
+        self.export_file = os.path.join(path, file)
+        app.message('Export to: '+self.export_file)
 
     def load_audio_begin(self):
         app = App.get_running_app()
@@ -4038,11 +4070,11 @@ class VideoConverterScreen(ConversionScreen):
             audio_filter.append('*'+audiotype)
         content = FileBrowser(ok_text='Load', path=browse_folder, filters=audio_filter, file_editable=True, export_mode=False, file=self.target)
         content.bind(on_cancel=self.dismiss_popup)
-        content.bind(on_ok=self.load_audio_check)
+        content.bind(on_ok=self.load_audio_finish)
         self.popup = NormalPopup(title="Select An Audio File", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
 
-    def load_audio_check(self, *_):
+    def load_audio_finish(self, *_):
         popup = self.popup
         if popup:
             app = App.get_running_app()
@@ -4050,12 +4082,16 @@ class VideoConverterScreen(ConversionScreen):
             app.last_browse_folder = path
             file = popup.content.file
             self.dismiss_popup()
-            extension = os.path.splitext(file)[1].lower()
-            if extension in app.movietypes + app.audiotypes:
-                self.audio_file = os.path.join(path, file)
-                app.message('Selected file: '+file)
-                return
-            app.message('Warning: File type not supported')
+            self.load_audio_check(path, file)
+
+    def load_audio_check(self, path, file):
+        app = App.get_running_app()
+        extension = os.path.splitext(file)[1].lower()
+        if extension in app.movietypes + app.audiotypes:
+            self.audio_file = os.path.join(path, file)
+            app.message('Selected file: '+file)
+            return
+        app.message('Warning: File type not supported')
 
     def load_video_begin(self):
         app = App.get_running_app()
@@ -5733,6 +5769,8 @@ class EditPanelDenoise(EditPanelBase):
             image = self.image.edit_image
         else:
             image = self.image.get_original_image()
+        if not image:
+            return
         noise_preview = self.ids['noisePreview']
         if image.mode != 'RGB':
             image = image.convert('RGB')
@@ -5759,6 +5797,8 @@ class EditPanelDenoise(EditPanelBase):
         pos_x = int((self.image.original_width * scroll_area.scroll_x) - (width * scroll_area.scroll_x))
         image_pos_y = self.image.original_height - int((self.image.original_height * scroll_area.scroll_y) + (width * (1 - scroll_area.scroll_y)))
         preview = self.image.denoise_preview(width, height, pos_x, image_pos_y)
+        if preview is None:
+            return
         overlay_image = self.ids['denoiseOverlay']
         widget_pos_y = int((self.image.original_height * scroll_area.scroll_y) - (width * scroll_area.scroll_y))
         overlay_image.pos = [pos_x, widget_pos_y]
