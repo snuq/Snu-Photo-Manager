@@ -451,6 +451,7 @@ class PhotoManager(App):
         #Set up keyboard catchers
         Window.bind(on_key_down=self.key_down)
         Window.bind(on_key_up=self.key_up)
+        Window.bind(on_dropfile=self.drop_file)
         return self.main_layout
 
     def on_start(self):
@@ -503,6 +504,13 @@ class PhotoManager(App):
         self.folders.join()
         self.imported.close()
         self.imported.join()
+
+    def drop_file(self, window, filepath):
+        current_screen = self.screen_manager.current_screen
+        if type(filepath) == bytes:
+            filepath = filepath.decode("utf-8")
+        if hasattr(current_screen, 'drop_file'):
+            current_screen.drop_file(filepath)
 
     def key_down(self, key, scancode=None, *_):
         """Intercepts various key presses and sends commands to the current screen."""

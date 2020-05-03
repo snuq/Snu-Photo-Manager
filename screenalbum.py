@@ -2654,6 +2654,9 @@ class ConversionScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def drop_file(self, filepath):
+        pass
+
     def clear_cache(self, *_):
         pass
 
@@ -3570,6 +3573,15 @@ class VideoConverterScreen(ConversionScreen):
         super().__init__(**kwargs)
         self.advanced_encode = True
 
+    def drop_file(self, filepath):
+        if self.use_batch:
+            #add file to batch list
+            self.add_files_to_batch([filepath])
+        else:
+            #set file as current
+            path, file = os.path.split(filepath)
+            self.load_video_check(path, file)
+
     def drag(self, widget, mode, touch_pos, offset=None):
         if mode == 'start':
             self.drag_offset = offset
@@ -4056,11 +4068,11 @@ class VideoConverterScreen(ConversionScreen):
             video_filter.append('*'+movietype)
         content = FileBrowser(ok_text='Load', path=browse_folder, filters=video_filter, file_editable=True, export_mode=False, file=self.target)
         content.bind(on_cancel=self.dismiss_popup)
-        content.bind(on_ok=self.load_video_check)
+        content.bind(on_ok=self.load_video_finish)
         self.popup = NormalPopup(title="Select A Video File", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
 
-    def load_video_check(self, *_):
+    def load_video_finish(self, *_):
         popup = self.popup
         if popup:
             app = App.get_running_app()
@@ -4068,14 +4080,18 @@ class VideoConverterScreen(ConversionScreen):
             app.last_browse_folder = path
             file = popup.content.file
             self.dismiss_popup()
-            extension = os.path.splitext(file)[1].lower()
-            if extension in app.movietypes:
-                self.folder = path
-                self.target = file
-                self.photo = os.path.join(path, file)
-                app.message('Loaded file: '+file)
-                return
-            app.message('Warning: File type not supported')
+            self.load_video_check(path, file)
+
+    def load_video_check(self, path, file):
+        app = App.get_running_app()
+        extension = os.path.splitext(file)[1].lower()
+        if extension in app.movietypes:
+            self.folder = path
+            self.target = file
+            self.photo = os.path.join(path, file)
+            app.message('Loaded file: '+file)
+            return
+        app.message('Warning: File type not supported')
 
     def on_enter(self):
         super().on_enter()
