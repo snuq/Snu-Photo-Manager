@@ -52,6 +52,25 @@ from generalcommands import get_keys_from_list, to_bool, isfile2, rotated_rect_w
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
+<-Button,-ToggleButton>:
+    state_image: self.background_normal if self.state == 'normal' else self.background_down
+    disabled_image: self.background_disabled_normal if self.state == 'normal' else self.background_disabled_down
+    canvas:
+        Color:
+            rgba: self.background_color
+        BorderImage:
+            display_border: [app.display_border, app.display_border, app.display_border, app.display_border]
+            border: self.border
+            pos: self.pos
+            size: self.size
+            source: self.disabled_image if self.disabled else self.state_image
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            texture: self.texture
+            size: self.texture_size
+            pos: int(self.center_x - self.texture_size[0] / 2.), int(self.center_y - self.texture_size[1] / 2.)
+
 <ClickFade>:
     canvas:
         Color:
@@ -507,10 +526,18 @@ Builder.load_string("""
     width: app.button_scale
 
 <SettingsButton@NormalButton>:
+    canvas:
+        Color:
+            rgba: self.background_color if app.simple_interface else (0, 0, 0, 0)
+        BorderImage:
+            border: self.border
+            pos: self.pos
+            size: self.size
+            source: 'data/settings.png'
     text: '' if app.simple_interface else 'Settings'
     border: (0, 0, 0, 0) if app.simple_interface else (16, 16, 16, 16)
-    background_normal: 'data/settings.png' if app.simple_interface else 'data/button.png'
-    background_down: 'data/settings.png' if app.simple_interface else 'data/button.png'
+    background_normal: 'data/transparent.png' if app.simple_interface else 'data/button.png'
+    background_down: self.background_normal
     on_release: app.open_settings()
 
 <InfoButton>:

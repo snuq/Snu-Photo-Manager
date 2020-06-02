@@ -230,6 +230,7 @@ class PhotoManager(App):
     settings_open = BooleanProperty(False)
     right_panel = BooleanProperty(False)
     last_width = NumericProperty(0)
+    display_border = NumericProperty(16)
     button_scale = NumericProperty(40)
     text_scale = NumericProperty(12)
     data_directory = StringProperty('')
@@ -2137,6 +2138,7 @@ class PhotoManager(App):
             if self.button_scale < 10:
                 button_scale = 10
             self.button_scale = button_scale
+            self.display_border = button_scale / 3
             self.padding = self.button_scale / 4
 
             textsize = int(self.config.get("Settings", "textsize"))
