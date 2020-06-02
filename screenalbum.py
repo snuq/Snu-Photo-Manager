@@ -2442,12 +2442,7 @@ class CoreVideo(KivyCoreVideo):
         }
         self._ffplayer = MediaPlayer(self._filename, callback=self._player_callback, thread_lib='SDL', loglevel='info', ff_opts=ff_opts)
 
-        #Added: wait for first frame to load before playing so audio doesnt get out of sync too badly
-        frame = None
-        while not frame:
-            frame, value = self._ffplayer.get_frame(force_refresh=True)
-            time.sleep(0.2)
-
+        #Load aspect ratio
         metadata = self._ffplayer.get_metadata()
         aspect_ratio = metadata['aspect_ratio']
         try:
@@ -2465,6 +2460,12 @@ class CoreVideo(KivyCoreVideo):
         trigger = self._trigger
         did_dispatch_eof = False
         seek_queue = self._seek_queue
+
+        #Wait for first frame to load before playing so audio doesnt get out of sync too badly
+        frame = None
+        while frame is None:
+            frame, value = ffplayer.get_frame(force_refresh=True)
+            sleep(0.1)
 
         # fast path, if the source video is yuv420p, we'll use a glsl shader
         # for buffer conversion to rgba
@@ -2558,6 +2559,8 @@ class CoreVideo(KivyCoreVideo):
                 if frame:
                     self._next_frame = frame
                     trigger()
+                else:
+                    val = val if val else (1 / 30.)
                 sleep(val)
 
 
