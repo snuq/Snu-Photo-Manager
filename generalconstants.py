@@ -45,6 +45,8 @@ encoding_quality_friendly = ['Very High', 'High', 'Medium', 'Low', 'Very Low']
 encoding_quality = [1.3, 1, 0.8, 0.7, 0.5]
 encoding_speeds_friendly = ['Very Fast', 'Fast', 'Medium', 'Slow', 'Very Slow']
 encoding_speeds = ['veryfast', 'fast', 'medium', 'slow', 'veryslow']
+encoding_colors_friendly = ['Copy', 'YUV 420', 'YUV 422', 'YUV 444', 'RGB 24']
+encoding_colors = ['copy', 'yuv420p', 'yuv422p', 'yuv444p', 'rgb24']
 interface_multiplier = 22
 drag_delay = .5
 

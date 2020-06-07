@@ -1164,6 +1164,8 @@ class EncodingSettings(Widget):
     video_bitrate = StringProperty('')
     audio_bitrate = StringProperty('')
     encoding_speed = StringProperty('Auto')
+    encoding_color = StringProperty('Auto')
+    framerate = StringProperty('')
     deinterlace = BooleanProperty(False)
     command_line = StringProperty('')
     quality = StringProperty('Auto')
@@ -1204,6 +1206,21 @@ class EncodingSettings(Widget):
         if self.audio_codec not in audio_codecs_friendly+['Auto']:
             self.audio_codec = 'Auto'
             self.audio_bitrate = ''
+
+    def on_encoding_color(self, *_):
+        if self.encoding_color not in encoding_colors_friendly+['Auto']:
+            self.encoding_color = 'Auto'
+
+    def on_framerate(self, *_):
+        if self.framerate:
+            try:
+                framerate = abs(float(self.framerate))
+                if framerate == 0:
+                    self.framerate = ''
+                elif str(framerate) != self.framerate:
+                    self.framerate = str(framerate)
+            except:
+                self.framerate = ''
 
     def on_resize(self, *_):
         if not self.resize:
@@ -1286,6 +1303,7 @@ class EncodingSettings(Widget):
             encoding_settings['height'] = self.resize_height
             encoding_settings['width'] = self.resize_width
             encoding_settings['resize'] = True
+        encoding_settings['framerate'] = self.framerate
         encoding_settings['video_bitrate'] = self.video_bitrate
         encoding_settings['audio_bitrate'] = self.audio_bitrate
         encoding_settings['gop'] = self.gop
@@ -1297,6 +1315,7 @@ class EncodingSettings(Widget):
         encoding_settings['encoding_speed'] = self.encoding_speed
         encoding_settings['command_line'] = self.command_line
         encoding_settings['deinterlace'] = self.deinterlace
+        encoding_settings['encoding_color'] = self.encoding_color
         return encoding_settings
 
     def store_current_encoding_preset(self, store_app=True):
@@ -1310,10 +1329,12 @@ class EncodingSettings(Widget):
         audio_bitrate = self.audio_bitrate
         encoding_speed = self.encoding_speed
         deinterlace = str(self.deinterlace)
+        encoding_color = self.encoding_color
+        framerate = self.framerate
         gop = self.gop
         quality = self.quality
         command_line = self.command_line
-        encoding_preset = file_format+','+video_codec+','+audio_codec+','+resize+','+resize_width+','+resize_height+','+video_bitrate+','+audio_bitrate+','+encoding_speed+','+deinterlace+','+gop+','+quality+','+command_line
+        encoding_preset = file_format+','+video_codec+','+audio_codec+','+resize+','+resize_width+','+resize_height+','+framerate+','+video_bitrate+','+audio_bitrate+','+encoding_speed+','+encoding_color+','+deinterlace+','+gop+','+quality+','+command_line
         if store_app:
             app = App.get_running_app()
             app.config.set('Presets', 'encoding', encoding_preset)
@@ -1327,7 +1348,7 @@ class EncodingSettings(Widget):
         else:
             encoding_preset_text = load_from
         if encoding_preset_text:
-            encoding_settings = encoding_preset_text.split(',', 12)
+            encoding_settings = encoding_preset_text.split(',', 14)
             try:
                 self.file_format = encoding_settings[0]
                 self.video_codec = encoding_settings[1]
@@ -1335,13 +1356,15 @@ class EncodingSettings(Widget):
                 self.resize = to_bool(encoding_settings[3])
                 self.resize_width = encoding_settings[4]
                 self.resize_height = encoding_settings[5]
-                self.video_bitrate = encoding_settings[6]
-                self.audio_bitrate = encoding_settings[7]
-                self.encoding_speed = encoding_settings[8]
-                self.deinterlace = to_bool(encoding_settings[9])
-                self.gop = encoding_settings[10]
-                self.quality = encoding_settings[11]
-                self.command_line = encoding_settings[12]
+                self.framerate = encoding_settings[6]
+                self.video_bitrate = encoding_settings[7]
+                self.audio_bitrate = encoding_settings[8]
+                self.encoding_speed = encoding_settings[9]
+                self.encoding_color = encoding_settings[10]
+                self.deinterlace = to_bool(encoding_settings[11])
+                self.gop = encoding_settings[12]
+                self.quality = encoding_settings[13]
+                self.command_line = encoding_settings[14]
             except:
                 pass
 
@@ -1356,6 +1379,8 @@ class EncodingSettings(Widget):
         self.video_bitrate = preset.video_bitrate
         self.audio_bitrate = preset.audio_bitrate
         self.encoding_speed = preset.encoding_speed
+        self.encoding_color = preset.encoding_color
+        self.framerate = preset.framerate
         self.deinterlace = preset.deinterlace
         self.gop = preset.gop
         self.command_line = preset.command_line

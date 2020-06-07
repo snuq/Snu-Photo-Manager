@@ -15,7 +15,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
+    Update readme - add some gifs/screenshots
+    Bugs:
+        has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
+        seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
+    Video editor:
+        need some way of having presets for size and framerate, but still able to override with typing in.  have a presets dropdown button next to the text inputs?
+        add ability to load image sequences
+        implement encoding preview (encodes a very short test with current settings, then shows it next to original)
+        Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
+        add ability to play back video with audio for easier selecting the in/out
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to
         Maybe add import to year subfolders option

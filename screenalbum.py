@@ -1891,6 +1891,28 @@ Builder.load_string("""
                         size_hint_y: None
                         height: app.button_scale
                         LeftNormalLabel:
+                            text: 'Color Conversion:'
+                        MenuStarterButtonWide:
+                            size_hint_x: 1
+                            text: app.encoding_settings.encoding_color
+                            on_release: root.encoding_color_drop.open(self)
+                            id: encodingColorDrop
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
+                            text: 'Framerate Override:'
+                        FloatInput:
+                            hint_text: "Auto"
+                            id: videoFramerateInput
+                            text: app.encoding_settings.framerate
+                            on_text: app.encoding_settings.framerate = self.text
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: app.button_scale
+                        LeftNormalLabel:
                             text: 'GOP Size:'
                         FloatInput:
                             hint_text: "Auto"
@@ -2003,7 +2025,7 @@ Builder.load_string("""
                         ShortLabel:
                             text: ' - '
                         LeftNormalLabel:
-                            text: 'Framerate (From Original File)'
+                            text: 'Framerate Setting'
                         ShortLabel:
                             text: '%p'
                         ShortLabel:
@@ -2425,6 +2447,7 @@ Builder.load_string("""
 
 class CoreVideo(KivyCoreVideo):
     aspect = NumericProperty(1)
+    metadata = None
 
     def play(self):
         if self._ffplayer and self._state == 'paused':
@@ -2443,8 +2466,8 @@ class CoreVideo(KivyCoreVideo):
         self._ffplayer = MediaPlayer(self._filename, callback=self._player_callback, thread_lib='SDL', loglevel='info', ff_opts=ff_opts)
 
         #Load aspect ratio
-        metadata = self._ffplayer.get_metadata()
-        aspect_ratio = metadata['aspect_ratio']
+        self.metadata = self._ffplayer.get_metadata()
+        aspect_ratio = self.metadata['aspect_ratio']
         try:
             self.aspect = aspect_ratio[1]/aspect_ratio[0]
         except:
@@ -2801,6 +2824,8 @@ class ConversionScreen(Screen):
         audio_codec = audio_codec_data['codec']
         quality = encoding_settings['quality']
         quality_multiplier = encoding_quality[encoding_quality_friendly.index(quality)]
+        encoding_color = encoding_settings['encoding_color']
+        encoding_framerate = encoding_settings['framerate']
         gop = encoding_settings['gop']
         if gop:
             gop_setting = " -g "+gop
@@ -2857,14 +2882,22 @@ class ConversionScreen(Screen):
             framerate_setting = "-r "+str(output_framerate[0] / output_framerate[1])
         else:
             framerate_setting = ""
+        if encoding_framerate:
+            #output_framerate_setting = "-r "+encoding_framerate
+            output_framerate_setting = "-filter:v fps=fps="+encoding_framerate
         if input_images:
             input_format_settings = '-f image2pipe -vcodec mjpeg ' + framerate_setting
         else:
             input_format_settings = ''
-        if input_pixel_format:
+        if input_pixel_format and encoding_color == 'Copy':
             output_pixel_format = self.new_pixel_format(video_codec, input_pixel_format)
         else:
-            output_pixel_format = False
+            if encoding_color == 'Auto':
+                output_pixel_format = 'yuv420p'
+            elif encoding_color == 'Copy':
+                output_pixel_format = ''
+            else:
+                output_pixel_format = encoding_colors[encoding_colors_friendly.index(encoding_settings['encoding_color'])]
         if output_pixel_format:
             pixel_format_setting = "-pix_fmt "+str(output_pixel_format)
         else:
@@ -2913,6 +2946,7 @@ class ConversionScreen(Screen):
             input_file = os.path.join(input_folder, input_filename)
             video_bitrate_settings = ''
             framerate_setting = ''
+            output_framerate_setting = ''
             filter_settings = ''
 
         executable = '"'+ffmpeg_command+'"'
@@ -2937,12 +2971,12 @@ class ConversionScreen(Screen):
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
             input_settings = ' -i "'+input_file+'" '
-            encoding_command_reformat = encoding_command.replace('%c', file_format_settings).replace('%v', video_codec_settings).replace('%a', audio_codec_settings).replace('%f', framerate_setting).replace('%p', pixel_format_setting).replace('%b', video_bitrate_settings).replace('%d', audio_bitrate_settings).replace('%i', input_settings).replace('%%', '%')
+            encoding_command_reformat = encoding_command.replace('%c', file_format_settings).replace('%v', video_codec_settings).replace('%a', audio_codec_settings).replace('%f', output_framerate_setting).replace('%p', pixel_format_setting).replace('%b', video_bitrate_settings).replace('%d', audio_bitrate_settings).replace('%i', input_settings).replace('%%', '%')
             command = executable+seek+' '+input_format_settings+' '+encoding_command_reformat+duration+' "'+output_file+'"'
         else:
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
             output_file = output_file_folder+os.path.sep+output_filename
-            command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+gop_setting+' '+audio_codec_settings+' '+framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
+            command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+gop_setting+' '+audio_codec_settings+' '+output_framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
         return [True, command, output_filename]
 
     def delete_output(self, output_file, timeout=20):
@@ -5083,6 +5117,13 @@ class AlbumScreen(ConversionScreen):
                 resolution = str(self.image_x) + ' * ' + str(self.image_y)
                 megapixels = round(((self.image_x * self.image_y) / 1000000), 2)
                 info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
+                if 'frame_rate' in video.metadata:
+                    framerate = video.metadata['frame_rate']
+                    framerate_string = str(framerate[0] / framerate[1])
+                    info_panel.add_node(TreeViewInfo(title='Frame Rate: ' + framerate_string))
+                if 'src_pix_fmt' in video.metadata:
+                    pixel_format = video.metadata['src_pix_fmt']
+                    info_panel.add_node(TreeViewInfo(title='Color Format: ' + pixel_format.decode("utf-8")))
         else:
             #Add resolution info
             try:
@@ -5941,6 +5982,7 @@ class EditPanelVideo(EditPanelBase):
     video_codec_drop = ObjectProperty()
     quality_drop = ObjectProperty()
     encoding_speed_drop = ObjectProperty()
+    encoding_color_drop = ObjectProperty()
     audio_codec_drop = ObjectProperty()
     advanced = BooleanProperty(False)
 
@@ -6016,6 +6058,13 @@ class EditPanelVideo(EditPanelBase):
             menu_button.bind(on_release=self.change_encoding_speed_to)
             self.encoding_speed_drop.add_widget(menu_button)
 
+        all_encoding_colors = ['Auto'] + encoding_colors_friendly
+        self.encoding_color_drop = NormalDropDown()
+        for color in all_encoding_colors:
+            menu_button = MenuButton(text=color)
+            menu_button.bind(on_release=self.change_encoding_color_to)
+            self.encoding_color_drop.add_widget(menu_button)
+
         all_audio_codecs = ['Auto'] + audio_codecs_friendly
         self.audio_codec_drop = NormalDropDown()
         for codec in all_audio_codecs:
@@ -6068,6 +6117,11 @@ class EditPanelVideo(EditPanelBase):
         app = App.get_running_app()
         self.encoding_speed_drop.dismiss()
         app.encoding_settings.encoding_speed = instance.text
+
+    def change_encoding_color_to(self, instance):
+        app = App.get_running_app()
+        self.encoding_color_drop.dismiss()
+        app.encoding_settings.encoding_color = instance.text
 
     def update_deinterlace(self, state):
         app = App.get_running_app()
