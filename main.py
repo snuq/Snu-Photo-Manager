@@ -17,8 +17,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Todo before 1.0:
     Update readme - add some gifs/screenshots
     Bugs:
+        Editing a favorite can cause it to vanish from favorites temporarily
+        Importing Screen - hang/memory leak when generating video thumbnails
+        Database Screen - Folder title text is hard to read in default theme, especially when selected
+        Import Screen - expanded panels bg is not full height
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
+    Need to make Back button more obvious what it does... maybe add arrow icon?
+    Settings Screen - add text while in low memory mode to suggest disable cache
+    Import Screen - new import presets should default to first photo db
+    Import Screen - hide naming method if no imports are expanded
+    Importing Screen - Remove Selected and Delete Folder buttons should be warn color
     Video editor:
         need some way of having presets for size and framerate, but still able to override with typing in.  have a presets dropdown button next to the text inputs?
         add ability to load image sequences
@@ -3363,7 +3372,7 @@ class PhotoManager(App):
 
         return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;,").lower()
 
-    def new_description(self, description_editor, root):
+    def new_description(self, description_editor, root, folder, title_type):
         """Update the description of a folder or album.
         Arguments:
             description_editor: Widget, the text input object that was edited.
@@ -3371,18 +3380,17 @@ class PhotoManager(App):
         """
 
         if not description_editor.focus:
-            folder = root.selected
             description = description_editor.text
-            if root.type == 'Folder':
+            if title_type == 'Folder':
                 self.database_folder_update_description(folder, description)
                 self.folders.commit()
                 self.update_photoinfo(folders=[folder])
-            elif root.type == 'Album':
+            elif title_type == 'Album':
                 index = self.album_find(folder)
                 if index >= 0:
                     self.album_update_description(index, description)
 
-    def new_title(self, title_editor, root):
+    def new_title(self, title_editor, root, folder, title_type):
         """Update the title of a folder or album.
         Arguments:
             title_editor: Widget, the text input object that was edited.
@@ -3390,9 +3398,8 @@ class PhotoManager(App):
         """
 
         if not title_editor.focus:
-            folder = root.selected
             title = title_editor.text
-            if root.type == 'Folder':
+            if title_type == 'Folder':
                 self.database_folder_update_title(folder, title)
                 self.folders.commit()
                 self.update_photoinfo(folders=[folder])

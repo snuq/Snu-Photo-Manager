@@ -366,33 +366,31 @@ Builder.load_string("""
             input_filter: app.test_description
             multiline: True
             text: ''
-            on_focus: app.new_description(self, root.owner)
+            on_focus: app.new_description(self, root.owner, root.selected, root.type)
 
 <FolderDetails>:
     size_hint_y: None
-    height: app.button_scale if app.simple_interface else int(app.button_scale * 2)
+    height: app.button_scale
     orientation: 'horizontal'
     Header:
-        height: app.button_scale if app.simple_interface else (app.button_scale * 2)
         ShortLabel:
             text: 'Title:'
         NormalInput:
-            height: app.button_scale if app.simple_interface else (app.button_scale * 2)
             id: folderTitle
+            size_hint_x: 0.5
             input_filter: app.test_album
             multiline: False
             text: ''
-            on_focus: app.new_title(self, root.owner)
+            on_focus: app.new_title(self, root.owner, root.selected, root.type)
         SmallBufferX:
         ShortLabel:
             text: 'Description:'
         NormalInput:
             id: folderDescription
-            height: app.button_scale if app.simple_interface else (app.button_scale * 2)
             input_filter: app.test_description
             multiline: True
             text: ''
-            on_focus: app.new_description(self, root.owner)
+            on_focus: app.new_description(self, root.owner, root.selected, root.type)
 
 <DatabaseSortDropDown>:
     MenuButton:
@@ -431,8 +429,7 @@ class DatabaseScreen(Screen):
     album_sort_dropdown = ObjectProperty()  #Album sorting menu
     album_sort_method = StringProperty('Name')  #Currently selected album sort mode
     album_sort_reverse = BooleanProperty(False)  #Album sorting reversed or not
-    folder_details = ObjectProperty()  #Holder for the folder details widget
-    album_details = ObjectProperty()  #Holder for the album details widget
+    details = ObjectProperty()  #Holder for the folder/album details widget
     popup = None  #Holder for the popup dialog widget
     sort_reverse_button = StringProperty('normal')
     album_sort_reverse_button = StringProperty('normal')
@@ -1486,13 +1483,14 @@ class DatabaseScreen(Screen):
                 if self.type == 'Album':
                     operation_label.text = 'Album:'
                     self.can_rename_folder = False
-                    folder_details.add_widget(self.album_details)
+                    self.details = AlbumDetails(owner=self, selected=self.selected, type=self.type)
+                    folder_details.add_widget(self.details)
                     delete_button.text = 'Remove Selected'
                     folder_title_type.text = 'Album: '
                     folder_path.text = self.selected
                     for albuminfo in app.albums:
                         if albuminfo['name'] == self.selected:
-                            folder_description = self.album_details.ids['albumDescription']
+                            folder_description = self.details.ids['albumDescription']
                             folder_description.text = albuminfo['description']
                             photo_paths = albuminfo['photos']
                             for fullpath in photo_paths:
@@ -1515,10 +1513,11 @@ class DatabaseScreen(Screen):
                     self.can_rename_folder = True
                     delete_button.text = 'Delete Selected'
                     folder_title_type.text = 'Folder: '
+                    self.details = FolderDetails(owner=self, selected=self.selected, type=self.type)
                     folder_path.text = self.selected
-                    folder_details.add_widget(self.folder_details)
-                    folder_title = self.folder_details.ids['folderTitle']
-                    folder_description = self.folder_details.ids['folderDescription']
+                    folder_details.add_widget(self.details)
+                    folder_title = self.details.ids['folderTitle']
+                    folder_description = self.details.ids['folderDescription']
 
                     photos = app.database_get_folder(self.selected)
 
@@ -1662,9 +1661,6 @@ class DatabaseScreen(Screen):
         self.album_menu = NormalDropDown()
         self.album_exports = AlbumExportDropDown()
         self.ids['leftpanel'].width = app.left_panel_width()
-
-        self.folder_details = FolderDetails(owner=self)
-        self.album_details = AlbumDetails(owner=self)
 
         #Set up database sorting
         self.sort_dropdown = DatabaseSortDropDown()
@@ -2163,12 +2159,16 @@ class AlbumDetails(BoxLayout):
     """Widget to display information about an album"""
 
     owner = ObjectProperty()
+    selected = StringProperty()
+    type = StringProperty()
 
 
 class FolderDetails(BoxLayout):
     """Widget to display information about a folder of photos"""
 
     owner = ObjectProperty()
+    selected = StringProperty()
+    type = StringProperty()
 
 
 class DatabaseSortDropDown(NormalDropDown):
