@@ -69,7 +69,8 @@ Builder.load_string("""
 
             LargeBufferX:
             StackLayout:
-                size_hint_x: .25
+                size_hint_x: .25 if root.show_naming else 0
+                opacity: 1 if root.show_naming else 0
                 Scroller:
                     size_hint_y: 1
                     GridLayout:
@@ -209,6 +210,7 @@ Builder.load_string("""
                         NormalButton:
                             text: 'Delete Folder'
                             on_release: root.delete_folder()
+                            warn: True
                         NormalButton:
                             text: 'New Folder'
                             on_release: root.add_folder()
@@ -234,38 +236,28 @@ Builder.load_string("""
                         id: deleteButton
                         text: 'Remove Selected'
                         disabled: True
+                        warn: True
                         on_release: root.delete()
-                BoxLayout:
+                Header:
                     id: folderDetails
-                    size_hint_y: None
-                    height: (app.button_scale * 2)
-                    orientation: 'horizontal'
                     BoxLayout:
-                        orientation: 'vertical'
-                        Header:
-                            ShortLabel:
-                                text: 'Title:'
-                            NormalInput:
-                                disabled: True
-                                id: folderTitle
-                                input_filter: app.test_album
-                                multiline: False
-                                text: ''
-                                on_text: root.new_title(self)
-                        Label:
-                    LargeBufferX:
-                    Header:
-                        height: (app.button_scale * 2)
-                        BoxLayout:
-                            size_hint_x: None
-                            orientation: 'vertical'
-                            ShortLabel:
-                                text: 'Description:'
-                            ShortLabel:
+                        size_hint_x: 0.5
+                        ShortLabel:
+                            text: 'Title:'
+                        NormalInput:
+                            disabled: True
+                            id: folderTitle
+                            input_filter: app.test_album
+                            multiline: False
+                            text: ''
+                            on_text: root.new_title(self)
+                    SmallBufferX:
+                    BoxLayout:
+                        ShortLabel:
+                            text: 'Description:'
                         NormalInput:
                             disabled: True
                             id: folderDescription
-                            height: (app.button_scale * 2)
                             input_filter: app.test_description
                             multiline: True
                             text: ''
@@ -281,8 +273,7 @@ Builder.load_string("""
     size_hint_y: None
     padding: app.padding
     spacing: app.padding, 0
-    height: (app.button_scale * 6)+(app.padding*2)
-    #height: self.minimum_height
+    height: (app.button_scale * 12)+(app.padding*2)
     #height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
     GridLayout:
         cols: 2
@@ -394,6 +385,7 @@ class ImportScreen(Screen):
 
     popup = None
     selected_import = NumericProperty(-1)
+    show_naming = BooleanProperty(False)
 
     def dismiss_extra(self):
         """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
@@ -453,6 +445,7 @@ class ImportScreen(Screen):
     def on_enter(self):
         """Called on entering the screen, updates the treeview and variables."""
 
+        self.show_naming = False
         self.selected_import = -1
         self.update_treeview()
 
@@ -1291,7 +1284,6 @@ class ImportPresetArea(GridLayout):
 
     def __init__(self, **kwargs):
         super(ImportPresetArea, self).__init__(**kwargs)
-        Clock.schedule_once(self.update_import_from)
         app = App.get_running_app()
         self.imports_dropdown = NormalDropDown()
         self.imports_dropdown.basic_animation = True
@@ -1305,6 +1297,7 @@ class ImportPresetArea(GridLayout):
             menu_button = MenuButton(text=database)
             menu_button.bind(on_release=self.change_import_to)
             self.imports_dropdown.add_widget(menu_button)
+        Clock.schedule_once(self.update_import_from)
 
     def update_preset(self):
         """Updates the app preset setting with the current data."""
@@ -1324,7 +1317,8 @@ class ImportPresetArea(GridLayout):
         if not instance.focus:
             self.title = instance.text
             self.update_preset()
-            self.owner.text = instance.text
+            self.owner.data['title'] = instance.text
+            self.owner.update_title()
 
     def test_naming_method(self, string, *_):
         return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;")
@@ -1358,6 +1352,8 @@ class ImportPresetArea(GridLayout):
         del self.import_from[index]
         self.update_preset()
         self.update_import_from()
+        self.owner.data['import_from'] = self.import_from
+        self.owner.update_title()
 
     def change_import_to(self, instance):
         self.imports_dropdown.dismiss()
@@ -1382,6 +1378,8 @@ class ImportPresetArea(GridLayout):
             self.owner.owner.dismiss_popup()
             self.update_preset()
             self.update_import_from()
+            self.owner.data['import_from'] = self.import_from
+            self.owner.update_title()
 
     def update_import_from(self, *_):
         preset_folders = self.ids['importPresetFolders']
@@ -1398,10 +1396,22 @@ class ImportPreset(ExpandableButton):
     owner = ObjectProperty()
     import_to = StringProperty('')
 
+    def on_expanded(self, *_):
+        self.owner.show_naming = True
+        super().on_expanded()
+
     def on_data(self, *_):
         import_preset = self.data
         naming_method = import_preset['naming_method']
         self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=import_preset['import_to'], naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], owner=self)
+        self.update_title()
+
+    def update_title(self, *_):
+        if self.data['import_from']:
+            import_from_text = ' (Import From: ' + ', '.join(self.data['import_from']) + ')'
+        else:
+            import_from_text = ' (Import From: None)'
+        self.text = self.data['title'] + import_from_text
 
     def on_remove(self):
         app = App.get_running_app()

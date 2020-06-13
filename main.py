@@ -20,14 +20,10 @@ Todo before 1.0:
         Editing a favorite can cause it to vanish from favorites temporarily
         Importing Screen - hang/memory leak when generating video thumbnails
         Database Screen - Folder title text is hard to read in default theme, especially when selected
-        Import Screen - expanded panels bg is not full height
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
     Need to make Back button more obvious what it does... maybe add arrow icon?
     Settings Screen - add text while in low memory mode to suggest disable cache
-    Import Screen - new import presets should default to first photo db
-    Import Screen - hide naming method if no imports are expanded
-    Importing Screen - Remove Selected and Delete Folder buttons should be warn color
     Video editor:
         need some way of having presets for size and framerate, but still able to override with typing in.  have a presets dropdown button next to the text inputs?
         add ability to load image sequences
@@ -1660,7 +1656,12 @@ class PhotoManager(App):
     def import_preset_new(self):
         """Create a new import preset with the default settings."""
 
-        preset = {'title': 'Import Preset '+str(len(self.imports)+1), 'import_to': '', 'naming_method': naming_method_default, 'delete_originals': False, 'single_folder': False, 'import_from': []}
+        databases = self.get_database_directories()
+        if databases:
+            import_to = databases[0]
+        else:
+            import_to = ''
+        preset = {'title': 'Import Preset '+str(len(self.imports)+1), 'import_to': import_to, 'naming_method': naming_method_default, 'delete_originals': False, 'single_folder': False, 'import_from': []}
         self.imports.append(preset)
 
     def import_preset_write(self):
