@@ -4493,7 +4493,7 @@ class AlbumScreen(ConversionScreen):
 
     def set_photo(self, photo):
         self.photo = photo
-        Clock.schedule_once(lambda *dt: self.refresh_all())
+        Clock.schedule_once(self.refresh_all)
         Clock.schedule_once(self.show_selected)
 
     def on_sort_reverse(self, *_):
@@ -4719,18 +4719,23 @@ class AlbumScreen(ConversionScreen):
         else:
             self.photo_index(current_photo_index - 1)
 
+    def update_photoinfo_from_database(self):
+        """Reloads the database info and updates the self.photoinfo and self.photos data"""
+
+        app = App.get_running_app()
+        self.photoinfo = app.database_exists(self.fullpath)
+        self.photos[self.current_photo_index()] = self.photoinfo
+
     def set_favorite(self):
         """Toggles the currently viewed photo as favorite."""
 
         app = App.get_running_app()
         if not app.database_scanning:
             if self.target != 'Favorite':
-                app = App.get_running_app()
                 app.database_toggle_tag(self.fullpath, 'favorite')
-                photo_info = app.database_exists(self.fullpath)
-                self.photos[self.current_photo_index()] = photo_info
+                self.update_photoinfo_from_database()
                 self.update_tags()
-                self.refresh_all()
+                self.refresh_photolist()
                 self.viewer.favorite = self.favorite
 
     def delete(self):
@@ -4744,14 +4749,17 @@ class AlbumScreen(ConversionScreen):
         """Creates a delete confirmation popup and opens it."""
 
         if self.type == 'Album':
-            content = ConfirmPopup(text='Remove This Photo From The Album "'+self.target+'"?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
+            action_text = 'Remove This Photo From The Album "'+self.target+'"?'
+            content = ConfirmPopup(text='The photo will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         elif self.type == 'Tag':
-            content = ConfirmPopup(text='Remove The Tag "'+self.target+'" From Selected Photo?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
+            action_text = 'Remove The Tag "'+self.target+'" From Selected Photo?'
+            content = ConfirmPopup(text='The photo will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         else:
-            content = ConfirmPopup(text='Delete The Selected File?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
+            action_text = 'Delete The Selected File?'
+            content = ConfirmPopup(text='The file will be removed from the database and from the disk.', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_selected_answer)
-        self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
+        self.popup = NormalPopup(title=action_text, content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
         self.popup.open()
 
     def delete_selected_answer(self, instance, answer):
@@ -4808,6 +4816,7 @@ class AlbumScreen(ConversionScreen):
     def remove_from_tag(self, remove_from, tag_name):
         app = App.get_running_app()
         app.database_remove_tag(remove_from, tag_name, message=True)
+        self.update_photoinfo_from_database()
         self.update_tags()
         if tag_name == 'favorite':
             self.update_treeview()
@@ -4822,6 +4831,7 @@ class AlbumScreen(ConversionScreen):
         if tag_name:
             app = App.get_running_app()
             app.database_add_tag(self.fullpath, tag_name)
+            self.update_photoinfo_from_database()
             self.update_tags()
             if tag_name == 'favorite':
                 self.update_treeview()
@@ -5000,11 +5010,10 @@ class AlbumScreen(ConversionScreen):
 
     def refresh_all(self, *_):
         self.refresh_photolist()
-        self.refresh_photoview()
         if self.edit_panel_object:
             self.edit_panel_object.refresh_buttons()
 
-    def refresh_photolist(self):
+    def refresh_photolist(self, *_):
         """Reloads and sorts the photo list"""
 
         app = App.get_running_app()
@@ -5039,8 +5048,9 @@ class AlbumScreen(ConversionScreen):
         else:
             sorted_photos = sorted(self.photos, key=lambda x: x[0], reverse=self.sort_reverse)
         self.photos = sorted_photos
+        Clock.schedule_once(self.refresh_photoview)
 
-    def refresh_photoview(self):
+    def refresh_photoview(self, *_):
         #refresh recycleview
 
         app = App.get_running_app()
@@ -5057,11 +5067,10 @@ class AlbumScreen(ConversionScreen):
             photodata['fullpath'] = photo[0]
             photodata['video'] = os.path.splitext(source)[1].lower() in app.movietypes
             photodata['selectable'] = True
-            photodata['selected'] = False
-            #if self.fullpath == photo[0]:
-            #    photodata['selected'] = True
-            #else:
-            #    photodata['selected'] = False
+            if self.fullpath == photo[0]:
+                photodata['selected'] = True
+            else:
+                photodata['selected'] = False
             photodatas.append(photodata)
         photolist.data = photodatas
 
@@ -5355,7 +5364,6 @@ class AlbumScreen(ConversionScreen):
                 self.fullpath = photoinfo[0]
                 self.photo = os.path.join(photoinfo[2], photoinfo[0])
             Clock.schedule_once(self.scroll_photolist)
-        self.refresh_photoview()
 
         #reset edit panel
         self.edit_panel = 'main'

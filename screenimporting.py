@@ -51,7 +51,7 @@ Builder.load_string("""
                     size_hint_y: None
                     height: app.button_scale
                     NormalLabel:
-                        text: 'Select An Import Preset:'
+                        text: 'Import From:'
                     NormalButton:
                         id: newPresetButton
                         disabled: True

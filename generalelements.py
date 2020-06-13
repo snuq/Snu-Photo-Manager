@@ -660,10 +660,12 @@ Builder.load_string("""
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'OK'
+            text: root.yes_text
+            warn: root.warn_yes
             on_release: root.dispatch('on_answer','yes')
         WideButton:
-            text: 'Cancel'
+            text: root.no_text
+            warn: root.warn_no
             on_release: root.dispatch('on_answer', 'no')
 
 <InputPopupTag>:
@@ -683,10 +685,12 @@ Builder.load_string("""
         size_hint_y: None
         height: app.button_scale
         WideButton:
-            text: 'OK'
+            text: root.yes_text
+            warn: root.warn_yes
             on_release: root.dispatch('on_answer','yes')
         WideButton:
-            text: 'Cancel'
+            text: root.no_text
+            warn: root.warn_no
             on_release: root.dispatch('on_answer', 'no')
 
 <ScanningPopup>:
@@ -848,7 +852,7 @@ Builder.load_string("""
                 id: subtext
                 text_size: (self.width - 20, None)
                 font_size: app.text_scale
-                color: .66, .66, .66, 1
+                color: app.theme.text[0], app.theme.text[1], app.theme.text[2], .5
                 halign: 'left'
                 size_hint_y: None
                 height: app.button_scale * .5 if root.subtext else 0
@@ -2527,6 +2531,10 @@ class MessagePopup(GridLayout):
 class InputPopup(GridLayout):
     """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
 
+    yes_text = StringProperty('OK')
+    warn_yes = BooleanProperty(False)
+    no_text = StringProperty('Cancel')
+    warn_no = BooleanProperty(False)
     input_text = StringProperty()
     text = StringProperty()  #Text that the user has input
     hint = StringProperty()  #Grayed-out hint text in the input field
@@ -2542,6 +2550,10 @@ class InputPopup(GridLayout):
 class InputPopupTag(GridLayout):
     """Basic text input popup message.  Calls 'on_answer' when either button is clicked."""
 
+    yes_text = StringProperty('OK')
+    warn_yes = BooleanProperty(False)
+    no_text = StringProperty('Cancel')
+    warn_no = BooleanProperty(False)
     input_text = StringProperty()
     text = StringProperty()  #Text that the user has input
     hint = StringProperty()  #Grayed-out hint text in the input field

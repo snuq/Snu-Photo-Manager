@@ -17,12 +17,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Todo before 1.0:
     Update readme - add some gifs/screenshots
     Bugs:
-        Editing a favorite can cause it to vanish from favorites temporarily
-        Database Screen - Folder title text is hard to read in default theme, especially when selected
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
-    Need to make Back button more obvious what it does... maybe add arrow icon?
-    Settings Screen - add text while in low memory mode to suggest disable cache
+    Think about making buttons more obvious -
+        Back button - maybe add an arrow icon?
     Video editor:
         need some way of having presets for size and framerate, but still able to override with typing in.  have a presets dropdown button next to the text inputs?
         add ability to load image sequences

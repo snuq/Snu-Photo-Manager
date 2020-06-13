@@ -207,13 +207,13 @@ Builder.load_string("""
                         on_value: root.scale = self.value
                         reset_value: root.reset_scale
                     NormalButton:
-                        text: 'Browse Folder'
+                        text: 'Open Folder'
                         disabled: not root.can_browse
                         opacity: 1 if root.can_browse else 0
                         width: (self.texture_size[0] + app.button_scale) if root.can_browse else 0
                         on_release: root.open_browser()
                     MenuStarterButton:
-                        text: 'Export Album'
+                        text: '   Export   '
                         on_release: root.album_exports.open(self)
                     NormalButton:
                         text: 'Toggle Select'
@@ -721,14 +721,17 @@ class DatabaseScreen(Screen):
         """
 
         if self.type == 'Album':
-            content = ConfirmPopup(text='Remove Selected Files From The Album "'+self.selected+'"?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
+            action_text = 'Remove Selected Files From The Album "'+self.selected+'"?'
+            content = ConfirmPopup(text='The files will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         elif self.type == 'Tag':
-            content = ConfirmPopup(text='Remove The Tag "'+self.selected+'" From Selected Files?', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
+            action_text = 'Remove The Tag "'+self.selected+'" From Selected Files?'
+            content = ConfirmPopup(text='The files will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         else:
-            content = ConfirmPopup(text='Delete The Selected Files?', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
+            action_text = 'Delete The Selected Files?'
+            content = ConfirmPopup(text='Selected files will be removed from the database and deleted from the disk!', yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_selected_answer)
-        self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
+        self.popup = NormalPopup(title=action_text, content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
         self.popup.open()
 
     def delete_selected_answer(self, instance, answer):
@@ -1312,11 +1315,11 @@ class DatabaseScreen(Screen):
     def rename_folder(self):
         """Starts the folder renaming process, creates an input text popup."""
 
-        content = InputPopup(hint='Folder Name', text='Rename To:')
+        content = InputPopup(hint='Folder Name', text='Rename To:', yes_text='Rename', warn_yes=True, no_text="Don't Rename")
         content.input_text = os.path.split(self.selected)[1]
         app = App.get_running_app()
         content.bind(on_answer=self.rename_folder_answer)
-        self.popup = NormalPopup(title='Rename Folder', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
+        self.popup = NormalPopup(title='Rename Folder?', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
         self.popup.open()
 
     def rename_folder_answer(self, instance, answer):
@@ -1338,28 +1341,28 @@ class DatabaseScreen(Screen):
     def new_tag(self):
         """Starts the new tag process, creates an input text popup."""
 
-        content = InputPopupTag(hint='Tag Name', text='Enter A Tag:')
+        content = InputPopupTag(hint='Tag Name', text='Enter A Tag Name:', yes_text='Create', no_text="Don't Create")
         app = App.get_running_app()
         content.bind(on_answer=self.add_tag)
-        self.popup = NormalPopup(title='Create Tag', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
+        self.popup = NormalPopup(title='Create A New Tag', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
         self.popup.open()
 
     def new_album(self):
         """Starts the new album process, creates an input text popup."""
 
-        content = InputPopup(hint='Album Name', text='Enter An Album Name:')
+        content = InputPopup(hint='Album Name', text='Enter An Album Name:', yes_text='Create', no_text="Don't Create")
         app = App.get_running_app()
         content.bind(on_answer=self.add_album)
-        self.popup = NormalPopup(title='Create Album', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
+        self.popup = NormalPopup(title='Create A New Album', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
         self.popup.open()
 
     def add_folder(self):
         """Starts the add folder process, creates an input text popup."""
 
-        content = InputPopup(hint='Folder Name', text='Enter A Folder Name:')
+        content = InputPopup(hint='Folder Name', text='Enter A Folder Name:', yes_text='Create', no_text="Don't Create")
         app = App.get_running_app()
         content.bind(on_answer=self.add_folder_answer)
-        self.popup = NormalPopup(title='Create Folder', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
+        self.popup = NormalPopup(title='Create A New Folder', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
         self.popup.open()
 
     def add_folder_answer(self, instance, answer):
@@ -1381,15 +1384,14 @@ class DatabaseScreen(Screen):
     def delete_folder(self):
         """Starts the delete folder process, creates the confirmation popup."""
 
-        text = "Delete The Selected "+self.type+"?"
         if self.type.lower() == 'folder':
-            text = text+"\nAll Included Photos And Videos Will Be Deleted."
+            text = "All Included Photos And Videos Will Be Deleted!"
         else:
-            text = text+"\nThe Contained Files Will Not Be Deleted."
+            text = "The Contained Files Will Not Be Deleted."
         content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
         app = App.get_running_app()
         content.bind(on_answer=self.delete_folder_answer)
-        self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
+        self.popup = NormalPopup(title='Delete The Selected '+self.type+'?', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
         self.popup.open()
 
     def delete_folder_answer(self, instance, answer):
