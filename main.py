@@ -18,7 +18,6 @@ Todo before 1.0:
     Update readme - add some gifs/screenshots
     Bugs:
         Editing a favorite can cause it to vanish from favorites temporarily
-        Importing Screen - hang/memory leak when generating video thumbnails
         Database Screen - Folder title text is hard to read in default theme, especially when selected
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
@@ -821,8 +820,17 @@ class PhotoManager(App):
                 #This is a video file, use ffpyplayer to generate a thumbnail
                 player = MediaPlayer(full_filename, ff_opts={'paused': True, 'ss': 1.0, 'an': True, 'lowres': 2})
                 frame = None
+                frame_load_tries = 0
                 while not frame:
+                    if frame_load_tries > 100:
+                        player.close_player()
+                        player = None
+                        # thumbnail has been trying to load for 10 seconds, give up
+                        return None
                     frame, value = player.get_frame(force_refresh=True)
+                    if not frame:
+                        frame_load_tries += 1
+                        time.sleep(0.1)
                 metadata = player.get_metadata()
                 aspect_ratio = metadata['aspect_ratio']
                 aspect = aspect_ratio[1]/aspect_ratio[0]

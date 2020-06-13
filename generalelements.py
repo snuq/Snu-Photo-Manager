@@ -3855,7 +3855,7 @@ class AsyncThumbnail(KivyImage):
             Clock.schedule_once(lambda *dt: self._load_source(), .25)
         else:
             ThumbLoader.max_upload_per_frame = 50
-            ThumbLoader.num_workers = 4
+            ThumbLoader.num_workers = 2
             ThumbLoader.loading_image = 'data/loadingthumbnail.png'
             self._coreimage = image = ThumbLoader.image(source, load_callback=self.load_thumbnail, nocache=self.nocache, mipmap=self.mipmap, anim_delay=self.anim_delay)
             image.bind(on_load=self._on_source_load)
