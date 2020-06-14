@@ -1,3 +1,4 @@
+import re
 import fnmatch
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -110,6 +111,21 @@ Builder.load_string("""
 """)
 
 
+def tryint(s):
+    try:
+        return int(s)
+    except ValueError:
+        return s
+
+
+def alphanum_key(s):
+    return [tryint(c) for c in re.split('([0-9]+)', s)]
+
+
+def sort_nicely(l):
+    return sorted(l, key=alphanum_key)
+
+
 def get_drives():
     drives = []
     if platform == 'win':
@@ -173,11 +189,15 @@ class FileBrowserSelectableRecycleBoxLayout(SelectableRecycleBoxLayout):
     def on_selected(self, *_):
         self.owner.select_item(self.selected)
 
+    def on_selects(self, *_):
+        self.owner.select_items(self.selects)
+
 
 class FileBrowser(FloatLayout):
     __events__ = ('on_cancel', 'on_ok')
     path = StringProperty()
     file = StringProperty()
+    files = ListProperty()
     filename = StringProperty()
     root = StringProperty()
     allow_no_file = BooleanProperty(False)
@@ -366,7 +386,8 @@ class FileBrowser(FloatLayout):
                 for item in self.filters:
                     filtered_files += fnmatch.filter(files, item)
                 files = filtered_files
-            files = sorted(files, key=lambda s: s.lower())
+            #files = sorted(files, key=lambda s: s.lower())
+            files = sort_nicely(files)
             for file in files:
                 fullpath = os.path.join(self.path, file)
                 file_size = int(os.path.getsize(fullpath))
@@ -437,6 +458,11 @@ class FileBrowser(FloatLayout):
                 self.filename = ''
                 self.file = ''
 
+    def select_items(self, items):
+        self.files = []
+        for item in items:
+            self.files.append(item['file'])
+
     def on_cancel(self):
         pass
 
@@ -457,6 +483,7 @@ class FileBrowserItem(RecycleItem):
     def on_selected(self, *_):
         if self.type == 'folder' and self.multiselect and self.selected:
             self.selected = False
+
         self.set_color()
 
     def on_touch_down(self, touch):

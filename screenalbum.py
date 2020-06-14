@@ -380,6 +380,9 @@ Builder.load_string("""
                         NormalButton:
                             text: 'Load Video...'
                             on_release: root.load_video_begin()
+                        #NormalButton:
+                        #    text: 'Load Image Sequence...'
+                        #    on_release: root.load_video_begin(image=True)
                 Header:
                     ShortLabel:
                         text: "Export To: "
@@ -440,7 +443,7 @@ Builder.load_string("""
                                     size_hint_y: None
                                     height: app.button_scale
                                     WideButton:
-                                        text: 'Add Files...'
+                                        text: 'Add Videos...'
                                         on_release: root.add_batch()
                                     WideButton:
                                         text: 'Remove Selected'
@@ -3925,10 +3928,13 @@ class VideoConverterScreen(ConversionScreen):
             browse_folder = app.last_browse_folder
         else:
             browse_folder = self.folder
-        content = FileBrowser(ok_text='Add', path=browse_folder, multiselect=True, file_editable=False, export_mode=False)
+        video_filter = []
+        for movietype in app.movietypes:
+            video_filter.append('*'+movietype)
+        content = FileBrowser(ok_text='Add', path=browse_folder, filters=video_filter, multiselect=True, file_editable=False, export_mode=False)
         content.bind(on_cancel=self.dismiss_popup)
         content.bind(on_ok=self.add_batch_check)
-        self.popup = NormalPopup(title="Select Files To Add", content=content, size_hint=(0.9, 0.9))
+        self.popup = NormalPopup(title="Select Videos To Add", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
 
     def add_batch_check(self, *_):
@@ -3937,14 +3943,15 @@ class VideoConverterScreen(ConversionScreen):
             app = App.get_running_app()
             path = popup.content.path
             app.last_browse_folder = path
+            files = popup.content.files
+            full_files = []
+            for file in files:
+                full_files.append(os.path.join(path, file))
             self.dismiss_popup()
-            file_datas = popup.content.get_selected()
-            files = []
-            for file_data in file_datas:
-                files.append(file_data['fullpath'])
             self.add_files_to_batch(files)
 
     def add_files_to_batch(self, files):
+        files = sorted(files)
         app = App.get_running_app()
         for filepath in files:
             path, file = os.path.split(filepath)
@@ -4139,20 +4146,47 @@ class VideoConverterScreen(ConversionScreen):
             return
         app.message('Warning: File type not supported')
 
-    def load_video_begin(self):
+    def load_video_begin(self, image=False):
         app = App.get_running_app()
         if app.last_browse_folder:
             browse_folder = app.last_browse_folder
         else:
             browse_folder = self.folder
-        video_filter = []
-        for movietype in app.movietypes:
-            video_filter.append('*'+movietype)
-        content = FileBrowser(ok_text='Load', path=browse_folder, filters=video_filter, file_editable=True, export_mode=False, file=self.target)
-        content.bind(on_cancel=self.dismiss_popup)
-        content.bind(on_ok=self.load_video_finish)
-        self.popup = NormalPopup(title="Select A Video File", content=content, size_hint=(0.9, 0.9))
+        if image:
+            image_filter = []
+            for imagetype in app.imagetypes:
+                image_filter.append('*'+imagetype)
+            content = FileBrowser(ok_text='Load', path=browse_folder, filters=image_filter, export_mode=False, multiselect=True)
+            content.bind(on_cancel=self.dismiss_popup)
+            content.bind(on_ok=self.load_image_sequence_finish)
+            self.popup = NormalPopup(title="Select Image Sequence", content=content, size_hint=(0.9, 0.9))
+        else:
+            video_filter = []
+            for movietype in app.movietypes:
+                video_filter.append('*'+movietype)
+            content = FileBrowser(ok_text='Load', path=browse_folder, filters=video_filter, file_editable=True, export_mode=False, file=self.target)
+            content.bind(on_cancel=self.dismiss_popup)
+            content.bind(on_ok=self.load_video_finish)
+            self.popup = NormalPopup(title="Select A Video File", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
+
+    def load_image_sequence_finish(self, *_):
+        popup = self.popup
+        if popup:
+            app = App.get_running_app()
+            path = popup.content.path
+            app.last_browse_folder = path
+            files = popup.content.files
+
+
+
+
+
+
+
+
+            print(files)
+            self.dismiss_popup()
 
     def load_video_finish(self, *_):
         popup = self.popup
