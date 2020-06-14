@@ -19,10 +19,7 @@ Todo before 1.0:
     Bugs:
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
-    Think about making buttons more obvious -
-        Back button - maybe add an arrow icon?
     Video editor:
-        need some way of having presets for size and framerate, but still able to override with typing in.  have a presets dropdown button next to the text inputs?
         add ability to load image sequences
         implement encoding preview (encodes a very short test with current settings, then shows it next to original)
         Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen

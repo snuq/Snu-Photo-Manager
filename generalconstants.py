@@ -47,6 +47,9 @@ encoding_speeds_friendly = ['Very Fast', 'Fast', 'Medium', 'Slow', 'Very Slow']
 encoding_speeds = ['veryfast', 'fast', 'medium', 'slow', 'veryslow']
 encoding_colors_friendly = ['Copy', 'YUV 420', 'YUV 422', 'YUV 444', 'RGB 24']
 encoding_colors = ['copy', 'yuv420p', 'yuv422p', 'yuv444p', 'rgb24']
+framerate_presets = ['30', '29.97', '24', '25', '60']
+resolution_presets = ['1920x1080', '1280x720', '3840x2160', '720x480']
+
 interface_multiplier = 22
 drag_delay = .5
 

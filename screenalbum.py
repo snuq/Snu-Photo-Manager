@@ -1845,6 +1845,10 @@ Builder.load_string("""
                             multiline: False
                             text: app.encoding_settings.resize_height
                             on_text: app.encoding_settings.resize_height = self.text
+                        MenuStarterButton:
+                            size_hint_x: None
+                            width: app.button_scale
+                            on_release: root.resolution_presets_drop.open(self)
                     SmallBufferY:
                     NormalToggle:
                         id: deinterlace
@@ -1903,11 +1907,16 @@ Builder.load_string("""
                         height: app.button_scale
                         LeftNormalLabel:
                             text: 'Framerate Override:'
-                        FloatInput:
-                            hint_text: "Auto"
-                            id: videoFramerateInput
-                            text: app.encoding_settings.framerate
-                            on_text: app.encoding_settings.framerate = self.text
+                        BoxLayout:
+                            FloatInput:
+                                hint_text: "Auto"
+                                id: videoFramerateInput
+                                text: app.encoding_settings.framerate
+                                on_text: app.encoding_settings.framerate = self.text
+                            MenuStarterButton:
+                                size_hint_x: None
+                                width: app.button_scale
+                                on_release: root.framerate_presets_drop.open(self)
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -5991,6 +6000,8 @@ class EditPanelVideo(EditPanelBase):
     quality_drop = ObjectProperty()
     encoding_speed_drop = ObjectProperty()
     encoding_color_drop = ObjectProperty()
+    framerate_presets_drop = ObjectProperty()
+    resolution_presets_drop = ObjectProperty()
     audio_codec_drop = ObjectProperty()
     advanced = BooleanProperty(False)
 
@@ -6080,6 +6091,20 @@ class EditPanelVideo(EditPanelBase):
             menu_button.bind(on_release=self.change_audio_codec_to)
             self.audio_codec_drop.add_widget(menu_button)
 
+        self.framerate_presets_drop = NormalDropDown()
+        self.framerate_presets_drop.auto_width = False
+        for framerate in framerate_presets:
+            menu_button = MenuButton(text=framerate)
+            menu_button.bind(on_release=self.change_framerate_to)
+            self.framerate_presets_drop.add_widget(menu_button)
+
+        self.resolution_presets_drop = NormalDropDown()
+        self.resolution_presets_drop.auto_width = False
+        for resolution in resolution_presets:
+            menu_button = MenuButton(text=resolution)
+            menu_button.bind(on_release=self.change_resolution_to)
+            self.resolution_presets_drop.add_widget(menu_button)
+
     def set_preset(self, instance):
         """Sets the current dialog preset settings to one of the presets stored in the app.
         Argument:
@@ -6090,6 +6115,18 @@ class EditPanelVideo(EditPanelBase):
         app = App.get_running_app()
         app.encoding_settings.copy_from(instance.remember)
         self.owner.update_encoding_settings()
+
+    def change_framerate_to(self, instance):
+        app = App.get_running_app()
+        self.framerate_presets_drop.dismiss()
+        app.encoding_settings.framerate = instance.text
+
+    def change_resolution_to(self, instance):
+        app = App.get_running_app()
+        res_x, res_y = instance.text.split('x')
+        self.resolution_presets_drop.dismiss()
+        app.encoding_settings.resize_width = res_x
+        app.encoding_settings.resize_height = res_y
 
     def change_container_to(self, instance):
         """Sets the self.file_format value."""
