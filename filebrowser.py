@@ -64,6 +64,7 @@ Builder.load_string("""
                 NormalButton:
                     height: app.button_scale
                     text: 'Delete This Folder'
+                    disabled: not root.can_delete_folder
                     warn: True
                     on_release: root.delete_folder()
         BoxLayout:
@@ -184,6 +185,7 @@ class FileBrowser(FloatLayout):
 
     popup = ObjectProperty(None, allownone=True)
     remember = None
+    can_delete_folder = BooleanProperty(False)
 
     multiselect = BooleanProperty(False)
     new_folder = StringProperty('')
@@ -272,14 +274,11 @@ class FileBrowser(FloatLayout):
         """Starts the delete folder process, creates the confirmation popup."""
 
         app = App.get_running_app()
-        if not os.listdir(self.path):
-            text = "Delete The Selected Folder?"
-            content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
-            content.bind(on_answer=self.delete_folder_answer)
-            self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
-            self.popup.open()
-        else:
-            app.popup_message(text='Could not delete, Folder is not empty', title='Warning')
+        text = "Delete The Selected Folder?"
+        content = ConfirmPopup(text=text, yes_text='Delete', no_text="Don't Delete", warn_yes=True)
+        content.bind(on_answer=self.delete_folder_answer)
+        self.popup = NormalPopup(title='Confirm Delete', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4), auto_dismiss=False)
+        self.popup.open()
 
     def delete_folder_answer(self, instance, answer):
         """Tells the app to delete the folder if the dialog is confirmed.
@@ -340,6 +339,10 @@ class FileBrowser(FloatLayout):
                 files.append(file)
             elif os.path.isdir(fullpath):
                 dirs.append(file)
+        if files:
+            self.can_delete_folder = False
+        else:
+            self.can_delete_folder = True
         dirs = sorted(dirs, key=lambda s: s.lower())
         for directory in dirs:
             fullpath = os.path.join(self.path, directory)
