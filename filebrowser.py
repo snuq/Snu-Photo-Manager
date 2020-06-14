@@ -339,7 +339,7 @@ class FileBrowser(FloatLayout):
                 files.append(file)
             elif os.path.isdir(fullpath):
                 dirs.append(file)
-        if files:
+        if directory_elements:
             self.can_delete_folder = False
         else:
             self.can_delete_folder = True
