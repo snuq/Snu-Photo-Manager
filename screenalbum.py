@@ -380,9 +380,9 @@ Builder.load_string("""
                         NormalButton:
                             text: 'Load Video...'
                             on_release: root.load_video_begin()
-                        #NormalButton:
-                        #    text: 'Load Image Sequence...'
-                        #    on_release: root.load_video_begin(image=True)
+                        NormalButton:
+                            text: 'Load Image Sequence...'
+                            on_release: root.load_video_begin(image=True)
                 Header:
                     ShortLabel:
                         text: "Export To: "
@@ -1916,6 +1916,7 @@ Builder.load_string("""
                                 id: videoFramerateInput
                                 text: app.encoding_settings.framerate
                                 on_text: app.encoding_settings.framerate = self.text
+                                on_text: root.owner.set_framerate_override(self.text)
                             MenuStarterButton:
                                 size_hint_x: None
                                 width: app.button_scale
@@ -2691,6 +2692,9 @@ class ConversionScreen(Screen):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def set_framerate_override(self, framerate):
+        pass
 
     def clear_cache(self, *_):
         pass
@@ -3620,6 +3624,10 @@ class VideoConverterScreen(ConversionScreen):
         super().__init__(**kwargs)
         self.advanced_encode = True
 
+    def set_framerate_override(self, framerate):
+        if self.viewer:
+            self.viewer.framerate_override = float(framerate)
+
     def drop_file(self, filepath, pos):
         if os.path.isdir(filepath):
             path = filepath
@@ -4157,7 +4165,7 @@ class VideoConverterScreen(ConversionScreen):
             image_filter = []
             for imagetype in app.imagetypes:
                 image_filter.append('*'+imagetype)
-            content = FileBrowser(ok_text='Load', path=browse_folder, filters=image_filter, export_mode=False, multiselect=True)
+            content = FileBrowser(ok_text='Load', path=browse_folder, filters=image_filter, export_mode=False, multiselect=True, autoselect=True)
             content.bind(on_cancel=self.dismiss_popup)
             content.bind(on_ok=self.load_image_sequence_finish)
             self.popup = NormalPopup(title="Select Image Sequence", content=content, size_hint=(0.9, 0.9))
@@ -4239,9 +4247,8 @@ class VideoConverterScreen(ConversionScreen):
                     self.fullpath = ''
                     self.export_file = ''
                     self.export_folder = ''
-                    #Todo: finish image sequence loading
-                    #self.edit_video()
-                    #self.refresh_photoinfo()
+                    self.edit_video()
+                    self.refresh_photoinfo()
                     return
                 else:
                     self.photo = ''
@@ -4295,7 +4302,8 @@ class VideoConverterScreen(ConversionScreen):
             else:
                 self.mirror = False
             self.view_image = False
-            self.viewer = VideoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo, photoinfo=self.photoinfo)
+            self.viewer = VideoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo, photoinfo=self.photoinfo, sequence=self.sequence)
+            self.viewer.framerate_override = app.encoding_settings.framerate
             container.add_widget(self.viewer)
 
             edit_panel = 'edit'
@@ -6730,6 +6738,12 @@ class VideoViewer(FloatLayout):
     end_point = NumericProperty(1.0)
     fullscreen = BooleanProperty(False)
     overlay = ObjectProperty(allownone=True)
+    sequence = ListProperty()
+    framerate_override = NumericProperty(0)
+
+    def on_framerate_override(self, *_):
+        if self.edit_image:
+            self.edit_image.framerate_override = self.framerate_override
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -6776,7 +6790,8 @@ class VideoViewer(FloatLayout):
 
     def init_edit_mode(self, *_):
         if not self.edit_image:
-            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            self.edit_image = CustomImage(sequence=self.sequence, mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            self.edit_image.framerate_override = self.framerate_override
             viewer = self.ids['photoShow']
             viewer.add_widget(self.edit_image)
             self.position = 0
@@ -6950,20 +6965,23 @@ class PauseableVideo(Video):
             if '://' not in filename:
                 filename = kivy.resources.resource_find(filename)
             self._video = CoreVideo(filename=filename, **self.options)
-            self._video.volume = self.volume
-            self._video.bind(on_load=self._on_load, on_frame=self._on_video_frame, on_eos=self._on_eos)
-            if self.state == 'play' or self.play:
-                self._video.play()
+            if self._video:
+                self._video.volume = self.volume
+                self._video.bind(on_load=self._on_load, on_frame=self._on_video_frame, on_eos=self._on_eos)
+                if self.state == 'play' or self.play:
+                    self._video.play()
             self.duration = 1.
             self.position = 0.
 
     def on_texture(self, *kwargs):
         super(PauseableVideo, self).on_texture(*kwargs)
-        if self.first_load:
-            app = App.get_running_app()
-            app.album_screen.refresh_photoinfo_full(video=self._video)
-            self.aspect = self._video.aspect
-        self.first_load = False
+        if self._video:
+            if self.first_load:
+                app = App.get_running_app()
+                if app.album_screen:
+                    app.album_screen.refresh_photoinfo_full(video=self._video)
+                self.aspect = self._video.aspect
+            self.first_load = False
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):

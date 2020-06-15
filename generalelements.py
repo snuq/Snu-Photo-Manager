@@ -1972,11 +1972,13 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout, LayoutSelectionBehavior):
 
     def select_all(self):
         self.selects = []
+        selects = []
         for data in self.parent.data:
             if data['selectable']:
                 data['selected'] = True
-                self.selects.append(data)
-                self.selected = data
+                selects.append(data)
+        self.selects = selects
+        self.selected = selects[-1]
         self.refresh_selection()
 
     def select_node(self, node):
@@ -2763,6 +2765,48 @@ class SplitterPanelRight(SplitterPanel):
 
 
 #Images
+class SequencePlayer(Widget):
+    sequence = ListProperty()
+    path = StringProperty()
+    frame = 0
+    framerate = NumericProperty(30)
+
+    def __init__(self, **kwargs):
+        self.frame = 0
+        self.framerate = 30
+        super().__init__(**kwargs)
+
+    def set_pause(self, pause):
+        return
+
+    def seek(self, pts, relative=False, accurate=True):
+        seek = round(pts * self.framerate)
+        frame = round(seek)
+        length = len(self.sequence)
+        if frame >= length:
+            self.frame = length - 1
+        else:
+            self.frame = frame
+
+    def close_player(self):
+        return
+
+    def get_metadata(self):
+        frames = len(self.sequence)
+        metadata = {'frame_rate': [self.framerate, 1], 'duration': frames / self.framerate, 'src_pix_fmt': 'rgb24'}
+        return metadata
+
+    def get_frame(self, force_refresh=False):
+        if len(self.sequence) > self.frame:
+            image_filename = self.sequence[self.frame]
+            image = Image.open(os.path.join(self.path, image_filename))
+            pts = self.frame / self.framerate
+            self.frame += 1
+            return [image, pts], 0
+        else:
+            return None, 'eof'
+
+
 class CustomImage(KivyImage):
     """Custom image display widget.
     Enables editing operations, displaying them in real-time using a low resolution preview of the original image file.
@@ -2781,6 +2825,8 @@ class CustomImage(KivyImage):
     crop_verts = ListProperty()
     crop_indices = ListProperty()
 
+    sequence = ListProperty()
+    framerate_override = NumericProperty(0)  #Externally set the framerate for image sequences
     exif = ''
     pixel_format = ''
     length = NumericProperty(0)
@@ -2858,6 +2904,13 @@ class CustomImage(KivyImage):
     start_seconds = 0
     first_frame = None
 
+    def on_framerate_override(self, *_):
+        if self.sequence:
+            self.framerate = [self.framerate_override, 1]
+            self.length = len(self.sequence) / self.framerate_override
+            if self.player:
+                self.player.framerate = self.framerate_override
+
     def update_norm_image_pos(self, *_):
         self.norm_image_pos = [self.pos[0] + ((self.width - self.norm_image_size[0]) / 2), self.pos[1] + ((self.height - self.norm_image_size[1]) / 2)]
 
@@ -2899,7 +2952,11 @@ class CustomImage(KivyImage):
 
     def start_video_convert(self):
         self.close_video()
-        self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 0.0, 'an': True})
+        if self.sequence:
+            path = os.path.split(self.source)[0]
+            self.player = SequencePlayer(sequence=self.sequence, path=path, framerate=self.framerate_override)
+        else:
+            self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 0.0, 'an': True})
         #self.player.set_volume(0)  #crashes sometimes... hopefully not necessary
         self.frame_number = 0
         if self.start_point > 0 or self.end_point < 1:
@@ -2961,15 +3018,19 @@ class CustomImage(KivyImage):
         return frame
 
     def get_converted_frame(self):
-        self.first_frame = None
         self.player.set_pause(False)
         frame = None
         while not frame:
-            try:
-                frame, value = self.player.get_frame()
-            except Exception as e:
-                #getting the frame failed for some reason
-                return [None, e]
+            if self.first_frame:
+                frame = self.first_frame
+                value = 0
+                self.first_frame = None
+            else:
+                try:
+                    frame, value = self.player.get_frame()
+                except Exception as e:
+                    #getting the frame failed for some reason
+                    return [None, e]
             if value == 'eof':
                 return None
         self.player.set_pause(True)
@@ -2978,20 +3039,23 @@ class CustomImage(KivyImage):
             if self.frame_number > self.max_frames:
                 return None
         try:
-            frame_image, frame_data = frame
-            frame = None
-            frame_size = frame_image.get_size()
-            current_pixel_format = frame_image.get_pixel_format()
-            if current_pixel_format != 'rgb24':
-                frame_converter = SWScale(frame_size[0], frame_size[1], current_pixel_format, ofmt='rgb24')
-                frame_image = frame_converter.scale(frame_image)
-            frame_converter = None
-            image_data = bytes(frame_image.to_bytearray()[0])  #can cause out of memory errors...
-            frame_image = None
-            image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
-            image_data = None
-            #for some reason, video frames are read upside-down? fix it here...
-            image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            if not self.sequence:
+                frame_image, frame_data = frame
+                frame = None
+                frame_size = frame_image.get_size()
+                current_pixel_format = frame_image.get_pixel_format()
+                if current_pixel_format != 'rgb24':
+                    frame_converter = SWScale(frame_size[0], frame_size[1], current_pixel_format, ofmt='rgb24')
+                    frame_image = frame_converter.scale(frame_image)
+                frame_converter = None
+                image_data = bytes(frame_image.to_bytearray()[0])  #can cause out of memory errors...
+                frame_image = None
+                image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+                image_data = None
+                #for some reason, video frames are read upside-down? fix it here...
+                image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            else:
+                image, frame_data = frame
         except Exception as e:
             #basic frame manipulation failed, probably a memory error...
             return [None, e]
@@ -3010,7 +3074,11 @@ class CustomImage(KivyImage):
             self.player = None
 
     def open_video(self):
-        self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 1.0, 'an': True})
+        if self.sequence:
+            path = os.path.split(self.source)[0]
+            self.player = SequencePlayer(sequence=self.sequence, path=path)
+        else:
+            self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 1.0, 'an': True})
         frame = None
         while not frame:
             frame, value = self.player.get_frame(force_refresh=True)
@@ -3335,6 +3403,8 @@ class CustomImage(KivyImage):
 
         app = App.get_running_app()
         self.video = os.path.splitext(self.source)[1].lower() in app.movietypes
+        if self.sequence:
+            self.video = True
         if self.video:
             self.open_video()
         self.reload_edit_image()
@@ -3358,15 +3428,18 @@ class CustomImage(KivyImage):
                 location = self.length * self.position
                 frame = self.seek_player(location)
                 frame = frame[0]
-                frame_size = frame.get_size()
-                pixel_format = frame.get_pixel_format()
-                if pixel_format != 'rgb24':
-                    frame_converter = SWScale(frame_size[0], frame_size[1], pixel_format, ofmt='rgb24')
-                    frame = frame_converter.scale(frame)
-                image_data = bytes(frame.to_bytearray()[0])
-                original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
-                #for some reason, video frames are read upside-down? fix it here...
-                original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+                if not self.sequence:
+                    frame_size = frame.get_size()
+                    pixel_format = frame.get_pixel_format()
+                    if pixel_format != 'rgb24':
+                        frame_converter = SWScale(frame_size[0], frame_size[1], pixel_format, ofmt='rgb24')
+                        frame = frame_converter.scale(frame)
+                    image_data = bytes(frame.to_bytearray()[0])
+                    original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+                    #for some reason, video frames are read upside-down? fix it here...
+                    original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+                else:
+                    original_image = frame
             else:
                 original_image = Image.open(self.source)
                 try:

@@ -215,6 +215,7 @@ class FileBrowser(FloatLayout):
     filters = ListProperty()
     target_selected = BooleanProperty(False)
     export_mode = BooleanProperty(False)
+    autoselect = BooleanProperty(False)
 
     header_text = StringProperty('Select A File')
     cancel_text = StringProperty('Cancel')
@@ -424,6 +425,8 @@ class FileBrowser(FloatLayout):
             self.target_selected = True
 
         self.reset_folder_position()
+        if self.autoselect:
+            self.toggle_select()
 
     def go_up(self, *_):
         up_path = os.path.realpath(os.path.join(self.path, '..'))
