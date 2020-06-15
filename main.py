@@ -20,7 +20,7 @@ Todo before 1.0:
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
     Video editor:
-        add ability to load image sequences
+        add ability to load image sequences - started, still needs a lot of work to actually load/export it
         implement encoding preview (encodes a very short test with current settings, then shows it next to original)
         Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
         add ability to play back video with audio for easier selecting the in/out

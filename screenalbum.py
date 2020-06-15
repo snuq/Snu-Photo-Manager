@@ -3614,6 +3614,7 @@ class VideoConverterScreen(ConversionScreen):
     apply_edit = BooleanProperty(False)  #Determines if the edit will be applied to batch conversions
     drag_image = ObjectProperty(allownone=True)
     drag_offset = ListProperty()
+    sequence = ListProperty()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -4178,14 +4179,12 @@ class VideoConverterScreen(ConversionScreen):
             app.last_browse_folder = path
             files = popup.content.files
 
+            self.sequence = files
+            self.folder = path
+            self.target = files[0]
+            self.photo = os.path.join(path, files[0])
+            app.message('Loaded image sequence from: '+path)
 
-
-
-
-
-
-
-            print(files)
             self.dismiss_popup()
 
     def load_video_finish(self, *_):
@@ -4202,6 +4201,7 @@ class VideoConverterScreen(ConversionScreen):
         app = App.get_running_app()
         extension = os.path.splitext(file)[1].lower()
         if extension in app.movietypes:
+            self.sequence = []
             self.folder = path
             self.target = file
             self.photo = os.path.join(path, file)
@@ -4211,10 +4211,10 @@ class VideoConverterScreen(ConversionScreen):
 
     def on_enter(self):
         super().on_enter()
-        #self.clear_batch()
         self.show_log = False
         self.show_extra = False
         self.use_batch = False
+        self.sequence = []
         self.photo_viewer_current = 'edit'
         self.update_encoding_settings()
         self.show_panel('conversion', ensure=True)
@@ -4234,14 +4234,24 @@ class VideoConverterScreen(ConversionScreen):
         if self.photo:
             extension = os.path.splitext(self.photo)[1].lower()
             if extension not in app.movietypes:
-                self.photo = ''
-                self.folder = ''
-                self.target = ''
-                self.export_file = ''
-                self.export_folder = ''
-                self.photoinfo = []
-                self.edit_video()
-                return
+                if self.sequence:
+                    self.photoinfo = []
+                    self.fullpath = ''
+                    self.export_file = ''
+                    self.export_folder = ''
+                    #Todo: finish image sequence loading
+                    #self.edit_video()
+                    #self.refresh_photoinfo()
+                    return
+                else:
+                    self.photo = ''
+                    self.folder = ''
+                    self.target = ''
+                    self.export_file = ''
+                    self.export_folder = ''
+                    self.photoinfo = []
+                    self.edit_video()
+                    return
         self.folder, self.target = os.path.split(self.photo)
         photoinfo = app.file_in_database(self.photo)
         if photoinfo:
