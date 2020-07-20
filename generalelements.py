@@ -1978,7 +1978,8 @@ class SelectableRecycleBoxLayout(RecycleBoxLayout, LayoutSelectionBehavior):
                 data['selected'] = True
                 selects.append(data)
         self.selects = selects
-        self.selected = selects[-1]
+        if self.selects:
+            self.selected = selects[-1]
         self.refresh_selection()
 
     def select_node(self, node):

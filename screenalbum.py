@@ -3957,7 +3957,7 @@ class VideoConverterScreen(ConversionScreen):
             for file in files:
                 full_files.append(os.path.join(path, file))
             self.dismiss_popup()
-            self.add_files_to_batch(files)
+            self.add_files_to_batch(full_files)
 
     def add_files_to_batch(self, files):
         files = sorted(files)

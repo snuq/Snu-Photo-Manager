@@ -573,9 +573,9 @@ class PhotoManager(App):
             if scancode == 32:
                 #space key
                 current_screen.key('space')
-            if scancode == 13:
-                #enter key
-                current_screen.key('enter')
+            #if scancode == 13:
+            #    #enter key
+            #    current_screen.key('enter')
             if scancode == 127 or scancode == 8:
                 #delete and backspace key
                 current_screen.key('delete')
