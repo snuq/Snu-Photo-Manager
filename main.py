@@ -19,7 +19,7 @@ Todo before 1.0:
     going back to the database when viewing an album will not scroll the album down to the file
     Update readme - add some gifs/screenshots
     Bugs:
-        getting opencv memory errors sometimes...    generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
+        getting opencv memory errors sometimes... need to catch it and not freeze at the very least - generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
     Video editor:

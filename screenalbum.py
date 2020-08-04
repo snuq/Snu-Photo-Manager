@@ -2902,6 +2902,8 @@ class ConversionScreen(Screen):
         if encoding_framerate:
             #output_framerate_setting = "-r "+encoding_framerate
             output_framerate_setting = "-filter:v fps=fps="+encoding_framerate
+        else:
+            output_framerate_setting = ''
         if input_images:
             input_format_settings = '-f image2pipe -vcodec mjpeg ' + framerate_setting
         else:
@@ -3515,14 +3517,19 @@ class ConversionScreen(Screen):
         """Saves any temporary edits on the currently viewed image."""
 
         app = App.get_running_app()
+        error = ''
 
         #generate full quality image
-        edit_image = self.viewer.edit_image.get_full_quality()
+        try:
+            edit_image = self.viewer.edit_image.get_full_quality()
+        except MemoryError as e:
+            error = 'Could not generate image out of memory error, please try again.'
+            app.popup_message(text=error, title='Warning')
+            return
         exif = self.viewer.edit_image.exif
         #new_exif = exif[:274] + b'1' + exif[275:]
         #exif = new_exif
         self.viewer.stop()
-        error = ''
 
         #back up old image and save new edit
         photo_file_original = self.photo
@@ -3627,7 +3634,10 @@ class VideoConverterScreen(ConversionScreen):
 
     def set_framerate_override(self, framerate):
         if self.viewer:
-            self.viewer.framerate_override = float(framerate)
+            try:
+                self.viewer.framerate_override = float(framerate)
+            except:
+                self.viewer.framerate_override = 0
 
     def drop_file(self, filepath, pos):
         if os.path.isdir(filepath):
