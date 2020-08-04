@@ -15,11 +15,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
+    add an option to open the folder of a current file
+    going back to the database when viewing an album will not scroll the album down to the file
     Update readme - add some gifs/screenshots
     Bugs:
+        Need to not switch screens when pressing enter in text input on database screen
+        getting opencv memory errors sometimes...    generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
+        previews in album viewer are not the right image sometimes
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
     Video editor:
+        disable in/out editing with simple video editor
+        add framerate override - Auto (clears field)
         add ability to load image sequences
             test filebrowser speed with very large folders, maybe image sequence loader should just use a directory select mode
         implement encoding preview (encodes a very short test with current settings, then shows it next to original)
@@ -573,9 +580,9 @@ class PhotoManager(App):
             if scancode == 32:
                 #space key
                 current_screen.key('space')
-            #if scancode == 13:
-            #    #enter key
-            #    current_screen.key('enter')
+            if scancode == 13:
+                #enter key
+                current_screen.key('enter')
             if scancode == 127 or scancode == 8:
                 #delete and backspace key
                 current_screen.key('delete')

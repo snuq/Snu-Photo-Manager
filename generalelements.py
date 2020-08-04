@@ -3576,6 +3576,7 @@ class CustomImage(KivyImage):
         if self.brightness != 0:
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(1+self.brightness)
+            enhancer = None
         if self.shadow != 0:
             if self.shadow < 0:
                 floor = int(abs(self.shadow) * 128)
@@ -3594,6 +3595,7 @@ class CustomImage(KivyImage):
                     table.append(value)
                 lut = table * 3
             image = image.point(lut)
+            lut = None
 
         if self.gamma != 0:
             if self.gamma == -1:
@@ -3607,12 +3609,15 @@ class CustomImage(KivyImage):
             lut = [pow(x/255, gamma) * 255 for x in range(256)]
             lut = lut*3
             image = image.point(lut)
+            lut = None
         if self.contrast != 0:
             enhancer = ImageEnhance.Contrast(image)
             image = enhancer.enhance(1 + self.contrast)
+            enhancer = None
         if self.saturation != 0:
             enhancer = ImageEnhance.Color(image)
             image = enhancer.enhance(1+self.saturation)
+            enhancer = None
         if self.tint != [1.0, 1.0, 1.0, 1.0]:
             matrix = (self.tint[0], 0.0, 0.0, 0.0,
                       0.0, self.tint[1], 0.0, 0.0,
@@ -3621,6 +3626,7 @@ class CustomImage(KivyImage):
         if self.curve:
             lut = self.curve*3
             image = image.point(lut)
+            lut = None
 
         if self.denoise and not preview and opencv:
             open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
@@ -3646,6 +3652,7 @@ class CustomImage(KivyImage):
         if self.sharpen != 0:
             enhancer = ImageEnhance.Sharpness(image)
             image = enhancer.enhance(self.sharpen+1)
+            enhancer = None
         if self.median_blur != 0 and opencv:
             max_median = 10 * size_multiple
             median = int(self.median_blur * max_median)
@@ -3679,6 +3686,9 @@ class CustomImage(KivyImage):
             draw.ellipse([0+shrink_x, 0+shrink_y, image.size[0]-shrink_x, image.size[1]-shrink_y], fill=255)
             vignette_mixer = vignette_mixer.filter(ImageFilter.GaussianBlur(radius=(self.vignette_amount*60)+60))
             image = Image.composite(image, vignette, vignette_mixer)
+            draw = None
+            vignette = None
+            vignette_mixer = None
         if self.edge_blur_amount > 0 and self.edge_blur_intensity > 0 and self.edge_blur_size > 0:
             blur_image = image.filter(ImageFilter.GaussianBlur(radius=(self.edge_blur_amount*30)))
             filter_color = int((1-self.edge_blur_intensity)*255)
@@ -3689,6 +3699,9 @@ class CustomImage(KivyImage):
             draw.ellipse([0+shrink_x, 0+shrink_y, image.size[0]-shrink_x, image.size[1]-shrink_y], fill=255)
             blur_mixer = blur_mixer.filter(ImageFilter.GaussianBlur(radius=(self.edge_blur_amount*30)))
             image = Image.composite(image, blur_image, blur_mixer)
+            blur_image = None
+            blur_mixer = None
+            draw = None
 
         if self.border_image:
             image_aspect = image.size[0]/image.size[1]
@@ -3725,6 +3738,9 @@ class CustomImage(KivyImage):
             enhancer = ImageEnhance.Brightness(alpha)
             alpha = enhancer.enhance(self.border_opacity)
             image = Image.composite(border_image, image, alpha)
+            alpha = None
+            border_image = None
+            enhancer = None
 
         if self.flip_horizontal:
             image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
