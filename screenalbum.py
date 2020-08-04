@@ -4314,7 +4314,10 @@ class VideoConverterScreen(ConversionScreen):
                 self.mirror = False
             self.view_image = False
             self.viewer = VideoViewer(favorite=self.favorite, angle=self.angle, mirror=self.mirror, file=self.photo, photoinfo=self.photoinfo, sequence=self.sequence)
-            self.viewer.framerate_override = app.encoding_settings.framerate
+            try:
+                self.viewer.framerate_override = float(app.encoding_settings.framerate)
+            except:
+                self.viewer.framerate_override = 0
             container.add_widget(self.viewer)
 
             edit_panel = 'edit'
