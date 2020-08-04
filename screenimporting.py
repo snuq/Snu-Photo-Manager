@@ -273,7 +273,7 @@ Builder.load_string("""
     size_hint_y: None
     padding: app.padding
     spacing: app.padding, 0
-    height: (app.button_scale * 12)+(app.padding*2)
+    height: (app.button_scale * 6)+(app.padding*2)
     #height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
     GridLayout:
         cols: 2
