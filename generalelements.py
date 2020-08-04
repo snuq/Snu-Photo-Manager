@@ -1511,6 +1511,13 @@ class NormalInput(TextInput):
     long_press_time = NumericProperty(1)
     long_press_clock = None
     long_press_pos = None
+    disable_lines = BooleanProperty(False)
+
+    def insert_text(self, substring, from_undo=False):
+        if self.disable_lines:
+            if substring == '\n':
+                substring = ''
+        return super(NormalInput, self).insert_text(substring, from_undo=from_undo)
 
     def on_touch_up(self, touch):
         if self.long_press_clock:

@@ -147,7 +147,8 @@ Builder.load_string("""
                                 height: app.button_scale
                                 NormalInput:
                                     size_hint_y: 1
-                                    multiline: False
+                                    multiline: True
+                                    disable_lines: True
                                     hint_text: 'Search...'
                                     text: root.search_text
                                     on_text: root.search(self.text)
@@ -379,7 +380,8 @@ Builder.load_string("""
             id: folderTitle
             size_hint_x: 0.5
             input_filter: app.test_album
-            multiline: False
+            multiline: True
+            disable_lines: True
             text: ''
             on_focus: app.new_title(self, root.owner, root.selected, root.type)
         SmallBufferX:

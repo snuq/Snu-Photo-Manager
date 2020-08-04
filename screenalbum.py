@@ -287,7 +287,8 @@ Builder.load_string("""
                                         height: app.button_scale
                                         NormalInput:
                                             id: newTag
-                                            multiline: False
+                                            multiline: True
+                                            disable_lines: True
                                             hint_text: 'Tag Name'
                                             input_filter: app.test_tag
                                         NormalButton:
