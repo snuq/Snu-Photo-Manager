@@ -4857,14 +4857,16 @@ class AlbumScreen(ConversionScreen):
                 if len(self.photos) == 1:
                     app.show_database()
                 else:
-                    self.next_photo()
-                    Cache.remove('kv.loader')
-                    self.cache_nearby_images()
-                    #Cache.remove('kv.image')
-                    #Cache.remove('kv.texture')
-                    self.update_tags()
-                    self.update_treeview()
+                    Clock.schedule_once(self.post_delete_update)
         self.dismiss_popup()
+
+    def post_delete_update(self, *_):
+        #Cache.remove('kv.loader')
+        #Cache.remove('kv.image')
+        #Cache.remove('kv.texture')
+        self.next_photo()
+        self.update_tags()
+        Clock.schedule_once(self.update_treeview)
 
     def current_photo_index(self):
         """Determines the index of the currently viewed photo in the album photos.
@@ -5369,7 +5371,7 @@ class AlbumScreen(ConversionScreen):
         self.update_tags()
         self.refresh_all()
 
-    def update_treeview(self):
+    def update_treeview(self, *_):
         """Called by delete buttons."""
 
         self.on_enter()
