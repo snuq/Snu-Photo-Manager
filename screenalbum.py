@@ -4579,6 +4579,7 @@ class AlbumScreen(ConversionScreen):
         deleted_photos = app.delete_folder_original(folder)
         if len(deleted_photos) > 0:
             app.message('Deleted '+str(len(deleted_photos))+' original files')
+            self.set_edit_panel('main')
         else:
             app.message('Could not delete any original files')
 

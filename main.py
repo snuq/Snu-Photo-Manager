@@ -19,7 +19,6 @@ Todo before 1.0:
     going back to the database when viewing an album will not scroll the album down to the file
     Update readme - add some gifs/screenshots
     Bugs:
-        Need to not switch screens when pressing enter in text input on database screen
         getting opencv memory errors sometimes...    generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
         previews in album viewer are not the right image sometimes
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
