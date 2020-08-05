@@ -153,7 +153,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
             HeaderLabel:
                 text: 'Create Collage'
             InfoLabel:
@@ -733,6 +733,15 @@ class CollageScreen(Screen):
     #Variables relating to the photo list view on the left
     sort_method = StringProperty('Name')  #Current album sort method
     sort_reverse = BooleanProperty(False)
+
+    from_database = BooleanProperty(False)  #indicates if the database screen switched to this screen
+
+    def back(self, *_):
+        app = App.get_running_app()
+        if self.from_database:
+            app.show_database()
+        else:
+            app.show_album(back=True)
 
     def rescale_screen(self):
         app = App.get_running_app()

@@ -35,7 +35,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
             HeaderLabel:
                 text: 'Import Photos'
             InfoLabel:
@@ -175,7 +175,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
             MediumBufferX:
             NormalButton:
                 text: 'Import Photos'
@@ -387,6 +387,11 @@ class ImportScreen(Screen):
     selected_import = NumericProperty(-1)
     show_naming = BooleanProperty(False)
 
+    def back(self, *_):
+        app = App.get_running_app()
+        app.show_database()
+        return True
+
     def dismiss_extra(self):
         """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""
         return False
@@ -529,6 +534,11 @@ class ImportingScreen(Screen):
     percent_completed = NumericProperty()
     start_time = NumericProperty()
     import_scanning = BooleanProperty(False)
+
+    def back(self, *_):
+        app = App.get_running_app()
+        app.show_database()
+        return True
 
     def rescale_screen(self):
         app = App.get_running_app()

@@ -464,7 +464,8 @@ class FileBrowser(FloatLayout):
     def select_items(self, items):
         self.files = []
         for item in items:
-            self.files.append(item['file'])
+            if 'file' in item:
+                self.files.append(item['file'])
 
     def on_cancel(self):
         pass

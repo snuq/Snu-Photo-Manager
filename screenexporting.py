@@ -31,7 +31,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
             MediumBufferX:
             HeaderLabel:
                 text: 'Export Photos'
@@ -469,6 +469,15 @@ class ExportScreen(Screen):
     ftp = None
     sort_reverse_button = StringProperty('normal')
     selected_preset = NumericProperty(-1)
+
+    from_database = BooleanProperty(False)  #indicates if the database screen switched to this screen
+
+    def back(self, *_):
+        app = App.get_running_app()
+        if self.from_database:
+            app.show_database()
+        else:
+            app.show_album(back=True)
 
     def get_selected_photos(self, fullpath=False):
         photos = self.ids['photos']

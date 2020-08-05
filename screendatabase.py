@@ -255,7 +255,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
             NormalToggle:
                 text: '  Quick Move  ' if self.state == 'normal' else '  Verify Move  '
                 state: 'down' if app.config.get("Settings", "quicktransfer") == '0' else 'normal'
@@ -452,6 +452,29 @@ class DatabaseScreen(Screen):
     scale = NumericProperty(1)  #Controls the scale of picture widgets
     scale_min = .5
     scale_max = 3
+    scrollto = StringProperty('')
+
+    def back(self, *_):
+        return False
+
+    def scroll_to(self, fullpath):
+        #Function that tries to scroll the photo list area to the given photo
+
+        if fullpath:
+            photos_container = self.ids['photosContainer']
+            for index, photodata in enumerate(self.data):
+                if photodata['fullpath'] == fullpath:
+                    box = photos_container.children[0]
+                    pos_index = (box.default_size[1] + box.spacing[1]) * (index / box.cols)
+                    scroll = photos_container.convert_distance_to_scroll(0, pos_index - (photos_container.height * 0.5))[1]
+                    if scroll > 1.0:
+                        scroll = 1.0
+                    elif scroll < 0.0:
+                        scroll = 0.0
+                    photos_container.scroll_y = 1.0 - scroll
+                    photos_area = self.ids['photos']
+                    photos_area.select_node(index)
+                    break
 
     def rescale_screen(self):
         app = App.get_running_app()
@@ -554,7 +577,7 @@ class DatabaseScreen(Screen):
             app = App.get_running_app()
             app.export_target = self.selected
             app.export_type = self.type
-            app.show_export()
+            app.show_export(from_database=True)
 
     def collage_screen(self):
         """Switches the app to collage mode with the current selected album."""
@@ -562,7 +585,7 @@ class DatabaseScreen(Screen):
         app = App.get_running_app()
         app.export_type = self.type
         app.export_target = self.selected
-        app.show_collage()
+        app.show_collage(from_database=True)
 
     def text_input_active(self):
         """Checks if any 'NormalInput' or 'FloatInput' widgets are currently active (being typed in).
@@ -1439,7 +1462,7 @@ class DatabaseScreen(Screen):
         self.dismiss_popup()
         self.update_treeview()
 
-    def on_selected(self, *_):
+    def on_selected(self, *_, scrollto=''):
         """Called when the selected folder/album/tag is changed.
         Clears and draws the photo list.
         """
@@ -1558,6 +1581,10 @@ class DatabaseScreen(Screen):
                     fullpath = photo[0]
                     database_folder = photo[2]
                     video = os.path.splitext(full_filename)[1].lower() in app.movietypes
+                    if scrollto and fullpath == scrollto:
+                        selected = True
+                    else:
+                        selected = False
                     data = {
                         'fullpath': fullpath,
                         'photoinfo': photo,
@@ -1572,7 +1599,7 @@ class DatabaseScreen(Screen):
                         'photo_orientation': photo[13],
                         'source': full_filename,
                         'temporary': False,
-                        'selected': False,
+                        'selected': selected,
                         'selectable': True,
                         'dragable': dragable
                     }
@@ -1580,7 +1607,9 @@ class DatabaseScreen(Screen):
                 self.data = datas
                 app.thumbnails.commit()
             self.update_can_browse()
+            self.scroll_to(scrollto)
             self.update_selected()
+        self.scrollto = ''
 
     def resort_method(self, method):
         """Sets the database sort method.
@@ -1650,6 +1679,7 @@ class DatabaseScreen(Screen):
     def on_leave(self, *_):
         app = App.get_running_app()
         app.clear_drags()
+        self.scrollto = ''
 
     def on_enter(self, *_):
         """Called when the screen is entered.
@@ -1680,7 +1710,7 @@ class DatabaseScreen(Screen):
 
         self.update_folders = True
         self.update_treeview()
-        self.on_selected()
+        self.on_selected(scrollto=self.scrollto)
         Clock.schedule_once(self.show_selected)
 
 
@@ -1712,6 +1742,11 @@ class TransferScreen(Screen):
 
     selected = ''
     expanded_folders = []
+
+    def back(self, *_):
+        app = App.get_running_app()
+        app.show_database()
+        return True
 
     def has_popup(self):
         """Detects if the current screen has a popup active.
@@ -2119,6 +2154,11 @@ class TransferScreen(Screen):
 
 class DatabaseRestoreScreen(Screen):
     popup = None
+
+    def back(self, *_):
+        app = App.get_running_app()
+        app.show_database()
+        return True
 
     def dismiss_extra(self):
         """Dummy function, not valid for this screen, but the app calls it when escape is pressed."""

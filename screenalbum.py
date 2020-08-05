@@ -80,7 +80,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
                 opacity: 0 if app.standalone else 1
                 disabled: True if app.standalone else False
             ShortLabel:
@@ -2698,6 +2698,11 @@ class ConversionScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def back(self, *_):
+        app = App.get_running_app()
+        app.show_database(scrollto=self.fullpath)
+        return True
+
     def set_framerate_override(self, framerate):
         pass
 
@@ -4023,7 +4028,7 @@ class VideoConverterScreen(ConversionScreen):
         files_area = self.ids['photos']
         files_area.clear_selects()
 
-    def back(self):
+    def back(self, *_):
         app = App.get_running_app()
         if self.from_database:
             app.show_database()

@@ -167,7 +167,7 @@ Builder.load_string("""
         MainHeader:
             NormalButton:
                 text: 'Back To Library'
-                on_release: app.show_database()
+                on_release: root.back()
             HeaderLabel:
                 text: 'Theme Settings'
             InfoLabel:
@@ -594,6 +594,11 @@ class ThemeScreen(Screen):
     theme_backup = {}
     filename = ''
     preset_drop = ObjectProperty()
+
+    def back(self, *_):
+        app = App.get_running_app()
+        app.show_database()
+        return True
 
     def rescale_screen(self):
         app = App.get_running_app()

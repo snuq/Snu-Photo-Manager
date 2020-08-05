@@ -15,7 +15,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    going back to the database when viewing an album will not scroll the album down to the file
     Update readme - add some gifs/screenshots
     Bugs:
         getting opencv memory errors sometimes... need to catch it and not freeze at the very least - generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
@@ -306,6 +305,8 @@ class PhotoManager(App):
     album_screen = ObjectProperty()
     video_converter_screen = ObjectProperty()
     importing_screen = ObjectProperty()
+    collage_screen = ObjectProperty()
+    export_screen = ObjectProperty()
     database_restore_screen = ObjectProperty()
     scanningthread = None
     scanningpopup = None
@@ -630,10 +631,7 @@ class PhotoManager(App):
                     self.screen_manager.current_screen.dismiss_popup()
                     return True
                 elif self.screen_manager.current != match_screen:
-                    if self.screen_manager.current in ['photo', 'video']:
-                        self.show_album(back=True)
-                    else:
-                        self.show_database()
+                    self.screen_manager.current_screen.back()
                     return True
 
     def load_formats(self):
@@ -3136,7 +3134,7 @@ class PhotoManager(App):
         renamed_path = agnostic_path(path)
         self.folders.execute("UPDATE folders SET Title = ?, Description = ? WHERE Path = ?", (title, description, renamed_path, ))
 
-    def show_database(self, *_):
+    def show_database(self, *_, scrollto=''):
         """Switch to the database screen layout."""
 
         if self.standalone:
@@ -3146,6 +3144,7 @@ class PhotoManager(App):
                 self.screen_manager.add_widget(self.database_screen)
             if self.animations:
                 self.screen_manager.transition.direction = 'right'
+            self.database_screen.scrollto = scrollto
             self.screen_manager.current = 'database'
 
     def show_database_restore(self):
@@ -3165,17 +3164,19 @@ class PhotoManager(App):
             self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'theme'
 
-    def show_collage(self):
+    def show_collage(self, from_database=False):
         """Switch to the create collage screen layout.
         """
 
         if 'collage' not in self.screen_manager.screen_names:
             from screencollage import CollageScreen
-            self.screen_manager.add_widget(CollageScreen(name='collage'))
+            self.collage_screen = CollageScreen(name='collage')
+            self.screen_manager.add_widget(self.collage_screen)
         #self.type = self.database_screen.type
         #self.target = self.database_screen.selected
         if self.animations:
             self.screen_manager.transition.direction = 'left'
+        self.collage_screen.from_database = from_database
         self.screen_manager.current = 'collage'
 
     def show_video_converter(self, from_database=False):
@@ -3241,14 +3242,16 @@ class PhotoManager(App):
             self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'importing'
 
-    def show_export(self):
+    def show_export(self, from_database=False):
         """Switch to the photo export screen layout."""
 
         if 'export' not in self.screen_manager.screen_names:
             from screenexporting import ExportScreen
-            self.screen_manager.add_widget(ExportScreen(name='export'))
+            self.export_screen = ExportScreen(name='export')
+            self.screen_manager.add_widget(self.export_screen)
         if self.animations:
             self.screen_manager.transition.direction = 'left'
+        self.export_screen.from_database = from_database
         self.screen_manager.current = 'export'
 
     def show_transfer(self):
