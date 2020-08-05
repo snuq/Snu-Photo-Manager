@@ -15,7 +15,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    add an option to open the folder of a current file
     going back to the database when viewing an album will not scroll the album down to the file
     Update readme - add some gifs/screenshots
     Bugs:

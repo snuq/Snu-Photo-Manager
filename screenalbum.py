@@ -166,6 +166,10 @@ Builder.load_string("""
                         disabled: True if app.database_scanning or (app.standalone and not app.standalone_in_database) else False
                     NormalButton:
                         size_hint_y: 1
+                        text: 'Open Folder'
+                        on_press: root.open_folder()
+                    NormalButton:
+                        size_hint_y: 1
                         width: self.texture_size[0] + 20 if root.canprint else 0
                         opacity: 1 if root.canprint else 0
                         disabled: not root.canprint
@@ -4565,6 +4569,14 @@ class AlbumScreen(ConversionScreen):
     def hide_left_panel(self, *_):
         left_panel = self.ids['leftpanel']
         left_panel.hidden = True
+
+    def open_folder(self):
+        try:
+            import webbrowser
+            folder = os.path.split(self.photo)[0]
+            webbrowser.open(folder)
+        except:
+            pass
 
     def set_photo(self, photo):
         self.photo = photo
