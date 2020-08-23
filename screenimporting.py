@@ -546,8 +546,9 @@ class ImportingScreen(Screen):
 
     def get_selected_photos(self, fullpath=False):
         photos = self.ids['photos']
-        selected_indexes = photos.selected_nodes
         photos_container = self.ids['photosContainer']
+        photos_container.refresh_from_data()
+        selected_indexes = photos.selected_nodes
         selected_photos = []
         for selected in selected_indexes:
             if fullpath:
@@ -642,7 +643,7 @@ class ImportingScreen(Screen):
                                     self.folders[folderdate] = {'name': folderdate, 'naming': True, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': ''}
                                 self.folders[folderdate]['photos'].append(photo_info)
                             else:
-                                self.unsorted.append(photo_info)
+                                self.duplicates.append(photo_info)
                         else:
                             self.duplicates.append(photo_info)
         self.scanningpopup.dismiss()
