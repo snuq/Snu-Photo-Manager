@@ -22,7 +22,7 @@ Builder.load_string("""
             size: self.size
             source: 'data/button.png'
     background_color: 1, 1, 1, 1
-    mipmap: True
+    mipmap: app.mipmap
     font_size: app.text_scale
     size_hint_y: None
     height: app.button_scale
@@ -34,7 +34,7 @@ Builder.load_string("""
         Rectangle:
             pos: self.pos
             size: self.size
-    mipmap: True
+    mipmap: app.mipmap
     shorten: True
     shorten_from: 'right'
     font_size: app.text_scale

@@ -221,14 +221,14 @@ Builder.load_string("""
 
 
 <NormalLabel>:
-    mipmap: True
+    mipmap: app.mipmap
     color: app.theme.text
     font_size: app.text_scale
     size_hint_y: None
     height: app.button_scale
 
 <LeftNormalLabel>:
-    mipmap: True
+    mipmap: app.mipmap
     shorten: True
     shorten_from: 'right'
     font_size: app.text_scale
@@ -238,7 +238,7 @@ Builder.load_string("""
     valign: 'middle'
 
 <ShortLabel>:
-    mipmap: True
+    mipmap: app.mipmap
     shorten: True
     shorten_from: 'right'
     font_size: app.text_scale
@@ -247,7 +247,7 @@ Builder.load_string("""
     #width: self.texture_size[0] + 20
 
 <PhotoThumbLabel>:
-    mipmap: True
+    mipmap: app.mipmap
     valign: 'middle'
     text_size: (self.width-10, self.height)
     size_hint_y: None
@@ -263,16 +263,15 @@ Builder.load_string("""
         Rectangle:
             pos: self.pos
             size: self.size
-    mipmap: True
+    mipmap: app.mipmap
     text: app.infotext
     color: app.theme.info_text
 
 <DatabaseLabel@ShortLabel>:
-    mipmap: True
     text: app.database_update_text
 
 <HeaderLabel@Label>:
-    mipmap: True
+    mipmap: app.mipmap
     color: app.theme.header_text
     font_size: int(app.text_scale * 1.5)
     size_hint_y: None
@@ -280,7 +279,7 @@ Builder.load_string("""
     bold: True
 
 <MultilineLabel@Label>:
-    mipmap: True
+    mipmap: app.mipmap
     color: app.theme.text
     font_size: app.text_scale
     size_hint_y: None
@@ -342,7 +341,7 @@ Builder.load_string("""
             rgba: self.disabled_foreground_color if self.disabled else (self.hint_text_color if not self.text else self.foreground_color)
 
 <NormalInput>:
-    mipmap: True
+    mipmap: app.mipmap
     cursor_color: app.theme.text
     write_tab: False
     background_color: app.theme.input_background
@@ -373,7 +372,7 @@ Builder.load_string("""
 
 
 <ButtonBase>:
-    mipmap: True
+    mipmap: app.mipmap
     size_hint_y: None
     height: app.button_scale
     background_normal: 'data/button.png'
@@ -400,7 +399,6 @@ Builder.load_string("""
 
 <RemoveButton>:
     font_size: app.text_scale
-    mipmap: True
     size_hint: None, None
     height: app.button_scale
     width: app.button_scale
@@ -453,13 +451,11 @@ Builder.load_string("""
     size_hint_y: None
     height: app.button_scale
     NormalLabel:
-        mipmap: True
         markup: True
         text_size: (self.width - 20, None)
         halign: 'left'
         text: root.folder_name + '   [b]' + root.total_photos + '[/b]'
     NormalLabel:
-        mipmap: True
         id: subtext
         text_size: (self.width - 20, None)
         font_size: app.text_scale
@@ -596,7 +592,6 @@ Builder.load_string("""
         width: (app.button_scale * 2)
         height: (app.button_scale * 2)
     NormalLabel:
-        mipmap: True
         size_hint_y: None
         height: (app.button_scale * 2)
         text_size: (self.width - 20, None)

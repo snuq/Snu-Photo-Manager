@@ -15,13 +15,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    think about editing panel
-        opening editing tab should go to edit panel directly - move edit panel buttons... 
     Update readme - add some gifs/screenshots
     Bugs:
+        when rescanning and a folder is completely removed, it doesnt get removed from database on first rescan
         interface is blurry on some devices... need more testing
         touch scrolling up does not work properly
-        when rescanning and a folder is completely removed, it doesnt get removed from database on first rescan
         getting opencv memory errors sometimes... need to catch it and not freeze at the very least - generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
@@ -233,6 +231,7 @@ class PhotoManager(App):
     folder_path = StringProperty('')  #The current folder/album/tag being displayed
     folder_name = StringProperty()  #The identifier of the album/folder/tag that is being viewed
 
+    mipmap = BooleanProperty(False)
     app_directory = ''
     last_browse_folder = ''
 
@@ -1163,6 +1162,7 @@ class PhotoManager(App):
         return False
 
     def on_config_change(self, config, section, key, value):
+        self.mipmap = to_bool(self.config.get("Settings", "mipmap"))
         self.animations = to_bool(self.config.get("Settings", "animations"))
         self.set_transition()
         self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
@@ -1195,6 +1195,7 @@ class PhotoManager(App):
                 'autoscan': 0,
                 'quicktransfer': 0,
                 'lowmem': 0,
+                'mipmap': 1,
                 'simpleinterface': simple_interface,
                 'backupdatabase': 1,
                 'rescanstartup': 0,
@@ -1343,6 +1344,13 @@ class PhotoManager(App):
             "desc": "Removes some components of the interface.  Intended for phones or touch screen devices.",
             "section": "Settings",
             "key": "simpleinterface"
+        })
+        settingspanel.append({
+            "type": "bool",
+            "title": "Use Mipmaps On Buttons And Labels",
+            "desc": "Smooths interface a bit, but may cause blurry text.",
+            "section": "Settings",
+            "key": "mipmap"
         })
 
         #Browsing settings

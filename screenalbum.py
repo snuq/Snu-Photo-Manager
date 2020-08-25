@@ -845,6 +845,15 @@ Builder.load_string("""
             size_hint: 1, None
             cols: 1
             height: self.minimum_height
+            padding: 0, 0, int(app.button_scale / 2), 0
+            WideButton:
+                text: 'Advanced Video Editing'
+                on_release: app.show_video_converter()
+                disabled: root.owner.owner.view_image or not app.ffmpeg
+                opacity: 0 if self.disabled else 1
+                height: 0 if self.disabled else app.button_scale
+            SmallBufferY:
+                height: 0 if (root.owner.owner.view_image or not app.ffmpeg) else (app.button_scale / 4)
             WideButton:
                 text: 'Video Convert Settings'
                 on_release: root.manager.current = 'video'
@@ -884,6 +893,43 @@ Builder.load_string("""
                 text: 'Crop'
                 on_release: root.manager.current = 'crop'
                 disabled: not root.owner.owner.view_image and not app.ffmpeg
+            MediumBufferY:
+            WideButton:
+                id: deleteOriginal
+                text: 'Delete Unedited Original File'
+                disabled: True
+                warn: True
+                on_release: root.owner.owner.delete_original()
+            SmallBufferY:
+            WideButton:
+                id: deleteOriginalAll
+                disabled: True
+                text: 'Delete All Originals In Folder'
+                warn: True
+                on_release: root.owner.owner.delete_original_all()
+            SmallBufferY:
+            WideButton:
+                id: undoEdits
+                disabled: True
+                text: 'Restore Original Unedited File'
+                on_release: root.owner.owner.restore_original()
+            MediumBufferY:
+            GridLayout:
+                cols: 2
+                size_hint_y: None
+                height: app.button_scale
+                LeftNormalLabel:
+                    size_hint_x: 1
+                    text: 'External Programs:'
+                NormalButton:
+                    size_hint_x: None
+                    text: 'New'
+                    on_release: root.add_program()
+            GridLayout:
+                id: externalPrograms
+                height: self.minimum_height
+                size_hint_y: None
+                cols: 1
 
 <EditPanelColor>:
     name: 'color'
@@ -2084,67 +2130,6 @@ Builder.load_string("""
                                 text: 'Single Percent Sign (%)'
 
 <EditMain>:
-    cols: 1
-    GridLayout:
-        cols: 1
-        size_hint: 1, None
-        height: self.minimum_height
-        WideButton:
-            text: 'Edit Image' if root.owner.view_image else 'Edit Video'
-            on_release: root.owner.set_edit_panel('edit')
-        SmallBufferY:
-        WideButton:
-            text: 'Advanced Video Editing'
-            on_release: app.show_video_converter()
-            disabled: root.owner.view_image or not app.ffmpeg
-            opacity: 0 if self.disabled else 1
-            height: 0 if self.disabled else app.button_scale
-        SmallBufferY:
-            height: 0 if (root.owner.view_image or not app.ffmpeg) else (app.button_scale / 4)
-        WideButton:
-            id: deleteOriginal
-            text: 'Delete Unedited Original File'
-            disabled: True
-            warn: True
-            on_release: root.owner.delete_original()
-        SmallBufferY:
-        WideButton:
-            id: deleteOriginalAll
-            disabled: True
-            text: 'Delete All Originals In Folder'
-            warn: True
-            on_release: root.owner.delete_original_all()
-        SmallBufferY:
-        WideButton:
-            id: undoEdits
-            disabled: True
-            text: 'Restore Original Unedited File'
-            on_release: root.owner.restore_original()
-        LargeBufferY:
-    ScrollerContainer:
-        do_scroll_x: False
-        size_hint_y: 1
-        GridLayout:
-            cols: 1
-            size_hint_y: None
-            height: self.minimum_height
-            padding: 0, 0, int(app.button_scale / 2), 0
-            GridLayout:
-                cols: 2
-                size_hint_y: None
-                height: app.button_scale
-                LeftNormalLabel:
-                    size_hint_x: 1
-                    text: 'External Programs:'
-                NormalButton:
-                    size_hint_x: None
-                    text: 'New'
-                    on_release: root.owner.add_program()
-            GridLayout:
-                id: externalPrograms
-                height: self.minimum_height
-                size_hint_y: None
-                cols: 1
 
 <AspectRatioDropDown>:
     MenuButton:
@@ -2360,11 +2345,9 @@ Builder.load_string("""
             text: 'Is a single "%"'
 
 <TagSelectButton>:
-    mipmap: True
     size_hint_x: 1
 
 <AlbumSelectButton>:
-    mipmap: True
     size_hint_x: 1
 
 <BatchPhoto>:
@@ -2429,7 +2412,7 @@ Builder.load_string("""
         width: app.button_scale / 2
 
 <RecycleLabel@Label>:
-    mipmap: True
+    mipmap: app.mipmap
     color: app.theme.text
     font_size: app.text_scale
     valign: 'top'
@@ -3099,6 +3082,7 @@ class ConversionScreen(Screen):
         self.encodingthread.start()
 
     def end_encode(self, message, end_type=''):
+        self.set_edit_panel('main')
         if end_type == 'fail':
             prefix = "[WARNING] : "
         elif end_type == 'info':
@@ -4353,7 +4337,6 @@ class VideoConverterScreen(ConversionScreen):
             self.edit_panel_object = EditPanelConvert(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
             self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
 
-            self.edit_panel_object.refresh_buttons()
             edit_panel_container.add_widget(self.edit_panel_object)
         else:
             self.clear_edit()
@@ -4565,7 +4548,10 @@ class AlbumScreen(ConversionScreen):
             self.view_panel = ''
             self.show_left_panel()
         else:
-            self.set_edit_panel('main')
+            if panel_name == 'edit':
+                self.set_edit_panel('edit')
+            else:
+                self.set_edit_panel('main')
             self.view_panel = panel_name
             right_panel.hidden = False
             app = App.get_running_app()
@@ -4614,7 +4600,7 @@ class AlbumScreen(ConversionScreen):
         app = App.get_running_app()
         deleted, message = app.delete_photo_original(self.photoinfo)
         if deleted:
-            self.set_edit_panel('main')
+            self.set_edit_panel('edit')
         app.message(message)
 
     def delete_original_all(self):
@@ -4623,13 +4609,14 @@ class AlbumScreen(ConversionScreen):
         deleted_photos = app.delete_folder_original(folder)
         if len(deleted_photos) > 0:
             app.message('Deleted '+str(len(deleted_photos))+' original files')
-            self.set_edit_panel('main')
+            self.set_edit_panel('edit')
         else:
             app.message('Could not delete any original files')
 
     def restore_original(self):
         """Tries to restore the original version of an edited photo."""
 
+        self.set_edit_panel('main')
         self.viewer.stop()
         app = App.get_running_app()
         edited_file = self.photo
@@ -4685,9 +4672,8 @@ class AlbumScreen(ConversionScreen):
             self.fullpath = self.photoinfo[0]
             self.photo = new_original_file
             app.message("Restored original file.")
-            self.set_edit_panel('main')
             self.clear_cache()
-            #self.on_photo()
+            self.on_photo()
             self.refresh_all()
 
             #switch active photo in photo list back to image
@@ -4705,7 +4691,7 @@ class AlbumScreen(ConversionScreen):
         self.edit_panel_object = None
         self.edit_panel = panelname
         if self.viewer:
-            if panelname != 'main' and self.viewer and isfile2(self.photo):
+            if panelname != 'main' and isfile2(self.photo):
                 #Start edit mode
                 self.viewer.stop()
                 self.viewer.edit_mode = self.edit_panel
@@ -4713,15 +4699,16 @@ class AlbumScreen(ConversionScreen):
                 self.viewer.bypass = True
                 self.edit_panel_object = EditPanel(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
                 self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
+                edit_panel_container.add_widget(self.edit_panel_object)
             else:
                 #Close edit mode
-                self.edit_panel_object = EditMain(owner=self)
-                self.edit_panel_object.update_programs()
+                #self.edit_panel_object = EditMain(owner=self)
                 self.viewer.edit_mode = 'main'
                 self.viewer.bypass = False
-
-            self.edit_panel_object.refresh_buttons()
-            edit_panel_container.add_widget(self.edit_panel_object)
+                right_panel = self.ids['rightpanel']
+                right_panel.hidden = True
+                self.view_panel = ''
+                self.show_left_panel()
 
     def export(self):
         """Switches to export screen."""
@@ -5063,7 +5050,10 @@ class AlbumScreen(ConversionScreen):
         app.refresh_photo(self.fullpath)
         if app.config.getboolean("Settings", "precache"):
             self.cache_nearby_images()
-        self.set_edit_panel('main')  #Clear the edit panel
+        if self.view_panel == 'edit':
+            self.set_edit_panel('edit')
+            if self.edit_panel_object:
+                self.edit_panel_object.load_last()
         #self.ids['album'].selected = self.fullpath
 
     def cache_nearby_images(self, *_):
@@ -5119,8 +5109,6 @@ class AlbumScreen(ConversionScreen):
 
     def refresh_all(self, *_):
         self.refresh_photolist()
-        if self.edit_panel_object:
-            self.edit_panel_object.refresh_buttons()
 
     def refresh_photolist(self, *_):
         """Reloads and sorts the photo list"""
@@ -5377,13 +5365,6 @@ class AlbumScreen(ConversionScreen):
         self.refresh_all()
         Clock.schedule_once(self.scroll_photolist)
 
-    def add_program(self):
-        """Add a new external program to the programs panel."""
-
-        app = App.get_running_app()
-        app.program_add('Program Name', 'command', '%i')
-        self.edit_panel_object.update_programs(expand=True)
-
     def on_leave(self):
         """Called when the screen is left.  Clean up some things."""
 
@@ -5591,7 +5572,110 @@ class EditPanelBase(Screen):
 
 
 class EditPanelAlbumBase(EditPanelBase):
-    pass
+    owner = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.update_programs()
+        self.refresh_buttons()
+
+    def save_last(self):
+        pass
+
+    def load_last(self):
+        pass
+
+    def refresh_buttons(self):
+        self.update_undo()
+        self.update_delete_original()
+        self.update_delete_original_all()
+
+    def update_delete_original(self):
+        """Checks if the current viewed photo has an original file, enables the 'Delete Original' button if so."""
+
+        delete_original_button = self.ids['deleteOriginal']
+        photoinfo = self.owner.owner.photoinfo
+        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+os.path.sep+photoinfo[1]+os.path.sep+photoinfo[10]):
+            delete_original_button.disabled = False
+        else:
+            delete_original_button.disabled = True
+
+    def update_delete_original_all(self):
+        """Checks if currently viewing a folder, enables 'Delete All Originals' button if so."""
+
+        delete_original_all_button = self.ids['deleteOriginalAll']
+        if self.owner.owner.type == 'Folder':
+            delete_original_all_button.disabled = False
+        else:
+            delete_original_all_button.disabled = True
+
+    def update_undo(self):
+        """Checks if the current viewed photo has an original file, enables the 'Restore Original' button if so."""
+
+        undo_button = self.ids['undoEdits']
+        photoinfo = self.owner.owner.photoinfo
+        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+os.path.sep+photoinfo[1]+os.path.sep+photoinfo[10]):
+            undo_button.disabled = False
+        else:
+            undo_button.disabled = True
+
+    def save_program(self, index, name, command, argument):
+        """Saves an external program command to the app settings.
+        Arguments:
+            index: Index of the program to edit in the external program list.
+            name: Name of the program
+            command: Path to the executable file of the program
+            argument: Extra arguments for the program command
+        """
+
+        app = App.get_running_app()
+        app.program_save(index, name, command, argument)
+        #self.update_programs(expand=True, expand_index=index)
+
+    def add_program(self):
+        """Add a new external program to the programs panel."""
+
+        app = App.get_running_app()
+        app.program_add('Program Name', 'command', '%i')
+        self.update_programs(expand=True)
+
+    def remove_program(self, index):
+        """Removes a program from the external programs list.
+        Argument:
+            index: Index of the program to remove in the external program list.
+        """
+
+        app = App.get_running_app()
+        app.program_remove(index)
+        self.update_programs()
+
+    def program_run(self, index, button):
+        app = App.get_running_app()
+        self.owner.owner.set_edit_panel('main')
+        app.program_run(index, button)
+
+    def update_programs(self, expand=False, expand_index=-1):
+        """Updates the external programs list in this panel.
+        Arguments:
+            expand: Boolean, set to True to set an external program to edit mode.
+            expand_index: Integer, index of the external program to be in edit mode.
+        """
+
+        external_programs = self.ids['externalPrograms']
+        app = App.get_running_app()
+        external_programs.clear_widgets()
+
+        if expand_index == -1:
+            expand_index = len(app.programs)-1
+        for index, preset in enumerate(app.programs):
+            name, command, argument = preset
+            program_button = ExpandableButton(text=name, index=index)
+            program_button.bind(on_release=lambda button: self.program_run(button.index, button))
+            program_button.bind(on_remove=lambda button: self.remove_program(button.index))
+            program_button.content = ExternalProgramEditor(index=index, name=name, command=command, argument=argument, owner=self)
+            external_programs.add_widget(program_button)
+            if index == expand_index and expand:
+                program_button.expanded = True
 
 
 class EditPanelConversionBase(EditPanelBase):
@@ -6318,9 +6402,6 @@ class EditPanelConvert(BoxLayout):
         screen_manager.add_widget(self.edit_panel_rotate)
         screen_manager.add_widget(self.edit_panel_crop)
 
-    def refresh_buttons(self):
-        pass
-
     def change_screen(self, current):
         #Called when edit screen changes, sets the image to the right edit type
         self.viewer.edit_mode = current
@@ -6404,11 +6485,11 @@ class EditPanel(BoxLayout):
     edit_panel_video = ObjectProperty()
 
     def __init__(self, **kwargs):
-        Clock.schedule_once(self.setup_screen_manager)
         super(EditPanel, self).__init__(**kwargs)
+        self.setup_screens()
+        Clock.schedule_once(self.setup_screen_manager)
 
-    def setup_screen_manager(self, *_):
-        screen_manager = self.ids['sm']
+    def setup_screens(self):
         self.edit_panel_base = EditPanelAlbumBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
         self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
         self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
@@ -6417,6 +6498,9 @@ class EditPanel(BoxLayout):
         self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
         self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
         self.edit_panel_video = EditPanelVideo(name='video', owner=self.owner, image=self.image, viewer=self.viewer)
+
+    def setup_screen_manager(self, *_):
+        screen_manager = self.ids['sm']
         screen_manager.add_widget(self.edit_panel_base)
         screen_manager.add_widget(self.edit_panel_color)
         screen_manager.add_widget(self.edit_panel_filter)
@@ -6425,9 +6509,6 @@ class EditPanel(BoxLayout):
         screen_manager.add_widget(self.edit_panel_rotate)
         screen_manager.add_widget(self.edit_panel_crop)
         screen_manager.add_widget(self.edit_panel_video)
-
-    def refresh_buttons(self):
-        pass
 
     def change_screen(self, current):
         #Called when edit screen changes, sets the image to the right edit type
@@ -7045,103 +7126,11 @@ class EditMain(GridLayout):
 
     owner = ObjectProperty()
 
-    def __init__(self, **kwargs):
-        super(EditMain, self).__init__(**kwargs)
-        self.update_programs()
-
     def save_last(self):
         pass
 
     def load_last(self):
         pass
-
-    def disable_buttons(self):
-        undo_button = self.ids['undoEdits']
-        undo_button.disabled = True
-        delete_original_button = self.ids['deleteOriginal']
-        delete_original_button.disabled = True
-        delete_original_all_button = self.ids['deleteOriginalAll']
-        delete_original_all_button.disabled = True
-
-    def refresh_buttons(self):
-        self.update_undo()
-        self.update_delete_original()
-        self.update_delete_original_all()
-
-    def update_delete_original(self):
-        """Checks if the current viewed photo has an original file, enables the 'Delete Original' button if so."""
-
-        delete_original_button = self.ids['deleteOriginal']
-        photoinfo = self.owner.photoinfo
-        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+os.path.sep+photoinfo[1]+os.path.sep+photoinfo[10]):
-            delete_original_button.disabled = False
-        else:
-            delete_original_button.disabled = True
-
-    def update_delete_original_all(self):
-        """Checks if currently viewing a folder, enables 'Delete All Originals' button if so."""
-
-        delete_original_all_button = self.ids['deleteOriginalAll']
-        if self.owner.type == 'Folder':
-            delete_original_all_button.disabled = False
-        else:
-            delete_original_all_button.disabled = True
-
-    def update_undo(self):
-        """Checks if the current viewed photo has an original file, enables the 'Restore Original' button if so."""
-
-        undo_button = self.ids['undoEdits']
-        photoinfo = self.owner.photoinfo
-        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+os.path.sep+photoinfo[1]+os.path.sep+photoinfo[10]):
-            undo_button.disabled = False
-        else:
-            undo_button.disabled = True
-
-    def save_program(self, index, name, command, argument):
-        """Saves an external program command to the app settings.
-        Arguments:
-            index: Index of the program to edit in the external program list.
-            name: Name of the program
-            command: Path to the executable file of the program
-            argument: Extra arguments for the program command
-        """
-
-        app = App.get_running_app()
-        app.program_save(index, name, command, argument)
-        #self.update_programs(expand=True, expand_index=index)
-
-    def remove_program(self, index):
-        """Removes a program from the external programs list.
-        Argument:
-            index: Index of the program to remove in the external program list.
-        """
-
-        app = App.get_running_app()
-        app.program_remove(index)
-        self.update_programs()
-
-    def update_programs(self, expand=False, expand_index=-1):
-        """Updates the external programs list in this panel.
-        Arguments:
-            expand: Boolean, set to True to set an external program to edit mode.
-            expand_index: Integer, index of the external program to be in edit mode.
-        """
-
-        external_programs = self.ids['externalPrograms']
-        app = App.get_running_app()
-        external_programs.clear_widgets()
-
-        if expand_index == -1:
-            expand_index = len(app.programs)-1
-        for index, preset in enumerate(app.programs):
-            name, command, argument = preset
-            program_button = ExpandableButton(text=name, index=index)
-            program_button.bind(on_release=lambda button: app.program_run(button.index, button))
-            program_button.bind(on_remove=lambda button: self.remove_program(button.index))
-            program_button.content = ExternalProgramEditor(index=index, name=name, command=command, argument=argument, owner=self)
-            external_programs.add_widget(program_button)
-            if index == expand_index and expand:
-                program_button.expanded = True
 
 
 class DenoisePreview(RelativeLayout):
@@ -7598,21 +7587,21 @@ class ExternalProgramEditor(GridLayout):
 
         app = App.get_running_app()
         content = FileBrowser(ok_text='Select', path=app.last_browse_folder, filters=['*'])
-        content.bind(on_cancel=lambda x: self.owner.owner.dismiss_popup())
+        content.bind(on_cancel=lambda x: self.owner.owner.owner.dismiss_popup())
         content.bind(on_ok=self.select_command_confirm)
-        self.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content, size_hint=(0.9, 0.9))
+        self.owner.owner.owner.popup = filepopup = NormalPopup(title='Select A Program', content=content, size_hint=(0.9, 0.9))
         filepopup.open()
 
     def select_command_confirm(self, *_):
         """Called when the filebrowser dialog is successfully closed."""
 
-        popup = self.owner.owner.popup
+        popup = self.owner.owner.owner.popup
         if popup:
             self.command = popup.content.filename
             path = popup.content.path
             app = App.get_running_app()
             app.last_browse_folder = path
-            self.owner.owner.dismiss_popup()
+            self.owner.owner.owner.dismiss_popup()
             self.save_program()
 
 
