@@ -15,8 +15,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
+    think about editing panel
+        opening editing tab should go to edit panel directly - move edit panel buttons... 
     Update readme - add some gifs/screenshots
     Bugs:
+        interface is blurry on some devices... need more testing
+        touch scrolling up does not work properly
+        when rescanning and a folder is completely removed, it doesnt get removed from database on first rescan
         getting opencv memory errors sometimes... need to catch it and not freeze at the very least - generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
