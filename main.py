@@ -17,15 +17,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Todo before 1.0:
     Update readme - add some gifs/screenshots
     Bugs:
-        when rescanning and a folder is completely removed, it doesnt get removed from database on first rescan
-        interface is blurry on some devices... need more testing
-        touch scrolling up does not work properly
+        interface is blurry on some devices - kivy bug
+        touch scrolling up does not work properly - kivy bug
         getting opencv memory errors sometimes... need to catch it and not freeze at the very least - generalelements.py, line 3633, in adjust_image - open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab) - MemoryError
         has trouble playing h265/mkv, video freezes - maybe update ffpyplayer/ffmpeg?
         seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
     Video editor:
-        disable in/out editing with simple video editor
-        add framerate override - Auto (clears field)
         add ability to load image sequences
             test filebrowser speed with very large folders, maybe image sequence loader should just use a directory select mode
         implement encoding preview (encodes a very short test with current settings, then shows it next to original)
@@ -847,7 +844,7 @@ class PhotoManager(App):
                 image_data = bytes(frame.to_bytearray()[0])
 
                 image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
-                image = image.transpose(1)
+                #image = image.transpose(1)
                 if aspect != 1:
                     image = image.resize(size=(frame_size[0], int(frame_size[1] * aspect)))
 

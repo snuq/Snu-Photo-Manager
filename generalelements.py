@@ -2849,6 +2849,7 @@ class CustomImage(KivyImage):
     angle = NumericProperty(0)
     rotate_angle = NumericProperty(0)
     fine_angle = NumericProperty(0)
+    slide = NumericProperty(0)
     brightness = NumericProperty(0)
     shadow = NumericProperty(0)
     contrast = NumericProperty(0)
@@ -3056,7 +3057,7 @@ class CustomImage(KivyImage):
                 image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
                 image_data = None
                 #for some reason, video frames are read upside-down? fix it here...
-                image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+                #image = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
             else:
                 image, frame_data = frame
         except Exception as e:
@@ -3370,6 +3371,9 @@ class CustomImage(KivyImage):
     def on_equalize(self, *_):
         self.update_preview()
 
+    def on_slide(self, *_):
+        self.update_preview()
+
     def on_brightness(self, *_):
         self.update_preview()
 
@@ -3440,7 +3444,7 @@ class CustomImage(KivyImage):
                     image_data = bytes(frame.to_bytearray()[0])
                     original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
                     #for some reason, video frames are read upside-down? fix it here...
-                    original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+                    #original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
                 else:
                     original_image = frame
             else:
@@ -3541,6 +3545,8 @@ class CustomImage(KivyImage):
         Returns: A PIL image.
         """
 
+        bitdepth = 256
+
         if not preview and self.photoinfo:
             orientation = self.photoinfo[13]
             if orientation == 3 or orientation == 4:
@@ -3576,23 +3582,27 @@ class CustomImage(KivyImage):
                       0.0, 0.0, kelvin_b, 0.0)
             image = image.convert('RGB', matrix)
         if self.brightness != 0:
-            enhancer = ImageEnhance.Brightness(image)
-            image = enhancer.enhance(1+self.brightness)
-            enhancer = None
+            table = []
+            for index in range(0, bitdepth):
+                value = int(round(index * (1 + self.brightness)))
+                table.append(value)
+            lut = table * 3
+            image = image.point(lut)
+            lut = None
         if self.shadow != 0:
             if self.shadow < 0:
-                floor = int(abs(self.shadow) * 128)
+                floor = int(abs(self.shadow) * (bitdepth / 2))
                 table = [0] * floor
-                remaining_length = 256 - floor
+                remaining_length = bitdepth - floor
                 for index in range(0, remaining_length):
-                    value = int(round((index / remaining_length) * 256))
+                    value = int(round((index / remaining_length) * bitdepth))
                     table.append(value)
                 lut = table * 3
             else:
-                floor = int(abs(self.shadow) * 128)
+                floor = int(abs(self.shadow) * (bitdepth/2))
                 table = []
-                for index in range(0, 256):
-                    percent = 1 - (index / 255)
+                for index in range(0, bitdepth):
+                    percent = 1 - (index / (bitdepth - 1))
                     value = int(round(index + (floor * percent)))
                     table.append(value)
                 lut = table * 3
@@ -3608,17 +3618,28 @@ class CustomImage(KivyImage):
                 gamma = 1/((self.gamma+1)*(self.gamma+1))
             else:
                 gamma = 1
-            lut = [pow(x/255, gamma) * 255 for x in range(256)]
+            lut = [pow(x/(bitdepth - 1), gamma) * (bitdepth - 1) for x in range(bitdepth)]
             lut = lut*3
             image = image.point(lut)
             lut = None
+        if self.slide > 0:
+            grey = image.convert('L')
+            table = []
+            for index in range(0, bitdepth):
+                value = int(round(index * (2 * self.slide)))
+                table.append(value)
+            grey = grey.point(table)
+            grey = grey.convert('RGB')
+            image = ImageChops.add(image, grey)
+            grey = None
+            table = None
         if self.contrast != 0:
             enhancer = ImageEnhance.Contrast(image)
             image = enhancer.enhance(1 + self.contrast)
             enhancer = None
         if self.saturation != 0:
             enhancer = ImageEnhance.Color(image)
-            image = enhancer.enhance(1+self.saturation)
+            image = enhancer.enhance(1+(self.saturation * 2))
             enhancer = None
         if self.tint != [1.0, 1.0, 1.0, 1.0]:
             matrix = (self.tint[0], 0.0, 0.0, 0.0,
@@ -3631,12 +3652,13 @@ class CustomImage(KivyImage):
             lut = None
 
         if self.denoise and not preview and opencv:
-            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
-            open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
-            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(open_cv_image)
-            open_cv_image = None
-
+            while True:
+                message, denoised = self.denoise_image(image)
+                if denoised is not None:
+                    image = denoised
+                    break
+                else:
+                    print(message)
         if self.adaptive_clip > 0 and opencv:
             open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab)
             channels = cv2.split(open_cv_image)
@@ -3852,6 +3874,17 @@ class CustomImage(KivyImage):
         self.crop_controls = None
         self.first_frame = None
         self.edit_image = None
+
+    def denoise_image(self, image):
+        try:
+            open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
+            open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
+            open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(open_cv_image)
+            open_cv_image = None
+            return ('', image)
+        except Exception as e:
+            return (str(e), None)
 
 
 class AsyncThumbnail(KivyImage):

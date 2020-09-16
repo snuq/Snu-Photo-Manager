@@ -1007,6 +1007,20 @@ Builder.load_string("""
                     size_hint_y: None
                     height: app.button_scale
                     LeftNormalLabel:
+                        text: "Brightness Addition:"
+                    NormalButton:
+                        text: "Reset"
+                        on_release: root.reset_slide()
+                HalfSlider:
+                    value: root.image.slide
+                    on_value: root.image.slide = self.value
+                    reset_value: root.reset_slide
+                SmallBufferY:
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: app.button_scale
+                    LeftNormalLabel:
                         text: 'Highs:'
                     NormalButton:
                         text: 'Reset'
@@ -2643,6 +2657,7 @@ class ConversionScreen(Screen):
     autocontrast = BooleanProperty(False)
     equalize = NumericProperty(0)
     temperature = NumericProperty(0)
+    slide = NumericProperty(0)
     brightness = NumericProperty(0)
     shadow = NumericProperty(0)
     gamma = NumericProperty(0)
@@ -3851,6 +3866,7 @@ class VideoConverterScreen(ConversionScreen):
         save.autocontrast = load.autocontrast
         save.equalize = load.equalize
         save.temperature = load.temperature
+        save.slide = load.slide
         save.brightness = load.brightness
         save.shadow = load.shadow
         save.gamma = load.gamma
@@ -5279,7 +5295,10 @@ class AlbumScreen(ConversionScreen):
                     info_panel.add_node(TreeViewInfo(title='Date Taken: ' + camera_date))
                 if 33434 in exif:
                     exposure = exif[33434]
-                    camera_exposure = str(exposure[0]/exposure[1])+'seconds'
+                    try:
+                        camera_exposure = str(exposure[0]/exposure[1])+'seconds'
+                    except:
+                        camera_exposure = str(exposure)+'seconds'
                     info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
                 if 37377 in exif:
                     try:
@@ -5308,15 +5327,23 @@ class AlbumScreen(ConversionScreen):
                     camera_flash = 'Not Used' if flash[1] == '0' else 'Used'
                     info_panel.add_node(TreeViewInfo(title='Flash: ' + str(camera_flash)))
                 if 37386 in exif:
-                    focal_length = str(exif[37386][0]/exif[37386][1])+'mm'
+                    focal_length_data = exif[37386]
+                    try:
+                        focal_length = str(focal_length_data[0]/focal_length_data[1])+'mm'
+                    except:
+                        focal_length = str(focal_length_data)+'mm'
                     if 41989 in exif:
                         film_focal = exif[41989]
                         if film_focal != 0:
                             focal_length = focal_length+' ('+str(film_focal)+' 35mm equiv.)'
                     info_panel.add_node(TreeViewInfo(title='Focal Length: ' + focal_length))
                 if 41988 in exif:
-                    digital_zoom = exif[41988]
-                    if digital_zoom[0] != 0:
+                    digital_zoom_data = exif[41988]
+                    try:
+                        digital_zoom = digital_zoom_data[0]
+                    except:
+                        digital_zoom = int(digital_zoom_data)
+                    if digital_zoom != 0:
                         digital_zoom_amount = str(round(digital_zoom[0]/digital_zoom[1], 2))+'X'
                         info_panel.add_node(TreeViewInfo(title='Digital Zoom: ' + digital_zoom_amount))
                 if 34850 in exif:
@@ -5684,6 +5711,7 @@ class EditPanelConversionBase(EditPanelBase):
 
 class EditPanelColor(EditPanelBase):
     def reset(self, *_):
+        self.reset_slide()
         self.reset_brightness()
         self.reset_shadow()
         self.reset_gamma()
@@ -5699,6 +5727,7 @@ class EditPanelColor(EditPanelBase):
         preset.equalize = self.image.equalize
         preset.autocontrast = self.image.autocontrast
         preset.adaptive = self.image.adaptive_clip
+        preset.slide = self.image.slide
         preset.brightness = self.image.brightness
         preset.gamma = self.image.gamma
         preset.saturation = self.image.saturation
@@ -5712,6 +5741,7 @@ class EditPanelColor(EditPanelBase):
         self.image.equalize = preset.equalize
         self.image.autocontrast = preset.autocontrast
         self.image.adaptive_clip = preset.adaptive
+        self.image.slide = preset.slide
         self.image.brightness = preset.brightness
         self.image.gamma = preset.gamma
         self.image.saturation = preset.saturation
@@ -5736,6 +5766,9 @@ class EditPanelColor(EditPanelBase):
 
     def reset_adaptive(self, *_):
         self.image.adaptive_clip = CustomImage().adaptive_clip
+
+    def reset_slide(self, *_):
+        self.image.slide = CustomImage().slide
 
     def reset_brightness(self, *_):
         self.image.brightness = CustomImage().brightness
