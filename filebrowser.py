@@ -198,6 +198,7 @@ class FileBrowser(FloatLayout):
     path = StringProperty()
     file = StringProperty()
     files = ListProperty()
+    folder_files = ListProperty()
     filename = StringProperty()
     root = StringProperty()
     allow_no_file = BooleanProperty(False)
@@ -350,17 +351,15 @@ class FileBrowser(FloatLayout):
         data = []
         files = []
         dirs = []
-        try:
-            directory_elements = os.listdir(self.path)
-        except:
-            directory_elements = []
-        for file in directory_elements:
-            fullpath = os.path.join(self.path, file)
-            if os.path.isfile(fullpath):
-                files.append(file)
-            elif os.path.isdir(fullpath):
-                dirs.append(file)
-        if directory_elements:
+
+        walk = os.walk
+        for root, list_dirs, list_files in walk(self.path, topdown=True):
+            dirs = list_dirs[:]
+            list_dirs.clear()
+            files = list_files
+
+        self.folder_files = files
+        if dirs or files:
             self.can_delete_folder = False
         else:
             self.can_delete_folder = True

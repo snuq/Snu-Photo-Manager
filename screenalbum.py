@@ -4199,10 +4199,10 @@ class VideoConverterScreen(ConversionScreen):
             image_filter = []
             for imagetype in app.imagetypes:
                 image_filter.append('*'+imagetype)
-            content = FileBrowser(ok_text='Load', path=browse_folder, filters=image_filter, export_mode=False, multiselect=True, autoselect=True)
+            content = FileBrowser(ok_text='Load', path=browse_folder, filters=image_filter, export_mode=False, directory_select=True)
             content.bind(on_cancel=self.dismiss_popup)
             content.bind(on_ok=self.load_image_sequence_finish)
-            self.popup = NormalPopup(title="Select Image Sequence", content=content, size_hint=(0.9, 0.9))
+            self.popup = NormalPopup(title="Select Image Sequence Folder", content=content, size_hint=(0.9, 0.9))
         else:
             video_filter = []
             for movietype in app.movietypes:
@@ -4219,7 +4219,18 @@ class VideoConverterScreen(ConversionScreen):
             app = App.get_running_app()
             path = popup.content.path
             app.last_browse_folder = path
-            files = popup.content.files
+
+            files = popup.content.folder_files
+            from filebrowser import sort_nicely
+            import fnmatch
+            image_filter = []
+            for imagetype in app.imagetypes:
+                image_filter.append('*'+imagetype)
+            filtered_files = []
+            for item in image_filter:
+                filtered_files += fnmatch.filter(files, item)
+            files = filtered_files
+            files = sort_nicely(files)
 
             self.sequence = files
             self.folder = path
