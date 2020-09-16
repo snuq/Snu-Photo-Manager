@@ -176,9 +176,18 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
     Returns: A list of float values.
     """
 
-    minimum_distance = 40
     if length == 0:
         return []
+
+    #calculate mix values to mix with linear interpolation when the distance is shorter
+    minimum_distance = 20
+    linear_percent = 1 - ((length - minimum_distance) / 100)
+    if linear_percent > 1:
+        linear_percent = 1
+    elif linear_percent < 0:
+        linear_percent = 0
+    other_percent = 1 - linear_percent
+
     values = []
     y = start
     difference = stop - start
@@ -186,18 +195,8 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
     if mode == 'cubic' or mode == 'catmull':
         if before is None:
             before = start - stop
-            before_distance = length
         if after is None:
             after = stop + (stop - start)
-            after_distance = length
-        if after_distance < minimum_distance:
-            after_distance = minimum_distance
-        if before_distance < minimum_distance:
-            before_distance = minimum_distance
-        after_distance = after_distance / length
-        before_distance = before_distance / length
-        before = before / before_distance
-        after = after / after_distance
     if mode == 'catmull':
         a = -0.5*before + 1.5*start - 1.5*stop + 0.5*after
         b = before - 2.5*start + 2*stop - 0.5*after
@@ -213,18 +212,21 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
         b = 1
         c = 1
         d = 1
+    linear_y = y
     for x in range(length):
         values.append(y)
+        linear_y = linear_y + step
         if mode == 'cubic' or mode == 'catmull':
             mu = x / length
             muu = mu * mu
-            y = (a*mu*muu)+(b*muu)+(c*mu)+d
+            catmul_y = (a*mu*muu)+(b*muu)+(c*mu)+d
+            y = (catmul_y * other_percent) + (linear_y * linear_percent)
         elif mode == 'cosine':
             mu = x / length
             muu = (1-math.cos(mu*math.pi))/2
             y = start*(1-muu)+(stop*muu)
         else:
-            y = y + step
+            y = linear_y
         if y > maximum:
             y = maximum
         if y < minimum:

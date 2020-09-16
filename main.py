@@ -25,7 +25,6 @@ Todo before 1.0:
         Maybe add import to year subfolders option
 
 Bugs:
-    curves do not behave properly, need to fix interpolation
     interface is blurry on some devices - kivy bug
     scrolling up with touchpad does not work properly - kivy bug
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
