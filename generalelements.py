@@ -3639,7 +3639,10 @@ class CustomImage(KivyImage):
             enhancer = None
         if self.saturation != 0:
             enhancer = ImageEnhance.Color(image)
-            image = enhancer.enhance(1+(self.saturation * 2))
+            if self.saturation > 0:
+                image = enhancer.enhance(1+(self.saturation * 2))
+            else:
+                image = enhancer.enhance(1+self.saturation)
             enhancer = None
         if self.tint != [1.0, 1.0, 1.0, 1.0]:
             matrix = (self.tint[0], 0.0, 0.0, 0.0,
