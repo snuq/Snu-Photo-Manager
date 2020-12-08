@@ -2081,6 +2081,7 @@ class SelectableRecycleLayout(LayoutSelectionBehavior):
             self.select_all()
 
     def select_all(self):
+        self.selected_nodes = []
         for node in range(0, len(self.parent.data)):
             self.select_node(node)
 

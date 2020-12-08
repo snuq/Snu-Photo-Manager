@@ -482,7 +482,6 @@ class ExportScreen(Screen):
     def get_selected_photos(self, fullpath=False):
         photos = self.ids['photos']
         photos_container = self.ids['photosContainer']
-        photos_container.refresh_from_data()
         selected_indexes = photos.selected_nodes
         selected_photos = []
         for selected in selected_indexes:
