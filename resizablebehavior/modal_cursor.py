@@ -8,6 +8,16 @@ from kivy.metrics import dp, cm
 from time import time
 import os
 path = os.path.split(os.path.realpath(__file__))[0]
+from kivy.lang.builder import Builder
+Builder.load_string("""
+<CursorModalView>:
+    canvas:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            size: self.size
+            pos: self.pos
+""")
 
 
 class CursorModalView(ModalView):
