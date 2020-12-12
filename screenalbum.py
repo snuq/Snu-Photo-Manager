@@ -1672,7 +1672,6 @@ Builder.load_string("""
                         cols: 2
                         size_hint: 1, None
                         height: app.button_scale
-                        orientation: 'horizontal'
                         NormalToggle:
                             text_size: self.size
                             halign: 'center'

@@ -127,7 +127,6 @@ Builder.load_string("""
     size_hint_y: None
     cols: 1
     height: self.minimum_height
-    orientation: 'vertical'
     ColorElementButton:
         on_press: root.toggle_expanded()
         orientation: 'horizontal'
