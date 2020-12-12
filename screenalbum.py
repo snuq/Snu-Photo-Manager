@@ -1485,7 +1485,6 @@ Builder.load_string("""
             on_release: root.manager.current = 'edit'
         SmallBufferY:
         ScrollerContainer:
-            cols: 1
             do_scroll_x: False
             GridLayout:
                 padding: 0, 0, int(app.button_scale / 2), 0
@@ -1539,6 +1538,7 @@ Builder.load_string("""
                                 Rectangle:
                                     pos: self.x + self.width * self.hbar[0], self.y + self.bar_margin
                                     size: self.width * self.hbar[1], self.bar_width
+                            effect_cls: 'ScrollEffect'
                             on_scroll_stop: root.update_preview()
                             pos: self.parent.pos
                             size: self.parent.size

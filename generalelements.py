@@ -1014,6 +1014,7 @@ Builder.load_string("""
 
 
 <Scroller>:
+    always_overscroll: False
     scroll_distance: 10
     scroll_timeout: 100
     bar_width: int(app.button_scale * .5)
@@ -4110,7 +4111,7 @@ class ScrollerContainer(Scroller):
     def on_touch_down(self, touch):
         #Modified to allow one sub object to not be scrolled
         try:
-            subscroller = self.children[0].children[0].ids['wrapper']
+            subscroller = self.children[0].ids['wrapper']
             coords = subscroller.window_to_parent(*touch.pos)
             collide = subscroller.collide_point(*coords)
             if collide:
