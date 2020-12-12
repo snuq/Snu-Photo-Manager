@@ -479,8 +479,10 @@ class Collage(Widget):
 class ScatterCollage(Collage, StencilViewTouch):
     def clear(self):
         self.clear_widgets()
-        self.collage_background = [0, 0, 0, 1]
         self.images = []
+
+    def reset_background(self):
+        self.collage_background = [0, 0, 0, 1]
 
     def delete_selected(self):
         for image in self.children:
@@ -642,8 +644,10 @@ class GridCollage(Collage, BoxLayout):
         for child in self.walk(restrict=True, loopback=True):
             if isinstance(child, GridImage):
                 child.clear_widgets()
-        self.collage_background = [0, 0, 0, 1]
         self.images = []
+
+    def reset_background(self):
+        self.collage_background = [0, 0, 0, 1]
 
     def deselect_images(self):
         for child in self.walk(restrict=True, loopback=True):
@@ -1140,6 +1144,8 @@ class CollageScreen(Screen):
 
         app = App.get_running_app()
         self.set_collage()
+        if self.collage:
+            self.collage.reset_background()
         self.ids['leftpanel'].width = app.left_panel_width()
         self.ids['moveButton'].state = 'down'
         self.ids['rotateButton'].state = 'normal'
