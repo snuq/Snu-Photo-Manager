@@ -188,6 +188,7 @@ Builder.load_string("""
             size: self.size
             pos: self.pos
             source: 'data/panelbg.png'
+    overlay_color: 1, 1, 1, 0
     background_color: 1, 1, 1, 0
     background: 'data/transparent.png'
     separator_color: 1, 1, 1, .25
