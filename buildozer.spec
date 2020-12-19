@@ -19,11 +19,11 @@ source.include_exts = py,png,jpg,kv,atlas,txt,ini
 source.exclude_dirs = tests, bin
 
 # (str) Application versioning (method 1)
-version = 0.9.008
+version = 0.9.013
 
 # (list) Application requirements
 # comma seperated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,ffpyplayer_codecs,ffpyplayer==4.2.0,pillow,sqlite3,opencv
+requirements = python3,kivy,ffpyplayer_codecs,ffpyplayer,pillow,sqlite3,opencv
 
 # (str) Presplash of the application
 presplash.filename = %(source.dir)s/data/splash.jpg

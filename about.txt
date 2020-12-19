@@ -1,5 +1,5 @@
 Snu Photo Manager
-Version 0.9.012, Released September 2020
+Version 0.9.013, Released December 2020
 This program is released under the GNU General Public License
 
 

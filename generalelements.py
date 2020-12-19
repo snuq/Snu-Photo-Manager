@@ -917,6 +917,7 @@ Builder.load_string("""
     default_size: (app.button_scale * 8), (app.button_scale * 4)
 
 <NormalRecycleView>:
+    always_overscroll: False
     size_hint: 1, 1
     do_scroll_x: False
     do_scroll_y: True
