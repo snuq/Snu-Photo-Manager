@@ -25,9 +25,7 @@ Todo before 1.0:
         Maybe add import to year subfolders option
 
 Bugs:
-    rare crash when deleting photos... somehow database_exists() is returning a shorter photoinfo list??
     interface is blurry on some devices - kivy bug
-    scrolling up with touchpad does not work properly - kivy bug
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
 Todo Possible Future:
@@ -2253,8 +2251,9 @@ class PhotoManager(App):
         else:
             deleted = True
         if deleted is True:
-            if os.path.isfile(photoinfo[10]):
-                self.delete_file(photoinfo[10])
+            if photoinfo:  #this should not be none... but apparently it happens sometimes
+                if os.path.isfile(photoinfo[10]):
+                    self.delete_file(photoinfo[10])
             fullpath = agnostic_path(fullpath)
             self.photos.execute('DELETE FROM photos WHERE FullPath = ?', (fullpath,))
             self.thumbnails.execute('DELETE FROM thumbnails WHERE FullPath = ?', (fullpath,))
