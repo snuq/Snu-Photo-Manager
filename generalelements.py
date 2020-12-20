@@ -759,6 +759,9 @@ Builder.load_string("""
         on_release: app.screen_manager.current_screen.export_screen()
 
 
+<PhotoListRecycleView>:
+    always_overscroll: False
+
 <RecycleItem>:
     canvas.before:
         Color:
