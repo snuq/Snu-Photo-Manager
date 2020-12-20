@@ -23,13 +23,13 @@ Watch the demo video:
 * Importing from multiple sources at once.  
 * Drag-n-drop organization.  
 * Touch-friendly interface.  
-* Simple and advanced color editing: brightness, contrast, saturation, gamma, color curves, tinting.  
-* Simple and advanced filters: sharpen, soften, vignette, edge blur.  
+* Image color editing: brightness, contrast, saturation, gamma, color curves, tinting.  
+* Image filters: sharpen, soften, vignette, edge blur.  
 * Noise reduction: Despeckle, edge-preserve blur, non-local means denoise.  
 * Image edits: rotate (and straighten), crop, image border overlays (frames).  
 * All editing features can apply to videos as well.  
 * Video conversion, simple with presets, or use the video editing screen to tweak settings or batch process videos.
-* Collage creation from any number of photos.
+* Collage creation from any number of photos.  
 * Exporting with watermarks and resizing, export to a folder or FTP.  
 
 
@@ -57,13 +57,13 @@ For now, side-loading of apps is required to be enabled.  Depending on your devi
 
 
 ### Manual Installation:  
-* Install Python 3, tested with 3.5.2 and 3.7.3.  
+* Install Python 3, should work well on 3.7, 3.8 and 3.9.  
 * Install the Python packages:  
-   * Kivy (Tested with 1.10.0 and 1.11.0)  
-   * ffpyplayer (Tested with 4.0.1 and 4.2.0)  
-   * Pillow (Tested with 3.1.2, 4.1.1 and 6.0.0)  
-   * numpy (Tested with 1.12.1, 1.13.3 and 1.16.3) (not strictly required, but some features will be missing without it).  
-   * opencv-python (Tested with 3.2.0.7, 3.3.0.10 and 4.1.0.25) (same as numpy).  
+   * Kivy (Tested with 1.11.1, 2.0.0 mostly works but has some bugs for now)  
+   * ffpyplayer  
+   * Pillow  
+   * numpy (not strictly required, but some features will be missing without it).  
+   * opencv-python (same as numpy).  
 * Download the repository.  
 * Unzip the repository to the location of your choice.  
 * For video conversions, the ffmpeg executable must be installed in a path that Python can find (the root directory of Snu Photo Manager will work).  Tested with 2.8.11.  
