@@ -3241,10 +3241,13 @@ class ConversionScreen(Screen):
         self.append_log("[INFO] : "+"Encoding video using the command:")
         self.append_log(command)
         self.append_log('')
-        if app.config.getboolean("Settings", "highencodingpriority"):
-            creationflags = subprocess.NORMAL_PRIORITY_CLASS
+        if hasattr(subprocess, 'NORMAL_PRIORITY_CLASS'):
+            if app.config.getboolean("Settings", "highencodingpriority"):
+                creationflags = subprocess.NORMAL_PRIORITY_CLASS
+            else:
+                creationflags = subprocess.IDLE_PRIORITY_CLASS
         else:
-            creationflags = subprocess.IDLE_PRIORITY_CLASS
+            creationflags = 0
         video_codec_data = find_dictionary(app.video_codecs, 'name', encoding_settings['video_codec'])
         video_codec = video_codec_data['codec']
 
@@ -6825,6 +6828,8 @@ class PhotoViewer(BoxLayout):
             self.edit_image = None
 
     def start_edit_mode(self, *_):
+        if self.edit_image is None:
+            return
         image = self.ids['image']
         image.opacity = 0
         viewer = self.ids['photoShow']
