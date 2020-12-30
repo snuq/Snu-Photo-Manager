@@ -6,9 +6,45 @@ from configparser import ConfigParser
 from PIL import Image
 from shutil import copy2
 import filecmp
+from kivy.logger import Logger, LoggerHistory
+from kivy.app import App
 
 months_full = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 months_short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+
+def get_crashlog():
+    """Returns the crashlog file path and name"""
+    app = App.get_running_app()
+    savefolder_loc = app.data_directory
+    crashlog = os.path.join(savefolder_loc, 'snu_photo_manager_crashlog.txt')
+    return crashlog
+
+
+def save_current_crashlog(location):
+    """Saves the last generated crashlog to the given location"""
+    from shutil import copy2
+    crashlog = get_crashlog()
+    try:
+        copy2(crashlog, location)
+        return True
+    except:
+        return False
+
+
+def save_crashlog():
+    """Saves the just-generated crashlog to the current default location"""
+    import traceback
+    crashlog = get_crashlog()
+    log_history = reversed(LoggerHistory.history)
+    crashlog_file = open(crashlog, 'w')
+    for log_line in log_history:
+        log_line = log_line.msg
+        crashlog_file.write(log_line+'\n')
+    traceback_text = traceback.format_exc()
+    print(traceback_text)
+    crashlog_file.write(traceback_text)
+    crashlog_file.close()
 
 
 def find_dictionary(list_of_dicts, key_name, key_match):

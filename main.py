@@ -82,7 +82,7 @@ except:
     pass
 
 from generalconstants import *
-from generalcommands import list_folders, get_folder_info, local_thumbnail, isfile2, naming, to_bool, local_path, local_paths, agnostic_path, local_photoinfo, agnostic_photoinfo, get_file_info
+from generalcommands import get_crashlog, save_crashlog, list_folders, get_folder_info, local_thumbnail, isfile2, naming, to_bool, local_path, local_paths, agnostic_path, local_photoinfo, agnostic_photoinfo, get_file_info
 from generalelements import ClickFade, EncodingSettings, PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu
 from screendatabase import DatabaseScreen, DatabaseRestoreScreen, TransferScreen
 from screensettings import PhotoManagerSettings, AboutPopup
@@ -216,6 +216,8 @@ class PhotoManager(App):
     imagetypes = ListProperty()
     movietypes = ListProperty()
     audiotypes = ListProperty()
+    has_crashlog = BooleanProperty(False)
+    crashlog_date = StringProperty('')
 
     #Display variables
     photosinfo = ListProperty()  #List of all photoinfo from currently displayed photos
@@ -326,6 +328,14 @@ class PhotoManager(App):
 
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
+
+        crashlog = get_crashlog()
+        if os.path.isfile(crashlog):
+            self.has_crashlog = True
+            crashlog_timestamp = os.path.getmtime(crashlog)
+            self.crashlog_date = datetime.datetime.utcfromtimestamp(crashlog_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            self.has_crashlog = False
 
         self.ffmpeg = ffmpeg
         self.opencv = opencv
@@ -1226,6 +1236,12 @@ class PhotoManager(App):
         settingspanel = []
         settingspanel.append({
             "type": "aboutbutton",
+            "title": "",
+            "section": "Settings",
+            "key": "photoinfo"
+        })
+        settingspanel.append({
+            "type": "savecrashlog",
             "title": "",
             "section": "Settings",
             "key": "photoinfo"
@@ -3270,6 +3286,15 @@ class PhotoManager(App):
             self.screen_manager.transition.direction = 'left'
         self.screen_manager.current = 'transfer'
 
+    def dismiss_popup(self, *_):
+        #Close the app's open popup if it has one
+
+        if self.popup:
+            self.popup.dismiss()
+            self.popup = None
+            return True
+        return False
+
     def popup_message(self, text, title='Notification'):
         """Creates a simple 'ok' popup dialog.
         Arguments:
@@ -3277,9 +3302,9 @@ class PhotoManager(App):
             title: String, the dialog window title.
         """
 
-        app = App.get_running_app()
+        self.dismiss_popup()
         content = MessagePopup(text=text)
-        self.popup = NormalPopup(title=title, content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 4))
+        self.popup = NormalPopup(title=title, content=content, size_hint=(None, None), size=(self.popup_x, self.button_scale * 4))
         self.popup.open()
 
     def clear_drags(self):
@@ -3526,4 +3551,11 @@ class PhotoManager(App):
 
 
 if __name__ == '__main__':
-    PhotoManager().run()
+    try:
+        PhotoManager().run()
+    except Exception as e:
+        try:
+            save_crashlog()
+        except:
+            pass
+        os._exit(-1)

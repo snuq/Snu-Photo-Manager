@@ -9,7 +9,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.recycleview import RecycleView
 from kivy.compat import string_types, text_type
 
-from generalcommands import agnostic_path
+from generalcommands import agnostic_path, save_current_crashlog
 from generalelements import NormalPopup, InputPopup, ShortLabel, NormalButton, WideButton, RecycleItem
 from filebrowser import FileBrowser
 
@@ -159,6 +159,14 @@ Builder.load_string("""
         disabled: True if app.database_scanning or app.standalone else False
         on_release: root.database_restore()
 
+<SettingSaveCrashlog>:
+    disabled: False if app.has_crashlog else True
+    height: 0 if self.disabled else app.button_scale
+    opacity: 0 if self.disabled else 1
+    WideButton:
+        text: 'Save Crash Log ('+app.crashlog_date+')'
+        on_release: root.save_crashlog()
+
 <SettingDatabaseBackup>:
     WideButton:
         text: 'Backup Photo Database'
@@ -304,6 +312,7 @@ class PhotoManagerSettings(SettingsWithNoMenu):
         self.register_type('aboutbutton', SettingAboutButton)
         self.register_type('databaserestore', SettingDatabaseRestore)
         self.register_type('databasebackup', SettingDatabaseBackup)
+        self.register_type('savecrashlog', SettingSaveCrashlog)
         self.register_type('label', SettingTitle)
 
 
@@ -452,6 +461,31 @@ class SettingDatabaseRestore(SettingItem):
     def database_restore(self):
         app = App.get_running_app()
         app.database_restore()
+
+
+class SettingSaveCrashlog(SettingItem):
+    """Opens a dialog to save the last created crash log"""
+    def save_crashlog(self):
+        app = App.get_running_app()
+        app.dismiss_popup()
+        from filebrowser import FileBrowser
+        content = FileBrowser(ok_text='Save', directory_select=True)
+        content.bind(on_cancel=app.dismiss_popup)
+        content.bind(on_ok=self.save_crashlog_finish)
+        app.popup = NormalPopup(title="Select A Location To Save Crashlog", content=content)
+        app.popup.open()
+
+    def save_crashlog_finish(self, answer):
+        app = App.get_running_app()
+        path = app.popup.content.path
+        app.dismiss_popup()
+        saved = False
+        if path:
+            saved = save_current_crashlog(path)
+        if saved:
+            app.message('Saved Crashlog')
+        else:
+            app.message('Could Not Save Crashlog!')
 
 
 class SettingDatabaseBackup(SettingItem):
