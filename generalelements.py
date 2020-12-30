@@ -3508,7 +3508,8 @@ class CustomImage(KivyImage):
             self.texture.flip_horizontal()
 
     def denoise_preview(self, width, height, pos_x, pos_y):
-
+        if not opencv:
+            return None
         left = pos_x
         right = pos_x + width
         lower = pos_y + width
