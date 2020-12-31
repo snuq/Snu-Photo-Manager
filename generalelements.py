@@ -1531,10 +1531,11 @@ class NormalInput(TextInput):
             pos = self.to_window(*touch.pos)
             self.long_press_clock = Clock.schedule_once(self.do_long_press, self.long_press_time)
             self.long_press_pos = pos
-            if touch.button == 'right':
-                app = App.get_running_app()
-                app.popup_bubble(self, pos, edit=not self.disabled)
-                return
+            if hasattr(touch, 'button'):
+                if touch.button == 'right':
+                    app = App.get_running_app()
+                    app.popup_bubble(self, pos, edit=not self.disabled)
+                    return
         return super(NormalInput, self).on_touch_down(touch)
 
     def do_long_press(self, *_):
