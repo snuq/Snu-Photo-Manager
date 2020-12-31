@@ -2177,7 +2177,7 @@ class PhotoManager(App):
             if desktop:
                 button_multiplier = 1
             else:
-                button_multiplier = 2
+                button_multiplier = 1.5
             buttonsize = int(self.config.get("Settings", "buttonsize"))
             if buttonsize < 50:
                 buttonsize = 50

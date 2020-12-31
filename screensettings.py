@@ -354,8 +354,8 @@ class SettingMultiDirectory(SettingItem):
             return
         self.bind(on_release=self._create_popup)
         app = App.get_running_app()
-        if not app.has_database():
-            Clock.schedule_once(self._create_popup)
+        #if not app.has_database():
+        #    Clock.schedule_once(self._create_popup)
 
     def _dismiss(self, rescan=True, *_):
         if self.popup:
