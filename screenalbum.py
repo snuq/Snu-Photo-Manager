@@ -5298,21 +5298,33 @@ class AlbumScreen(ConversionScreen):
             #Add exif info
             if exif:
                 if 271 in exif:
-                    camera_type = exif[271]+' '+exif[272]
-                    info_panel.add_node(TreeViewInfo(title='Camera: ' + camera_type))
-                if 33432 in exif:
-                    copyright = exif[33432]
-                    info_panel.add_node(TreeViewInfo(title='Copyright: ' + copyright))
-                if 36867 in exif:
-                    camera_date = exif[36867]
-                    info_panel.add_node(TreeViewInfo(title='Date Taken: ' + camera_date))
-                if 33434 in exif:
-                    exposure = exif[33434]
                     try:
-                        camera_exposure = str(exposure[0]/exposure[1])+'seconds'
+                        camera_type = exif[271]+' '+exif[272]
+                        info_panel.add_node(TreeViewInfo(title='Camera: ' + camera_type))
                     except:
-                        camera_exposure = str(exposure)+'seconds'
-                    info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
+                        pass
+                if 33432 in exif:
+                    try:
+                        copyright = exif[33432]
+                        info_panel.add_node(TreeViewInfo(title='Copyright: ' + copyright))
+                    except:
+                        pass
+                if 36867 in exif:
+                    try:
+                        camera_date = exif[36867]
+                        info_panel.add_node(TreeViewInfo(title='Date Taken: ' + camera_date))
+                    except:
+                        pass
+                if 33434 in exif:
+                    try:
+                        exposure = exif[33434]
+                        try:
+                            camera_exposure = str(exposure[0]/exposure[1])+'seconds'
+                        except:
+                            camera_exposure = str(exposure)+'seconds'
+                        info_panel.add_node(TreeViewInfo(title='Exposure Time: ' + camera_exposure))
+                    except:
+                        pass
                 if 37377 in exif:
                     try:
                         camera_shutter_speed = str(exif[37377][0]/exif[37377][1])
@@ -5320,8 +5332,8 @@ class AlbumScreen(ConversionScreen):
                     except:
                         pass
                 if 33437 in exif:
-                    f_stop = exif[33437]
                     try:
+                        f_stop = exif[33437]
                         camera_f = str(f_stop[0]/f_stop[1])
                         info_panel.add_node(TreeViewInfo(title='F Stop: ' + camera_f))
                     except:
@@ -5333,52 +5345,66 @@ class AlbumScreen(ConversionScreen):
                     except:
                         pass
                 if 34855 in exif:
-                    camera_iso = str(exif[34855])
-                    info_panel.add_node(TreeViewInfo(title='ISO Level: ' + camera_iso))
+                    try:
+                        camera_iso = str(exif[34855])
+                        info_panel.add_node(TreeViewInfo(title='ISO Level: ' + camera_iso))
+                    except:
+                        pass
                 if 37385 in exif:
-                    flash = bin(exif[37385])[2:].zfill(8)
-                    camera_flash = 'Not Used' if flash[1] == '0' else 'Used'
-                    info_panel.add_node(TreeViewInfo(title='Flash: ' + str(camera_flash)))
+                    try:
+                        flash = bin(exif[37385])[2:].zfill(8)
+                        camera_flash = 'Not Used' if flash[1] == '0' else 'Used'
+                        info_panel.add_node(TreeViewInfo(title='Flash: ' + str(camera_flash)))
+                    except:
+                        pass
                 if 37386 in exif:
-                    focal_length_data = exif[37386]
                     try:
-                        focal_length = str(focal_length_data[0]/focal_length_data[1])+'mm'
+                        focal_length_data = exif[37386]
+                        try:
+                            focal_length = str(focal_length_data[0]/focal_length_data[1])+'mm'
+                        except:
+                            focal_length = str(focal_length_data)+'mm'
+                        if 41989 in exif:
+                            film_focal = exif[41989]
+                            if film_focal != 0:
+                                focal_length = focal_length+' ('+str(film_focal)+' 35mm equiv.)'
+                        info_panel.add_node(TreeViewInfo(title='Focal Length: ' + focal_length))
                     except:
-                        focal_length = str(focal_length_data)+'mm'
-                    if 41989 in exif:
-                        film_focal = exif[41989]
-                        if film_focal != 0:
-                            focal_length = focal_length+' ('+str(film_focal)+' 35mm equiv.)'
-                    info_panel.add_node(TreeViewInfo(title='Focal Length: ' + focal_length))
+                        pass
                 if 41988 in exif:
-                    digital_zoom_data = exif[41988]
                     try:
-                        digital_zoom = digital_zoom_data[0]
+                        digital_zoom_data = exif[41988]
+                        if digital_zoom_data:
+                            if type(digital_zoom_data) in [list, tuple]:
+                                digital_zoom_amount = str(round(digital_zoom_data[0]/digital_zoom_data[1], 2))+'X'
+                            else:
+                                digital_zoom_amount = str(round(digital_zoom_data, 2))+'X'
+                            info_panel.add_node(TreeViewInfo(title='Digital Zoom: ' + digital_zoom_amount))
                     except:
-                        digital_zoom = int(digital_zoom_data)
-                    if digital_zoom != 0:
-                        digital_zoom_amount = str(round(digital_zoom[0]/digital_zoom[1], 2))+'X'
-                        info_panel.add_node(TreeViewInfo(title='Digital Zoom: ' + digital_zoom_amount))
+                        pass
                 if 34850 in exif:
-                    exposure_program = exif[34850]
-                    if exposure_program > 0:
-                        if exposure_program == 1:
-                            program_name = 'Manual'
-                        elif exposure_program == 2:
-                            program_name = 'Normal'
-                        elif exposure_program == 3:
-                            program_name = 'Aperture Priority'
-                        elif exposure_program == 4:
-                            program_name = 'Shutter Priority'
-                        elif exposure_program == 5:
-                            program_name = 'Creative Program'
-                        elif exposure_program == 6:
-                            program_name = 'Action Program'
-                        elif exposure_program == 7:
-                            program_name = 'Portrait'
-                        else:
-                            program_name = 'Landscape'
-                        info_panel.add_node(TreeViewInfo(title='Exposure Mode: ' + program_name))
+                    try:
+                        exposure_program = exif[34850]
+                        if exposure_program > 0:
+                            if exposure_program == 1:
+                                program_name = 'Manual'
+                            elif exposure_program == 2:
+                                program_name = 'Normal'
+                            elif exposure_program == 3:
+                                program_name = 'Aperture Priority'
+                            elif exposure_program == 4:
+                                program_name = 'Shutter Priority'
+                            elif exposure_program == 5:
+                                program_name = 'Creative Program'
+                            elif exposure_program == 6:
+                                program_name = 'Action Program'
+                            elif exposure_program == 7:
+                                program_name = 'Portrait'
+                            else:
+                                program_name = 'Landscape'
+                            info_panel.add_node(TreeViewInfo(title='Exposure Mode: ' + program_name))
+                    except:
+                        pass
 
     def resort_method(self, method):
         """Sets the album sort method.
