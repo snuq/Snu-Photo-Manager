@@ -67,6 +67,7 @@ from kivy.lang.builder import Builder
 Builder.load_string("""
 #:import os os
 #:import SlideTransition kivy.uix.screenmanager.SlideTransition
+#:import platform kivy.platform
 
 <AlbumScreen>:
     canvas.before:
@@ -166,7 +167,8 @@ Builder.load_string("""
                         disabled: True if app.database_scanning or (app.standalone and not app.standalone_in_database) else False
                     NormalButton:
                         size_hint_y: 1
-                        text: 'Open Folder'
+                        text: 'Share File' if (platform == 'android') else 'Open Folder'
+                        disabled: True if (platform == 'android' and not root.view_image) else False
                         on_press: root.open_folder()
                     NormalButton:
                         size_hint_y: 1
@@ -916,8 +918,10 @@ Builder.load_string("""
             MediumBufferY:
             GridLayout:
                 cols: 2
+                disabled: True if platform == 'android' else False
                 size_hint_y: None
-                height: app.button_scale
+                height: 0 if self.disabled else app.button_scale
+                opacity: 0 if self.disabled else 1
                 LeftNormalLabel:
                     size_hint_x: 1
                     text: 'External Programs:'
@@ -4605,12 +4609,39 @@ class AlbumScreen(ConversionScreen):
         left_panel.hidden = True
 
     def open_folder(self):
-        try:
-            import webbrowser
-            folder = os.path.split(self.photo)[0]
-            webbrowser.open(folder)
-        except:
-            pass
+        import os
+        if platform == 'android':
+            photofile = self.photo
+
+            from jnius import cast
+            from jnius import autoclass
+            StrictMode = autoclass('android.os.StrictMode')
+            StrictMode.disableDeathOnFileUriExposure()
+
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            #PythonActivity = autoclass('org.renpy.android.PythonActivity')  # Non-sdl2
+            Intent = autoclass('android.content.Intent')
+            String = autoclass('java.lang.String')
+            Uri = autoclass('android.net.Uri')
+            File = autoclass('java.io.File')
+
+            shareIntent = Intent(Intent.ACTION_SEND)
+            shareIntent.setType('"image/*"')
+            imageFile = File(photofile)
+
+            uri = Uri.fromFile(imageFile)
+            parcelable = cast('android.os.Parcelable', uri)
+            shareIntent.putExtra(Intent.EXTRA_STREAM, parcelable)
+
+            currentActivity = cast('android.app.Activity', PythonActivity.mActivity)
+            currentActivity.startActivity(shareIntent)
+        else:
+            try:
+                import webbrowser
+                folder = os.path.split(self.photo)[0]
+                webbrowser.open(folder)
+            except:
+                pass
 
     def set_photo(self, photo):
         self.photo = photo

@@ -333,7 +333,7 @@ class PhotoManager(App):
         if os.path.isfile(crashlog):
             self.has_crashlog = True
             crashlog_timestamp = os.path.getmtime(crashlog)
-            self.crashlog_date = datetime.datetime.utcfromtimestamp(crashlog_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            self.crashlog_date = datetime.datetime.fromtimestamp(crashlog_timestamp).strftime('%Y-%m-%d %H:%M:%S')
         else:
             self.has_crashlog = False
 
@@ -2318,8 +2318,10 @@ class PhotoManager(App):
         """
 
         try:
-            send2trash(filepath)
-            #os.remove(filepath)
+            if platform != 'android':
+                send2trash(filepath)
+            else:
+                os.remove(filepath)
         except Exception as ex:
             return ex
         return True
