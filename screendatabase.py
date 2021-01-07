@@ -49,10 +49,11 @@ Builder.load_string("""
                 warn: True
             NormalButton:
                 size_hint_x: None
-                width: self.texture_size[0] + 20
+                width: 0 if app.single_database else self.texture_size[0] + 20
                 text: '  Database Transfer  '
                 on_release: app.show_transfer()
                 disabled: app.single_database or app.database_scanning
+                opacity: 0 if app.single_database else 1
             NormalButton:
                 text: '  Video Editing  '
                 on_release: app.show_video_converter(from_database=True)
