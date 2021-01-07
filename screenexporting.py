@@ -610,6 +610,7 @@ class ExportScreen(Screen):
             database_folder = photo[2]
             video = os.path.splitext(full_filename)[1].lower() in app.movietypes
             data = {
+                'title': '',
                 'fullpath': fullpath,
                 'photoinfo': photo,
                 'folder': self.target,

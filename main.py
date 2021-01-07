@@ -16,6 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 Todo before 1.0:
     Update readme - add some gifs/screenshots
+    Remove albums functionality entirely (no need for it with tags?)
     Video editor:
         implement encoding preview (encodes a very short test with current settings, then shows it next to original)
         Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen

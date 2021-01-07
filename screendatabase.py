@@ -229,14 +229,6 @@ Builder.load_string("""
                         width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
                         opacity: 0 if app.simple_interface else 1
                         size_hint_x: None
-                        id: albumButton
-                        text: 'Add To Album...'
-                        disabled: not root.photos_selected or app.database_scanning
-                        on_release: root.album_menu.open(self)
-                    MenuStarterButton:
-                        width: 0 if app.simple_interface else self.texture_size[0] + app.button_scale
-                        opacity: 0 if app.simple_interface else 1
-                        size_hint_x: None
                         id: tagButton
                         text: 'Add Tag To...'
                         disabled: not root.photos_selected or app.database_scanning
@@ -636,14 +628,7 @@ class DatabaseScreen(Screen):
                 if key == 'right' or key == 'down':
                     self.next_album()
                 if key == 'enter':
-                    if self.type != 'None':
-                        if len(self.photos) > 0:
-                            app = App.get_running_app()
-                            app.target = self.selected
-                            app.photo = ''
-                            app.fullpath = ''
-                            app.type = self.type
-                            app.show_album(button=None)
+                    self.go_to_photo()
                 if key == 'delete':
                     self.delete()
                 if key == 'a':
@@ -659,6 +644,16 @@ class DatabaseScreen(Screen):
             elif self.popup and self.popup.open:
                 if key == 'enter':
                     self.popup.content.dispatch('on_answer', 'yes')
+
+    def go_to_photo(self, *_):
+        if self.type != 'None':
+            if len(self.photos) > 0:
+                app = App.get_running_app()
+                app.target = self.selected
+                app.photo = ''
+                app.fullpath = ''
+                app.type = self.type
+                app.show_album(button=None)
 
     def database_index(self, index, wrap=True):
         database = self.ids['database']
@@ -1130,58 +1125,59 @@ class DatabaseScreen(Screen):
         data[-1]['end'] = True
         data[-1]['height'] = data[-1]['height'] + int(app.button_scale * 0.1)
 
-        #add the albums tree item
-        albums = sorted(app.albums, key=lambda x: x['name'])
-        expandable_albums = True if len(albums) > 0 else False
-        album_root = {
-            'fullpath': 'Albums',
-            'folder_name': 'Albums',
-            'target': 'Albums',
-            'type': 'Album',
-            'total_photos': '',
-            'displayable': False,
-            'expandable': expandable_albums,
-            'expanded': True if (self.expanded_albums and expandable_albums) else False,
-            'owner': self,
-            'indent': 0,
-            'subtext': '',
-            'height': app.button_scale,
-            'end': False,
-            'dragable': False,
-            'selected': False
-        }
-        data.append(album_root)
-        self.album_menu.clear_widgets()
-        for album in albums:
-            total_photos = len(album['photos'])
-            menu_button = MenuButton(text=album['name'])
-            menu_button.bind(on_release=self.add_to_album_menu)
-            self.album_menu.add_widget(menu_button)
-            if self.expanded_albums:
-                if total_photos > 0:
-                    total_photos_text = '('+str(total_photos)+')'
-                else:
-                    total_photos_text = ''
-                album_item = {
-                    'fullpath': album['name'],
-                    'folder_name': album['name'],
-                    'total_photos': total_photos_text,
-                    'total_photos_numeric': total_photos,
-                    'target': album['name'],
-                    'type': 'Album',
-                    'displayable': True,
-                    'expandable': False,
-                    'owner': self,
-                    'indent': 1,
-                    'subtext': '',
-                    'height': app.button_scale,
-                    'end': False,
-                    'dragable': False,
-                    'selected': False
-                }
-                data.append(album_item)
-        data[-1]['end'] = True
-        data[-1]['height'] = data[-1]['height'] + int(app.button_scale * 0.1)
+        if len(app.albums) > 0:
+            #add the albums tree item
+            albums = sorted(app.albums, key=lambda x: x['name'])
+            expandable_albums = True if len(albums) > 0 else False
+            album_root = {
+                'fullpath': 'Albums',
+                'folder_name': 'Albums',
+                'target': 'Albums',
+                'type': 'Album',
+                'total_photos': '',
+                'displayable': False,
+                'expandable': expandable_albums,
+                'expanded': True if (self.expanded_albums and expandable_albums) else False,
+                'owner': self,
+                'indent': 0,
+                'subtext': '',
+                'height': app.button_scale,
+                'end': False,
+                'dragable': False,
+                'selected': False
+            }
+            data.append(album_root)
+            self.album_menu.clear_widgets()
+            for album in albums:
+                total_photos = len(album['photos'])
+                menu_button = MenuButton(text=album['name'])
+                menu_button.bind(on_release=self.add_to_album_menu)
+                self.album_menu.add_widget(menu_button)
+                if self.expanded_albums:
+                    if total_photos > 0:
+                        total_photos_text = '('+str(total_photos)+')'
+                    else:
+                        total_photos_text = ''
+                    album_item = {
+                        'fullpath': album['name'],
+                        'folder_name': album['name'],
+                        'total_photos': total_photos_text,
+                        'total_photos_numeric': total_photos,
+                        'target': album['name'],
+                        'type': 'Album',
+                        'displayable': True,
+                        'expandable': False,
+                        'owner': self,
+                        'indent': 1,
+                        'subtext': '',
+                        'height': app.button_scale,
+                        'end': False,
+                        'dragable': False,
+                        'selected': False
+                    }
+                    data.append(album_item)
+            data[-1]['end'] = True
+            data[-1]['height'] = data[-1]['height'] + int(app.button_scale * 0.1)
 
         #Get and sort folder list
         all_folders = self.get_folders()
@@ -1203,7 +1199,7 @@ class DatabaseScreen(Screen):
             'dragable': False,
             'selected': False
         }
-        data.append(folder_root)
+        #data.append(folder_root)
 
         #Parse and sort folders and subfolders
         root_folders = []
@@ -1278,7 +1274,7 @@ class DatabaseScreen(Screen):
                 'expandable': expandable,
                 'expanded': is_expanded,
                 'owner': self,
-                'indent': 1 + full_folder.count(os.path.sep),
+                'indent': 0 + full_folder.count(os.path.sep),
                 'subtext': subtext,
                 'height': app.button_scale * (1.5 if subtext else 1),
                 'end': False,

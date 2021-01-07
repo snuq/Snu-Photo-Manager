@@ -807,10 +807,16 @@ Builder.load_string("""
             source: 'data/play_overlay.png'
             pos: (self.pos[0]+self.width/8, self.pos[1]+self.width/8) if self.title else (self.pos[0]+self.width/4, self.pos[1]+self.width/4)
             size: (self.width/4, self.width/4) if self.title else (self.width/2, self.width/2)
+        Color:
+            rgba: app.theme.button_text if (root.selected and app.simple_interface and not root.temporary and root.view_album) else (1, 1, 1, 0)
+        Rectangle:
+            pos: self.pos[0] + (self.width * .66), self.pos[1]
+            size: (self.width/3, self.width/3)
+            source: 'data/right.png'
 
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 10000000
-    drag_distance: 0
+    drag_distance: 10
     width: (app.button_scale * 4)
     height: (app.button_scale * 4)
     size_hint_y: None
@@ -1787,6 +1793,7 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
         self.selected = is_selected
 
     def on_touch_down(self, touch):
+        already_selected = self.selected
         super().on_touch_down(touch)
         if self.collide_point(*touch.pos):
             if touch.is_double_tap:
@@ -1801,6 +1808,10 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
                 return
             self.parent.select_with_touch(self.index, touch)
             self.owner.update_selected()
+            pos = self.to_local(*touch.pos, relative=True)
+            if already_selected and app.simple_interface and not self.temporary and self.view_album:
+                if pos[1] <= self.height * .333 and pos[0] >= (self.width - (self.width / 3)):
+                    app.show_album(self)
             if self.dragable:
                 thumbnail = self.ids['thumbnail']
                 self.drag = True
