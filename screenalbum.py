@@ -48,7 +48,7 @@ from kivy.uix.video import Video
 from kivy.uix.videoplayer import VideoPlayer
 from kivy.core.image.img_pil import ImageLoaderPIL
 from kivy.loader import Loader
-Loader.max_upload_per_frame = 4
+Loader.max_upload_per_frame = 16
 Loader.num_workers = 2
 from kivy.cache import Cache
 Cache.register('kv.loader', limit=5)
@@ -3515,7 +3515,8 @@ class ConversionScreen(Screen):
                 Clock.schedule_once(lambda x: app.message("Completed encoding file '"+new_encoded_file+"'"))
             #reload video in ui
             if new_photoinfo:
-                Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
+                self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0])))
+                #Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
             #else:
             #    Clock.schedule_once(lambda *dt: self.set_photo(new_encoded_file))
             Clock.schedule_once(self.clear_cache)
@@ -3630,9 +3631,8 @@ class ConversionScreen(Screen):
         #update interface and switch active photo in photo list back to image
         self.photoinfo = update_photoinfo
         self.fullpath = local_path(update_photoinfo[0])
-        Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
-        self.photo = photo_file
-        self.show_selected()
+        self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0])))
+        #Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
 
         app.message("Saved edits to image")
 
@@ -4646,7 +4646,6 @@ class AlbumScreen(ConversionScreen):
     def set_photo(self, photo):
         self.photo = photo
         Clock.schedule_once(self.refresh_all)
-        Clock.schedule_once(self.show_selected)
 
     def on_sort_reverse(self, *_):
         """Updates the sort reverse button's state variable, since kivy doesnt just use True/False for button states."""
@@ -5158,9 +5157,10 @@ class AlbumScreen(ConversionScreen):
                 selected_album = node
             else:
                 node['selected'] = False
-        album_container.refresh_from_data()
         album.selected = selected_album
         album_container.scroll_to_selected()
+        Clock.schedule_once(album_container.update_selected)
+        #album_container.refresh_from_data()
 
     def scroll_photolist(self, *_):
         """Scroll the right-side photo list to the current active photo."""
