@@ -2986,7 +2986,7 @@ class PhotoManager(App):
         for root, dirs, files in walk(folder, topdown=True):
             dir_files = []
             if self.cancel_scanning:
-                return []
+                return [[], [], []]
             if not firstroot:
                 firstroot = root
             filefolder = relpath(root, firstroot)
@@ -2998,7 +2998,7 @@ class PhotoManager(App):
                     dir_files = []
                     break
                 if self.cancel_scanning:
-                    return []
+                    return [[], [], []]
                 fullpath = join(filefolder, file)
                 full_filename = join(folder, fullpath)
                 filenames.append(full_filename)
