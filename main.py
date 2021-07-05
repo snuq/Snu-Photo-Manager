@@ -26,7 +26,6 @@ Todo before 1.0:
         Maybe add import to year subfolders option
 
 Bugs:
-    interface is blurry on some devices - kivy bug
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
 Todo Possible Future:
@@ -34,7 +33,6 @@ Todo Possible Future:
     RAW import - https://github.com/photoshell/rawkit , need to get libraw working
 
 """
-
 import time
 start = time.perf_counter()
 
@@ -101,6 +99,10 @@ if desktop:
     Window.maximize()
 else:
     Window.softinput_mode = 'below_target'
+
+if platform == 'win':
+    import ctypes
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
 
 if platform == 'android':
     from android.permissions import request_permissions, Permission
