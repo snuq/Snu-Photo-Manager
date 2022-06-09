@@ -15,6 +15,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
+    Apply rotations on edit
     Update readme - add some gifs/screenshots
     Remove albums functionality entirely (no need for it with tags?)
     Video editor:
@@ -3472,11 +3473,16 @@ class PhotoManager(App):
         """
 
         image_size = imagedata.size
-        watermark = Image.open(watermark_image)
+        image_size_min = min(*image_size)
+        try:
+            watermark = Image.open(watermark_image)
+        except:
+            self.message('Watermark image not found')
+            return imagedata
         watermark_size_pixels = watermark.size
         watermark_width, watermark_height = watermark_size_pixels
         watermark_ratio = watermark_width/watermark_height
-        new_watermark_width = int(round(image_size[0]*(watermark_size/100)))
+        new_watermark_width = int(round(image_size_min*(watermark_size/100)))
         new_watermark_height = int(round(new_watermark_width/watermark_ratio))
         watermark = watermark.resize((new_watermark_width, new_watermark_height), 3)
         watermark_x = int(round((image_size[0]-new_watermark_width)*(watermark_horizontal/100)))
