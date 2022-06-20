@@ -37,6 +37,18 @@ class CursorModalView(ModalView):
         self.add_widget(self.cursor)
         self.open()
 
+    def _search_window(self):
+        # get window to attach to
+        window = None
+        if self.attach_to is not None:
+            window = self.attach_to.get_parent_window()
+            if not window:
+                window = self.attach_to.get_root_window()
+        if not window:
+            from kivy.core.window import Window
+            window = Window
+        return window
+
     def open(self, *largs):
         self._window = self._search_window()
         if not self._window:
