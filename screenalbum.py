@@ -29,7 +29,7 @@ from kivy.config import Config
 Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.core.window import Window
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from kivy.animation import Animation
 from kivy.graphics.transformation import Matrix
 from kivy.uix.behaviors import ButtonBehavior, DragBehavior
@@ -2554,7 +2554,7 @@ class CoreVideo(KivyCoreVideo):
             return
 
         # we got all the informations, now, get the frames :)
-        self._change_state('playing')
+        self._state = 'playing'
 
         while not self._ffplayer_need_quit:
             seek_happened = False
@@ -3100,7 +3100,9 @@ class ConversionScreen(Screen):
         self.encodingthread.start()
 
     def end_encode(self, message, end_type=''):
-        self.set_edit_panel('main')
+        #self.set_edit_panel('main')
+        self.view_panel = ''
+        Clock.schedule_once(lambda x: self.set_edit_panel('main'))
         if end_type == 'fail':
             prefix = "[WARNING] : "
         elif end_type == 'info':
@@ -3515,8 +3517,8 @@ class ConversionScreen(Screen):
                 Clock.schedule_once(lambda x: app.message("Completed encoding file '"+new_encoded_file+"'"))
             #reload video in ui
             if new_photoinfo:
-                self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0])))
-                #Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
+                #self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0])))
+                Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(new_photoinfo[2]), local_path(new_photoinfo[0]))))
             #else:
             #    Clock.schedule_once(lambda *dt: self.set_photo(new_encoded_file))
             Clock.schedule_once(self.clear_cache)
@@ -7103,7 +7105,10 @@ class SpecialVideoPlayer(VideoPlayer):
         self._image = None
         self.container.clear_widgets()
 
-    def _load_thumbnail(self):
+    def _try_load_default_thumbnail(self, *_):
+        self._load_thumbnail()
+
+    def _load_thumbnail(self, *_):
         if not self.container:
             return
         self.container.clear_widgets()
