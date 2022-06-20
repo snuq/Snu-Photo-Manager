@@ -1,5 +1,5 @@
 Snu Photo Manager
-Version 0.9.016, Released June 2022
+Version 0.9.017, Released June 2022
 This program is released under the GNU General Public License
 
 
