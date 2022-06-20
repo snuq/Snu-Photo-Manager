@@ -2510,7 +2510,7 @@ class CoreVideo(KivyCoreVideo):
             self.aspect = 1
 
         self._thread = Thread(target=self._next_frame_run, name='Next frame')
-        self._thread.daemon = True
+        #self._thread.daemon = True
         self._thread.start()
 
     def _next_frame_run(self):
@@ -2582,7 +2582,7 @@ class CoreVideo(KivyCoreVideo):
                     # We don't know concrete number of frames to skip,
                     # this number worked fine on couple of tested videos:
                     to_skip = 6
-                    while True:
+                    while not self._ffplayer_need_quit:
                         frame, val = ffplayer.get_frame(show=False)
                         # Exit loop on invalid val:
                         if val in ('paused', 'eof'):
@@ -2608,9 +2608,11 @@ class CoreVideo(KivyCoreVideo):
                 frame, val = ffplayer.get_frame()
 
             if val == 'eof':
+                self._ffplayer_need_quit = True
                 if not did_dispatch_eof:
                     self._do_eos()
                     did_dispatch_eof = True
+                
             elif val == 'paused':
                 did_dispatch_eof = False
             else:
@@ -2621,6 +2623,10 @@ class CoreVideo(KivyCoreVideo):
                 else:
                     val = val if val else (1 / 30.)
                 sleep(val)
+        self._ffplayer.set_volume(0.0)
+        self._ffplayer.set_pause(True)
+        self._ffplayer.seek(0)
+        self._ffplayer.close_player()
 
 
 class ConversionScreen(Screen):
