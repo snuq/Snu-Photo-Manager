@@ -3,6 +3,10 @@ import fnmatch
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import os
+try:
+    from os.path import sep
+except:
+    from os import sep
 import datetime
 import string
 from kivy.app import App
@@ -130,34 +134,34 @@ def get_drives():
     drives = []
     if platform == 'win':
         for path in ['Desktop', 'Documents', 'Pictures']:
-            drives.append((os.path.expanduser(u'~') + os.path.sep + path + os.path.sep, path))
+            drives.append((os.path.expanduser(u'~')+sep+path+sep, path))
         bitmask = windll.kernel32.GetLogicalDrives()
         for letter in string.ascii_uppercase:
             if bitmask & 1:
                 name = create_unicode_buffer(64)
                 # get name of the drive
                 drive = letter + u':'
-                windll.kernel32.GetVolumeInformationW(drive + os.path.sep, name, 64, None, None, None, None, 0)
+                windll.kernel32.GetVolumeInformationW(drive+sep, name, 64, None, None, None, None, 0)
                 drive_name = drive
                 if name.value:
                     drive_name = drive_name + '(' + name.value + ')'
-                drives.append((drive + os.path.sep, drive_name))
+                drives.append((drive+sep, drive_name))
             bitmask >>= 1
     elif platform == 'linux':
-        drives.append((os.path.sep, os.path.sep))
-        drives.append((os.path.expanduser(u'~') + os.path.sep, 'Home'))
-        drives.append((os.path.sep + u'mnt' + os.path.sep, os.path.sep + u'mnt'))
-        places = (os.path.sep + u'mnt' + os.path.sep, os.path.sep + u'media')
+        drives.append((sep, sep))
+        drives.append((os.path.expanduser(u'~') + sep, 'Home'))
+        drives.append((sep+u'mnt'+sep, sep+u'mnt'))
+        places = (sep+u'mnt'+sep, sep+u'media')
         for place in places:
             if os.path.isdir(place):
                 for directory in next(os.walk(place))[1]:
-                    drives.append((place + os.path.sep + directory + os.path.sep, directory))
+                    drives.append((place+sep+directory+sep, directory))
     elif platform == 'macosx' or platform == 'ios':
-        drives.append((os.path.expanduser(u'~') + os.path.sep, 'Home'))
-        vol = os.path.sep + u'Volume'
+        drives.append((os.path.expanduser(u'~')+sep, 'Home'))
+        vol = sep+u'Volume'
         if os.path.isdir(vol):
             for drive in next(os.walk(vol))[1]:
-                drives.append((vol + os.path.sep + drive + os.path.sep, drive))
+                drives.append((vol+sep+drive+sep, drive))
     elif platform == 'android':
         paths = [
             ('/', 'Root'),
@@ -174,7 +178,7 @@ def get_drives():
             paths.append((secondary_ext_storage, 'Secondary Storage'))
 
         for path in paths:
-            realpath = os.path.realpath(path[0]) + os.path.sep
+            realpath = os.path.realpath(path[0])+sep
             if os.path.exists(realpath):
                 drives.append((realpath, path[1]))
 
@@ -369,7 +373,7 @@ class FileBrowser(FloatLayout):
             data.append({
                 'text': directory,
                 'fullpath': fullpath,
-                'path': fullpath + os.path.sep,
+                'path': fullpath+sep,
                 'type': 'folder',
                 'file': '',
                 'owner': self,
@@ -429,8 +433,8 @@ class FileBrowser(FloatLayout):
 
     def go_up(self, *_):
         up_path = os.path.realpath(os.path.join(self.path, '..'))
-        if not up_path.endswith(os.path.sep):
-            up_path += os.path.sep
+        if not up_path.endswith(sep):
+            up_path += sep
         if up_path == self.path:
             up_path = self.root
         self.path = up_path

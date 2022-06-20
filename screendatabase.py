@@ -1,4 +1,8 @@
 import os
+try:
+    from os.path import sep
+except:
+    from os import sep
 from shutil import move
 import threading
 from kivy.app import App
@@ -1210,9 +1214,9 @@ class DatabaseScreen(Screen):
                 newname = full_folder
                 children = root_folders
                 parent_folder = ''
-                while os.path.sep in newname:
+                while sep in newname:
                     #split the base path and the leaf paths
-                    root, leaf = newname.split(os.path.sep, 1)
+                    root, leaf = newname.split(sep, 1)
                     parent_folder = os.path.join(parent_folder, root)
 
                     #check if the root path is already in the tree
@@ -1234,8 +1238,8 @@ class DatabaseScreen(Screen):
 
         #ensure that selected folder is expanded up to
         selected_folder = self.selected
-        while os.path.sep in selected_folder:
-            selected_folder, leaf = selected_folder.rsplit(os.path.sep, 1)
+        while sep in selected_folder:
+            selected_folder, leaf = selected_folder.rsplit(sep, 1)
             if selected_folder not in self.expanded_folders:
                 self.expanded_folders.append(selected_folder)
 
@@ -1275,7 +1279,7 @@ class DatabaseScreen(Screen):
                 'expandable': expandable,
                 'expanded': is_expanded,
                 'owner': self,
-                'indent': 0 + full_folder.count(os.path.sep),
+                'indent': 0 + full_folder.count(sep),
                 'subtext': subtext,
                 'height': app.button_scale * (1.5 if subtext else 1),
                 'end': False,
@@ -1888,7 +1892,7 @@ class TransferScreen(Screen):
             removes = []
             for folder in folders:
                 for fold in folders:
-                    if folder.startswith(fold+os.path.sep):
+                    if folder.startswith(fold+sep):
                         removes.append(folder)
                         break
             reduced_folders = []
@@ -2043,9 +2047,9 @@ class TransferScreen(Screen):
                 newname = full_folder
                 children = root_folders
                 parent_folder = ''
-                while os.path.sep in newname:
+                while sep in newname:
                     #split the base path and the leaf paths
-                    root, leaf = newname.split(os.path.sep, 1)
+                    root, leaf = newname.split(sep, 1)
                     parent_folder = os.path.join(parent_folder, root)
 
                     #check if the root path is already in the tree
@@ -2094,7 +2098,7 @@ class TransferScreen(Screen):
                 'expandable': expandable,
                 'expanded': is_expanded,
                 'owner': self,
-                'indent': 1 + full_folder.count(os.path.sep),
+                'indent': 1 + full_folder.count(sep),
                 'subtext': subtext,
                 'height': app.button_scale * (1.5 if subtext else 1),
                 'end': False,

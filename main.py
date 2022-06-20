@@ -45,6 +45,10 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 import sqlite3
 import os
 os.environ['KIVY_VIDEO'] = 'ffpyplayer'
+try:
+    from os.path import sep
+except:
+    from os import sep
 from configparser import ConfigParser
 from io import BytesIO
 from shutil import copyfile
@@ -380,7 +384,7 @@ class PhotoManager(App):
         self.album_load_all()  #Load albums
         self.load_encoding_presets()
 
-        database_directory = self.data_directory+os.path.sep+'Databases'
+        database_directory = self.data_directory+sep+'Databases'
         if not os.path.exists(database_directory):
             os.makedirs(database_directory)
         self.photos_name = os.path.join(database_directory, 'photos.db')
@@ -1028,14 +1032,14 @@ class PhotoManager(App):
             configfile.set(section, 'name', name)
             configfile.set(section, 'command', command)
             configfile.set(section, 'argument', argument)
-        with open(self.data_directory+os.path.sep+'programs.ini', 'w') as config:
+        with open(self.data_directory+sep+'programs.ini', 'w') as config:
             configfile.write(config)
 
     def program_import(self):
         """Import external program presets from the config file."""
 
         self.programs = []
-        filename = self.data_directory+os.path.sep+'programs.ini'
+        filename = self.data_directory+sep+'programs.ini'
         if os.path.isfile(filename):
             configfile = ConfigParser(interpolation=None)
             configfile.read(filename)
@@ -1488,7 +1492,7 @@ class PhotoManager(App):
         """Reads the import presets from the config file and saves them to the app.imports variable."""
 
         self.imports = []
-        filename = self.data_directory+os.path.sep+'imports.ini'
+        filename = self.data_directory+sep+'imports.ini'
         if os.path.isfile(filename):
             try:
                 configfile = ConfigParser(interpolation=None)
@@ -1525,7 +1529,7 @@ class PhotoManager(App):
         """Reads the export presets from the config file and saves them to the app.exports variable."""
 
         self.exports = []
-        filename = self.data_directory+os.path.sep+'exports.ini'
+        filename = self.data_directory+sep+'exports.ini'
         if os.path.isfile(filename):
             try:
                 configfile = ConfigParser(interpolation=None)
@@ -1654,7 +1658,7 @@ class PhotoManager(App):
             configfile.set(section, 'ignore_tags', '|'.join(preset['ignore_tags']))
             configfile.set(section, 'export_videos', str(preset['export_videos']))
 
-        with open(self.data_directory+os.path.sep+'exports.ini', 'w') as config:
+        with open(self.data_directory+sep+'exports.ini', 'w') as config:
             configfile.write(config)
 
     def export_preset_remove(self, index):
@@ -1711,12 +1715,12 @@ class PhotoManager(App):
             import_from = agnostic_path('|'.join(preset['import_from']))
             configfile.set(section, 'import_from', import_from)
 
-        with open(self.data_directory+os.path.sep+'imports.ini', 'w') as config:
+        with open(self.data_directory+sep+'imports.ini', 'w') as config:
             configfile.write(config)
 
     def database_backup(self):
         """Makes a copy of the photos, folders and imported databases to a backup directory"""
-        database_directory = self.data_directory + os.path.sep + 'Databases'
+        database_directory = self.data_directory+sep+'Databases'
         database_backup_dir = os.path.join(database_directory, 'backup')
         if not os.path.exists(database_backup_dir):
             os.makedirs(database_backup_dir)
@@ -1759,7 +1763,7 @@ class PhotoManager(App):
         self.show_database_restore()
 
     def database_restore_process(self):
-        database_directory = self.data_directory + os.path.sep + 'Databases'
+        database_directory = self.data_directory+sep+'Databases'
         database_backup_dir = os.path.join(database_directory, 'backup')
 
         photos_db = os.path.join(database_directory, 'photos.db')
@@ -2020,21 +2024,21 @@ class PhotoManager(App):
         self.app_directory = app_directory
         Logger.info('App Folder: '+self.app_directory)
         if platform == 'win':
-            self.data_directory = os.getenv('APPDATA') + os.path.sep + "Snu Photo Manager"
+            self.data_directory = os.getenv('APPDATA')+sep+"Snu Photo Manager"
             if not os.path.isdir(self.data_directory):
                 os.makedirs(self.data_directory)
         elif platform == 'linux':
-            self.data_directory = os.path.expanduser('~') + os.path.sep + ".snuphotomanager"
+            self.data_directory = os.path.expanduser('~')+sep+".snuphotomanager"
             if not os.path.isdir(self.data_directory):
                 os.makedirs(self.data_directory)
         elif platform == 'macosx':
-            self.data_directory = os.path.expanduser('~') + os.path.sep + ".snuphotomanager"
+            self.data_directory = os.path.expanduser('~')+sep+".snuphotomanager"
             if not os.path.isdir(self.data_directory):
                 os.makedirs(self.data_directory)
         elif platform == 'android':
             self.data_directory = self.user_data_dir
         else:
-            self.data_directory = os.path.sep
+            self.data_directory = sep
         # __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
         #__location__ = os.path.realpath(sys.path[0])
         #if __location__.endswith('.zip'):
@@ -2049,7 +2053,7 @@ class PhotoManager(App):
         presets = self.parse_encoding_presets_file('data/encoding_presets.ini')
         self.encoding_presets = [EncodingSettings(name='Automatic')] + presets
         self.encoding_presets_extra = self.parse_encoding_presets_file('data/encoding_presets_extra.ini')
-        self.encoding_presets_user = self.parse_encoding_presets_file(self.data_directory+os.path.sep+'encoding_presets_user.ini')
+        self.encoding_presets_user = self.parse_encoding_presets_file(self.data_directory+sep+'encoding_presets_user.ini')
 
     def new_user_encoding_preset(self):
         current_preset = self.encoding_settings
@@ -2073,7 +2077,7 @@ class PhotoManager(App):
             pass
 
     def save_user_encoding_presets(self):
-        user_preset_file = self.data_directory+os.path.sep+'encoding_presets_user.ini'
+        user_preset_file = self.data_directory+sep+'encoding_presets_user.ini'
         configfile = ConfigParser(interpolation=None)
         for index, preset in enumerate(self.encoding_presets_user):
             section = preset.name
@@ -2304,7 +2308,7 @@ class PhotoManager(App):
 
         if not photoinfo[10]:
             return False, 'Could not find original file'
-        original_file = os.path.abspath(local_path(photoinfo[2])+os.path.sep+local_path(photoinfo[1])+os.path.sep+local_path(photoinfo[10]))
+        original_file = os.path.abspath(local_path(photoinfo[2])+sep+local_path(photoinfo[1])+sep+local_path(photoinfo[10]))
         current_file = os.path.abspath(os.path.join(local_path(photoinfo[2]), local_path(photoinfo[0])))
         if os.path.isfile(original_file) and original_file != current_file:
             deleted = self.delete_file(original_file)

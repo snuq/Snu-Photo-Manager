@@ -1,4 +1,8 @@
 import os
+try:
+    from os.path import sep
+except:
+    from os import sep
 from PIL import Image
 import datetime
 from shutil import copy2
@@ -1262,7 +1266,7 @@ class ExportPresetArea(GridLayout):
             self.owner.text = instance.text
 
     def filename_filter(self, string, *_):
-        remove_string = '\\/*?<>|,'.replace(os.path.sep, "")
+        remove_string = '\\/*?<>|,'.replace(sep, "")
         return "".join(i for i in string if i not in remove_string)
 
     def set_ftp_user(self, instance):

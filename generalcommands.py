@@ -1,4 +1,8 @@
 import os
+try:
+    from os.path import sep
+except:
+    from os import sep
 import math
 import time
 import datetime
@@ -309,7 +313,7 @@ def local_paths(photo_list):
 
 def local_path(path):
     """Formats a path string using separatorns appropriate for the os."""
-    return str(path.replace('/', os.path.sep))
+    return str(path.replace('/', sep))
 
 
 def local_photoinfo(photoinfo):
