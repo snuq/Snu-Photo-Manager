@@ -3636,7 +3636,7 @@ class CustomImage(KivyImage):
                 gamma = 1/((self.gamma+1)*(self.gamma+1))
             else:
                 gamma = 1
-            lut = [pow(x/(bitdepth - 1), gamma) * (bitdepth - 1) for x in range(bitdepth)]
+            lut = [int(round(pow(x/(bitdepth - 1), gamma) * (bitdepth - 1))) for x in range(bitdepth)]
             lut = lut*3
             image = image.point(lut)
             lut = None
@@ -3682,7 +3682,7 @@ class CustomImage(KivyImage):
                     print(message)
         if self.adaptive_clip > 0 and opencv:
             open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2Lab)
-            channels = cv2.split(open_cv_image)
+            channels = list(cv2.split(open_cv_image))
             clahe = cv2.createCLAHE(clipLimit=(self.adaptive_clip * 4), tileGridSize=(8, 8))
             clahe_image = clahe.apply(channels[0])
             clahe = None

@@ -649,6 +649,9 @@ class ImportingScreen(Screen):
         self.scanningpopup = None
         self.scanningpopup = None
         self.import_scanning = False
+        Clock.schedule_once(self.scanning_completed)
+
+    def scanning_completed(self, *_):
         self.update_treeview()
         self.update_photolist()
 

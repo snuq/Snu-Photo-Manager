@@ -198,7 +198,7 @@ def format_size(size):
         return str(round(size, 2))+' Bytes'
 
 
-def interpolate(start, stop, length, minimum, maximum, before=None, before_distance=1, after=None, after_distance=1, mode='linear'):
+def interpolate(start, stop, length, minimum, maximum, before=None, before_distance=1, after=None, after_distance=1, mode='linear', rounding=False):
     """Returns a list of a given length, of float values interpolated between two given values.
     Arguments:
         start: Starting Y value.
@@ -213,6 +213,7 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
             If set to None, it will be extrapolated linearly from the start and stop points.
         after_distance: Distance from the current points that the next point is.
         mode: String, the interpolation mode.  May be set to: 'linear', 'cosine', 'cubic', 'catmull'
+        rounding: if True, will round all variables in the returned list
     Returns: A list of float values.
     """
 
@@ -254,6 +255,8 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
         d = 1
     linear_y = y
     for x in range(length):
+        if rounding:
+            y = round(y)
         values.append(y)
         linear_y = linear_y + step
         if mode == 'cubic' or mode == 'catmull':

@@ -71,7 +71,7 @@ from kivy.config import Config
 Config.window_icon = "data/icon.png"
 from kivy.app import App
 from kivy.uix.widget import Widget
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from kivy.base import EventLoop
 from kivy.uix.screenmanager import ScreenManager
 from kivy.uix.screenmanager import SlideTransition, NoTransition
@@ -879,6 +879,7 @@ class PhotoManager(App):
         else:
             self.single_database = True
 
+    @mainthread
     def message(self, text, timeout=20):
         """Sets the app.infotext variable to a specific message, and clears it after a set amount of time."""
 

@@ -7453,19 +7453,19 @@ class Curves(FloatLayout):
                 next_distance = distance
                 next_y = None
             if interpolation == 'Catmull-Rom':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='catmull')
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='catmull', rounding=True)
             elif interpolation == 'Cubic':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='cubic')
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='cubic', rounding=True)
             elif interpolation == 'Cosine':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine')
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine', rounding=True)
             else:
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes)
+                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, rounding=True)
             self.curve = self.curve + ys
             x = stop_x
             index = index + 1
             previous_point = start_point
             start_point = stop_point
-        self.curve.append(self.points[-1][1] * total_bytes)
+        self.curve.append(round(self.points[-1][1] * total_bytes))
 
     def near_x(self, first, second):
         """Check if two points on the x axis are near each other using self.touch_range.
