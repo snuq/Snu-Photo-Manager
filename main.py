@@ -3034,10 +3034,18 @@ class PhotoManager(App):
                 return possible_matches[0]
         return None
 
+    @mainthread
+    def enable_database_scanning(self, *_):
+        self.database_scanning = True
+
+    @mainthread
+    def disable_database_scanning(self, *_):
+        self.database_scanning = False
+
     def database_import_files(self):
         """Database scanning thread, checks for new files in the database directories and adds them to the database."""
 
-        self.database_scanning = True
+        self.enable_database_scanning()
         self.database_update_text = 'Rescanning Database, Building Folder List'
         databases = self.get_database_directories()
         update_folders = []
@@ -3107,7 +3115,7 @@ class PhotoManager(App):
         self.update_photoinfo(folders=update_folders)
         if self.cancel_scanning:
             self.database_update_text = "Canceled database update."
-        self.database_scanning = False
+        self.disable_database_scanning()
         Clock.schedule_once(self.clear_database_update_text, 20)
         if self.screen_manager.current == 'database':
             self.database_screen.update_folders = True

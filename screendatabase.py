@@ -38,15 +38,15 @@ Builder.load_string("""
                 disabled: app.database_scanning
             NormalButton:
                 size_hint_x: None
-                width: self.texture_size[0] + 20 if not app.database_scanning else 0
-                opacity: 0 if app.database_scanning else 1
+                width: 0 if self.disabled else self.texture_size[0] + 20
+                opacity: 0 if self.disabled else 1
                 text: '  Update Database  '
                 on_release: app.database_rescan()
                 disabled: app.database_scanning
             NormalButton:
                 size_hint_x: None
-                width: self.texture_size[0] + 20 if app.database_scanning else 0
-                opacity: 1 if app.database_scanning else 0
+                width: 0 if self.disabled else self.texture_size[0] + 20
+                opacity: 0 if self.disabled else 1
                 text: '  Cancel Database Scan  '
                 on_release: app.cancel_database_import()
                 disabled: not app.database_scanning
