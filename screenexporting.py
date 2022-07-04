@@ -881,7 +881,14 @@ class ExportScreen(Screen):
             else:
                 save_location = preset['export_folder']
             if not os.path.exists(save_location):
-                os.makedirs(save_location)
+                try:
+                    os.makedirs(save_location)
+                except:
+                    self.popup.scanning_text = 'Export Failed, unable to open export folder'
+                    scanning_button = self.popup.ids['scanningButton']
+                    scanning_button.text = 'OK'
+                    scanning_button.bind(on_release=self.finish_export)
+                    return
             if preset['export_info']:
                 app.save_photoinfo(self.target, save_location, self.type.lower(), photos=photos, newnames=export_photos)
             self.total_export = 0
