@@ -3150,11 +3150,14 @@ class ConversionScreen(Screen):
 
     def read_stdout_thread(self):
         #Thread that continuously reads the encoding process stdout, so things dont get blocked when lines are blank
-        for line in self.encoding_process_thread.stdout:
-            if self.cancel_encoding:
-                return
-            if line:
-                self.append_log(line.strip())
+        try:
+            for line in self.encoding_process_thread.stdout:
+                if self.cancel_encoding:
+                    return
+                if line:
+                    self.append_log(line.strip())
+        except:
+            self.append_log("Encoding process was shut down.")
 
     def clear_log(self):
         self.encode_log = []

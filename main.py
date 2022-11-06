@@ -15,12 +15,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    Apply rotations on edit
     Update readme - add some gifs/screenshots
     Remove albums functionality entirely (no need for it with tags?)
     Video editor:
-        implement encoding preview (encodes a very short test with current settings, then shows it next to original)
-        Implement a side-by-side conversion preview (test renders a second of video) in the video editor screen
         add ability to play back video with audio for easier selecting the in/out
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to
