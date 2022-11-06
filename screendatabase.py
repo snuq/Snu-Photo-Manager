@@ -934,13 +934,13 @@ class DatabaseScreen(Screen):
 
         if answer == "yes":
             if instance is not None:
-                tag_name = instance.ids['input'].text.lower().strip(' ')
+                tag_name = instance.ids['input'].text.strip(' ')
                 if not tag_name:
                     self.dismiss_popup()
                     return
             else:
                 tag_input = self.ids['newTag']
-                tag_name = tag_input.text.lower().strip(' ')
+                tag_name = tag_input.text.strip(' ')
                 tag_input.text = ''
             app = App.get_running_app()
             app.tag_make(tag_name)

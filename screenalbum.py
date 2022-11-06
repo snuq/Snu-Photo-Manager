@@ -4977,7 +4977,7 @@ class AlbumScreen(ConversionScreen):
         app.database_remove_tag(remove_from, tag_name, message=True)
         self.update_photoinfo_from_database()
         self.update_tags()
-        if tag_name == 'favorite':
+        if tag_name.lower() == 'favorite':
             self.update_treeview()
 
     def add_to_tag(self, tag_name):
@@ -4992,7 +4992,7 @@ class AlbumScreen(ConversionScreen):
             app.database_add_tag(self.fullpath, tag_name)
             self.update_photoinfo_from_database()
             self.update_tags()
-            if tag_name == 'favorite':
+            if tag_name.lower() == 'favorite':
                 self.update_treeview()
 
     def can_add_tag(self, tag_name):
@@ -5003,9 +5003,9 @@ class AlbumScreen(ConversionScreen):
         """
 
         app = App.get_running_app()
-        tags = app.tags
+        tags = [tag.lower() for tag in app.tags]
         tag_name = tag_name.lower().strip(' ')
-        if tag_name and (tag_name not in tags) and (tag_name.lower() != 'favorite'):
+        if tag_name and (tag_name not in tags) and (tag_name != 'favorite'):
             return True
         else:
             return False
@@ -5016,7 +5016,7 @@ class AlbumScreen(ConversionScreen):
         app = App.get_running_app()
         tag_input = self.ids['newTag']
         tag_name = tag_input.text
-        tag_name = tag_name.lower().strip(' ')
+        tag_name = tag_name.strip(' ')
         app.tag_make(tag_name)
         tag_input.text = ''
         self.update_tags()

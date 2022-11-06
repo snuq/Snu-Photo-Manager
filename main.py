@@ -1837,7 +1837,7 @@ class PhotoManager(App):
             tag_name: String, name of the tag to create.
         """
 
-        tag_name = tag_name.lower().strip(' ')
+        tag_name = tag_name.strip(' ')
         tag_filename = tag_name + '.tag'
         filename = os.path.join(self.tag_directory, tag_filename)
         if not os.path.isfile(filename) and tag_name != 'favorite':
@@ -2111,7 +2111,7 @@ class PhotoManager(App):
         Argument:
             tag: String, the tag to be deleted."""
 
-        tag = tag.lower()
+        tag = tag
         tag_file = os.path.join(self.tag_directory, tag+'.tag')
         if os.path.isfile(tag_file):
             os.remove(tag_file)
@@ -2206,7 +2206,7 @@ class PhotoManager(App):
         info = list(info)
         if info:
             info = list(info[0])
-            current_tags = info[8].split(',')
+            current_tags = info[8].lower().split(',')
             if tag in current_tags:
                 current_tags.remove(tag)
                 new_tags = ",".join(current_tags)
@@ -2229,7 +2229,7 @@ class PhotoManager(App):
         info = list(info)
         if info:
             info = list(info[0])
-            tags_unformatted = info[8].strip(' ')
+            tags_unformatted = info[8].lower().strip(' ')
             original_tags = tags_unformatted.split(',')
             if tag in original_tags:
                 original_tags.remove(tag)
@@ -2258,7 +2258,7 @@ class PhotoManager(App):
             update = False
             for original in original_tags:
                 if original.strip(' '):
-                    current_tags.append(original)
+                    current_tags.append(original.lower())
                 else:
                     update = True
             if tag not in current_tags:
@@ -3290,7 +3290,7 @@ class PhotoManager(App):
         Returns: A string.
         """
 
-        return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;,").lower()
+        return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;,")
 
     def new_description(self, description_editor, root, folder, title_type):
         """Update the description of a folder.
