@@ -415,7 +415,7 @@ class DatabaseScreen(Screen):
     """Screen layout for the main photo database."""
 
     #Display variables
-    type = StringProperty('folder')  #Currently selected type: folder, album, tag
+    type = StringProperty('folder')  #Currently selected type: folder, tag
     selected = StringProperty('')  #Currently selected album in the database, may be blank
     photos = []  #List of photo infos in the currently displayed album
 
@@ -435,7 +435,6 @@ class DatabaseScreen(Screen):
     tag_menu = ObjectProperty()
     album_menu = ObjectProperty()
     album_exports = ObjectProperty()
-    expanded_albums = BooleanProperty(True)
     expanded_tags = BooleanProperty(True)
     expanded_folders = []
     update_folders = True
@@ -507,10 +506,7 @@ class DatabaseScreen(Screen):
             self.search_refresh = Clock.schedule_once(self.update_treeview, 0.5)
 
     def add_item(self, *_):
-        if self.type == 'Album':
-            self.new_album()
-
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             self.new_tag()
 
         elif self.type == 'Folder':
@@ -519,10 +515,7 @@ class DatabaseScreen(Screen):
             pass
 
     def rename_item(self, *_):
-        if self.type == 'Album':
-            pass
-
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             pass
 
         elif self.type == 'Folder':
@@ -531,10 +524,7 @@ class DatabaseScreen(Screen):
             pass
 
     def delete_item(self, *_):
-        if self.type == 'Album':
-            self.delete_folder()
-
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             self.delete_folder()
 
         elif self.type == 'Folder':
@@ -745,10 +735,7 @@ class DatabaseScreen(Screen):
         Dialog will call 'delete_selected_answer' on close.
         """
 
-        if self.type == 'Album':
-            action_text = 'Remove Selected Files From The Album "'+self.selected+'"?'
-            content = ConfirmPopup(text='The files will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             action_text = 'Remove The Tag "'+self.selected+'" From Selected Files?'
             content = ConfirmPopup(text='The files will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         else:
@@ -777,13 +764,7 @@ class DatabaseScreen(Screen):
                 selected_files.append([photo[0], full_filename])
 
             #decide what to do with the photos
-            if self.type == 'Album':
-                index = app.album_find(self.selected)
-                if index >= 0:
-                    for photo in selected_files:
-                        app.album_remove_photo(index, photo[0])
-                    app.message("Removed "+str(len(selected_files))+" Files from the album '"+self.selected+"'")
-            elif self.type == 'Tag':
+            if self.type == 'Tag':
                 for photo in selected_files:
                     app.database_remove_tag(photo[0], self.selected, message=True)
                 app.message("Removed the tag '"+self.selected+"' from "+str(len(selected_files))+" Files.")
@@ -853,9 +834,7 @@ class DatabaseScreen(Screen):
                             if app.database_scanning:
                                 app.popup_message("Scanning database, can't move photo(s).", title='Warning')
                                 return
-                            if widget.type == 'Album':
-                                self.add_to_album(widget.target, selected_photos=selected_photos)
-                            elif widget.type == 'Tag':
+                            if widget.type == 'Tag':
                                 self.add_to_tag(widget.target, selected_photos=selected_photos)
                             elif widget.type == 'Folder':
                                 content = ConfirmPopup(text='Move These Files To "'+widget.target+'"?', yes_text="Move", no_text="Don't Move", warn_yes=True)
@@ -905,33 +884,6 @@ class DatabaseScreen(Screen):
             self.photos_selected = True
         else:
             self.photos_selected = False
-
-    def add_to_album(self, album_name, selected_photos=None):
-        """Adds the current selected photos to an album.
-        Arguments:
-            album_name: String, album to move the photos into.
-            selected_photos: List of selected photo data.
-        """
-
-        if not selected_photos:
-            selected_photos = self.get_selected_photos(fullpath=True)
-        app = App.get_running_app()
-        added = 0
-        for album in app.albums:
-            if album['name'] == album_name:
-                for photo in selected_photos:
-                    if photo not in album['photos']:
-                        album['photos'].append(photo)
-                        added = added + 1
-                app.album_save(album)
-        self.select_none()
-        if added:
-            app.message("Added "+str(added)+" files to the album '"+album_name+"'")
-        self.update_treeview()
-
-    def add_to_album_menu(self, instance):
-        self.add_to_album(instance.text)
-        self.album_menu.dismiss()
 
     def add_to_tag(self, tag_name, selected_photos=None):
         """Adds a tag to the currently selected photos.
@@ -992,41 +944,6 @@ class DatabaseScreen(Screen):
                 tag_input.text = ''
             app = App.get_running_app()
             app.tag_make(tag_name)
-            self.update_treeview()
-        self.dismiss_popup()
-
-    def can_add_album(self, album_name):
-        """Checks if a new album can be created.
-        Argument:
-            album_name: The album name to check.
-        Returns: True or False.
-        """
-
-        app = App.get_running_app()
-        albums = app.albums
-        album_name = album_name.strip(' ')
-        if not album_name:
-            return False
-        for album in albums:
-            if album['name'].lower() == album_name.lower():
-                return False
-        return True
-
-    def add_album(self, instance=None, answer="yes"):
-        """Adds the current input album to the app albums."""
-
-        if answer == 'yes':
-            if instance is not None:
-                album = instance.ids['input'].text.strip(' ')
-                if not album:
-                    self.dismiss_popup()
-                    return
-            else:
-                album_input = self.ids['newAlbum']
-                album = album_input.text
-                album_input.text = ''
-            app = App.get_running_app()
-            app.album_make(album, '')
             self.update_treeview()
         self.dismiss_popup()
 
@@ -1129,60 +1046,6 @@ class DatabaseScreen(Screen):
                 data.append(tag_item)
         data[-1]['end'] = True
         data[-1]['height'] = data[-1]['height'] + int(app.button_scale * 0.1)
-
-        if len(app.albums) > 0:
-            #add the albums tree item
-            albums = sorted(app.albums, key=lambda x: x['name'])
-            expandable_albums = True if len(albums) > 0 else False
-            album_root = {
-                'fullpath': 'Albums',
-                'folder_name': 'Albums',
-                'target': 'Albums',
-                'type': 'Album',
-                'total_photos': '',
-                'displayable': False,
-                'expandable': expandable_albums,
-                'expanded': True if (self.expanded_albums and expandable_albums) else False,
-                'owner': self,
-                'indent': 0,
-                'subtext': '',
-                'height': app.button_scale,
-                'end': False,
-                'dragable': False,
-                'selected': False
-            }
-            data.append(album_root)
-            self.album_menu.clear_widgets()
-            for album in albums:
-                total_photos = len(album['photos'])
-                menu_button = MenuButton(text=album['name'])
-                menu_button.bind(on_release=self.add_to_album_menu)
-                self.album_menu.add_widget(menu_button)
-                if self.expanded_albums:
-                    if total_photos > 0:
-                        total_photos_text = '('+str(total_photos)+')'
-                    else:
-                        total_photos_text = ''
-                    album_item = {
-                        'fullpath': album['name'],
-                        'folder_name': album['name'],
-                        'total_photos': total_photos_text,
-                        'total_photos_numeric': total_photos,
-                        'target': album['name'],
-                        'type': 'Album',
-                        'displayable': True,
-                        'expandable': False,
-                        'owner': self,
-                        'indent': 1,
-                        'subtext': '',
-                        'height': app.button_scale,
-                        'end': False,
-                        'dragable': False,
-                        'selected': False
-                    }
-                    data.append(album_item)
-            data[-1]['end'] = True
-            data[-1]['height'] = data[-1]['height'] + int(app.button_scale * 0.1)
 
         #Get and sort folder list
         all_folders = self.get_folders()
@@ -1373,15 +1236,6 @@ class DatabaseScreen(Screen):
         self.popup = NormalPopup(title='Create A New Tag', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
         self.popup.open()
 
-    def new_album(self):
-        """Starts the new album process, creates an input text popup."""
-
-        content = InputPopup(hint='Album Name', text='Enter An Album Name:', yes_text='Create', no_text="Don't Create")
-        app = App.get_running_app()
-        content.bind(on_answer=self.add_album)
-        self.popup = NormalPopup(title='Create A New Album', content=content, size_hint=(None, None), size=(app.popup_x, app.button_scale * 5), auto_dismiss=False)
-        self.popup.open()
-
     def add_folder(self):
         """Starts the add folder process, creates an input text popup."""
 
@@ -1432,11 +1286,7 @@ class DatabaseScreen(Screen):
             app = App.get_running_app()
             delete_type = self.type
             delete_item = self.selected
-            if delete_type == 'Album':
-                album_index = app.album_find(delete_item)
-                if album_index >= 0:
-                    app.album_delete(album_index)
-            elif delete_type == 'Tag':
+            if delete_type == 'Tag':
                 app.remove_tag(delete_item)
             elif delete_type == 'Folder':
                 app.delete_folder(delete_item)
@@ -1499,33 +1349,14 @@ class DatabaseScreen(Screen):
                 folder_path.text = ''
                 delete_button.text = 'Delete Selected'
                 self.data = []
-                if self.type == 'Album':
-                    operation_label.text = 'Album:'
-                elif self.type == 'Tag':
+                if self.type == 'Tag':
                     operation_label.text = 'Tag:'
                 elif self.type == 'Folder':
                     operation_label.text = 'Folder:'
             else:
                 #Something is selected
                 self.can_delete_folder = True
-                if self.type == 'Album':
-                    operation_label.text = 'Album:'
-                    self.can_rename_folder = False
-                    self.details = AlbumDetails(owner=self, selected=self.selected, type=self.type)
-                    folder_details.add_widget(self.details)
-                    delete_button.text = 'Remove Selected'
-                    folder_title_type.text = 'Album: '
-                    folder_path.text = self.selected
-                    for albuminfo in app.albums:
-                        if albuminfo['name'] == self.selected:
-                            folder_description = self.details.ids['albumDescription']
-                            folder_description.text = albuminfo['description']
-                            photo_paths = albuminfo['photos']
-                            for fullpath in photo_paths:
-                                photoinfo = app.database_exists(fullpath)
-                                if photoinfo:
-                                    photos.append(photoinfo)
-                elif self.type == 'Tag':
+                if self.type == 'Tag':
                     operation_label.text = 'Tag:'
                     self.can_rename_folder = False
                     if self.selected == 'favorite':

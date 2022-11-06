@@ -16,7 +16,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 Todo before 1.0:
     Update readme - add some gifs/screenshots
-    Remove albums functionality entirely (no need for it with tags?)
     Video editor:
         add ability to play back video with audio for easier selecting the in/out
     Need to think of a way to divide up years abstractly
@@ -227,9 +226,8 @@ class PhotoManager(App):
     #Display variables
     photosinfo = ListProperty()  #List of all photoinfo from currently displayed photos
     photoinfo = ListProperty()  #Photoinfo list for the currently selected/viewed photo
-    folder_type = StringProperty('folder')  #Currently selected type: folder, album, tag
-    folder_path = StringProperty('')  #The current folder/album/tag being displayed
-    folder_name = StringProperty()  #The identifier of the album/folder/tag that is being viewed
+    folder_path = StringProperty('')  #The current folder/tag being displayed
+    folder_name = StringProperty()  #The identifier of the folder/tag that is being viewed
 
     mipmap = BooleanProperty(False)
     app_directory = ''
@@ -275,12 +273,7 @@ class PhotoManager(App):
     interpolation = StringProperty('Catmull-Rom')  #Interpolation mode of the curves dialog.
     fullpath = StringProperty()
     database_scanning = BooleanProperty(False)
-    database_sort = StringProperty('')
-    album_sort = StringProperty('')
-    database_sort_reverse = BooleanProperty(False)
-    album_sort_reverse = BooleanProperty(False)
     thumbsize = 256  #Size in pixels of the long side of any generated thumbnails
-    album_directory = 'Albums'  #Directory name to look in for album files
     tag_directory = 'Tags'  #Directory name to look in for tag files
     settings_cls = PhotoManagerSettings
     target = StringProperty()
@@ -288,7 +281,6 @@ class PhotoManager(App):
     photo = StringProperty('')
     imports = []
     exports = []
-    albums = []
     tags = []
     programs = []
     shift_pressed = BooleanProperty(False)
@@ -370,7 +362,6 @@ class PhotoManager(App):
         self.simple_interface = to_bool(self.config.get("Settings", "simpleinterface"))
         #Load data
         self.tag_directory = os.path.join(self.data_directory, 'Tags')
-        self.album_directory = os.path.join(self.data_directory, 'Albums')
         about_file = open(kivy.resources.resource_find('about.txt'), 'r')
         self.about_text = about_file.read()
         about_file.close()
@@ -378,7 +369,6 @@ class PhotoManager(App):
         self.setup_import_presets()  #Load import presets
         self.setup_export_presets()  #Load export presets
         self.tags_load()  #Load tags
-        self.album_load_all()  #Load albums
         self.load_encoding_presets()
 
         database_directory = self.data_directory+sep+'Databases'
@@ -1050,11 +1040,11 @@ class PhotoManager(App):
                 self.programs.append([name, command, argument])
 
     def save_photoinfo(self, target, save_location, container_type='folder', photos=list(), newnames=False):
-        """Save relavent photoinfo files for a folder, album, tag, or specified photos.
+        """Save relavent photoinfo files for a folder, tag, or specified photos.
         Arguments:
             target: String, database identifier for the path where the photos are.
             save_location: String, full absolute path to the folder where the photoinfo file should be saved.
-            container_type: String, defaults to 'folder', may be folder, album or tag.
+            container_type: String, defaults to 'folder', may be folder or tag.
             photos: Optional, List of photoinfo objects to save the photoinfo for.
             newnames:
         """
@@ -1069,13 +1059,6 @@ class PhotoManager(App):
             if container_type == 'tag':
                 photos = self.database_get_tag(target)
                 title = "Photos tagged as '"+target+"'"
-            elif container_type == 'album':
-                index = self.album_find(target)
-                if index >= 0:
-                    album_info = self.albums[index]
-                    photos = album_info['photos']
-                    title = album_info['name']
-                    description = album_info['description']
             elif container_type == 'folder':
                 folder_info = self.database_folder_exists(target)
                 if folder_info:
@@ -1835,32 +1818,6 @@ class PhotoManager(App):
         if not restore and self.config.getboolean("Settings", "backupdatabase"):
             self.database_backup()
 
-    def album_load_all(self):
-        """Scans the album directory, and tries to load all album .ini files into the app.albums variable."""
-
-        self.albums = []
-        album_directory = self.album_directory
-        if not os.path.exists(album_directory):
-            os.makedirs(album_directory)
-        album_directory_contents = os.listdir(album_directory)
-        for item in album_directory_contents:
-            if os.path.splitext(item)[1] == '.ini':
-                try:
-                    configfile = ConfigParser(interpolation=None)
-                    configfile.read(os.path.join(album_directory, item))
-                    info = dict(configfile.items('info'))
-                    album_name = info['name']
-                    album_description = info['description']
-                    elements = configfile.items('photos')
-                    photos = []
-                    for element in elements:
-                        photo_path = local_path(element[1])
-                        if self.database_exists(photo_path):
-                            photos.append(photo_path)
-                    self.albums.append({'name': album_name, 'description': album_description, 'file': item, 'photos': photos})
-                except:
-                    pass
-
     def tags_load(self):
         """Scans the tags directory and loads saved tags into the app.tags variable."""
 
@@ -1886,103 +1843,6 @@ class PhotoManager(App):
         if not os.path.isfile(filename) and tag_name != 'favorite':
             self.tags.append(tag_name)
             open(filename, 'a').close()
-
-    def album_make(self, album_name, album_description=''):
-        """Create a new album file.
-        Arguments:
-            album_name: String, name of the album.
-            album_description: String, description of album, optional.
-        """
-
-        exists = False
-        for album in self.albums:
-            if album['name'].lower() == album_name.lower():
-                exists = True
-        if not exists:
-            album_filename = album_name + '.ini'
-            self.albums.append({'name': album_name, 'description': album_description, 'file': album_filename, 'photos': []})
-            self.album_save(self.albums[-1])
-
-    def album_delete(self, index):
-        """Deletes an album.
-        Argument:
-            index: Integer, index of album to delete."""
-
-        filename = os.path.join(self.album_directory, self.albums[index]['file'])
-        if os.path.isfile(filename):
-            os.remove(filename)
-        album_name = self.albums[index]['name']
-        del self.albums[index]
-        self.message("Deleted the album '"+album_name+"'")
-
-    def album_find(self, album_name):
-        """Find an album with a given name.
-        Argument:
-            album_name: Album name to get.
-        Returns: Integer, index of album or -1 if not found.
-        """
-
-        for index, album in enumerate(self.albums):
-            if album['name'] == album_name:
-                return index
-        return -1
-
-    def album_update_description(self, index, description):
-        """Update the description field for a specific album.
-        Arguments:
-            index: Integer, index of album to update.
-            description: String, new description text.
-        """
-
-        self.albums[index]['description'] = description
-        self.album_save(self.albums[index])
-
-    def album_save(self, album):
-        """Saves an album data file.
-        Argument:
-            album: Dictionary containing album information:
-                file: String, filename of the album (with extension)
-                name: String, name of the album.
-                description: String, description of the album.
-                photos: List of Strings, each is a database-relative filepath to a photo in the album.
-        """
-
-        configfile = ConfigParser(interpolation=None)
-        filename = os.path.join(self.album_directory, album['file'])
-        configfile.add_section('info')
-        configfile.set('info', 'name', album['name'])
-        configfile.set('info', 'description', album['description'])
-        configfile.add_section('photos')
-        for index, photo in enumerate(album['photos']):
-            configfile.set('photos', str(index), agnostic_path(photo))
-        with open(filename, 'w') as config:
-            configfile.write(config)
-
-    def album_add_photo(self, index, photo):
-        """Add a photo to an album.
-        Arguments:
-            index: Integer, index of the album to update.
-            photo: String, database-relative path to the new photo.
-        """
-
-        self.albums[index]['photos'].append(photo)
-        self.album_save(self.albums[index])
-
-    def album_remove_photo(self, index, fullpath, message=False):
-        """Find and remove a photo from an album.
-        Arguments:
-            index: Integer, index of the album to update.
-            fullpath: String, database-relative path to the photo to remove.
-            message: Show an app message stating the photo was removed.
-        """
-
-        album = self.albums[index]
-        photos = album['photos']
-        if fullpath in photos:
-            photos.remove(fullpath)
-            self.album_save(album)
-            if message:
-                self.message("Removed photo from the album '"+album['name']+"'")
 
     def left_panel_width(self):
         """Returns the saved width for the left panel.
@@ -3433,7 +3293,7 @@ class PhotoManager(App):
         return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;,").lower()
 
     def new_description(self, description_editor, root, folder, title_type):
-        """Update the description of a folder or album.
+        """Update the description of a folder.
         Arguments:
             description_editor: Widget, the text input object that was edited.
             root: The screen that owns the text input widget.  Has information about the folder or album being edited.
@@ -3445,10 +3305,6 @@ class PhotoManager(App):
                 self.database_folder_update_description(folder, description)
                 self.folders.commit()
                 self.update_photoinfo(folders=[folder])
-            elif title_type == 'Album':
-                index = self.album_find(folder)
-                if index >= 0:
-                    self.album_update_description(index, description)
 
     def new_title(self, title_editor, root, folder, title_type):
         """Update the title of a folder or album.

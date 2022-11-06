@@ -568,15 +568,7 @@ class ExportScreen(Screen):
 
         #Get photos
         self.photos = []
-        if self.type == 'Album':
-            for albuminfo in app.albums:
-                if albuminfo['name'] == self.target:
-                    photo_paths = albuminfo['photos']
-                    for fullpath in photo_paths:
-                        photoinfo = app.database_exists(fullpath)
-                        if photoinfo:
-                            self.photos.append(photoinfo)
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             self.photos = app.database_get_tag(self.target)
         else:
             self.photos = app.database_get_folder(self.target)

@@ -1885,11 +1885,6 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
                 if fullpath:
                     photos = app.database_get_folder(data['fullpath'])
                     self.total_photos_numeric = len(photos)
-            elif photo_type == 'Album':
-                for album in app.albums:
-                    if album['name'] == data['target']:
-                        self.total_photos_numeric = len(album['photos'])
-                        break
             elif photo_type == 'Tag':
                 photos = app.database_get_tag(data['target'])
                 self.total_photos_numeric = len(photos)
@@ -1930,9 +1925,7 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
 
     def on_release(self):
         if self.expandable:
-            if self.type == 'Album':
-                self.owner.expanded_albums = not self.owner.expanded_albums
-            elif self.type == 'Tag':
+            if self.type == 'Tag':
                 self.owner.expanded_tags = not self.owner.expanded_tags
             elif self.type == 'Folder':
                 self.owner.toggle_expanded_folder(self.target)

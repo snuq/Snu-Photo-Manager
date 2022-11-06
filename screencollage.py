@@ -709,9 +709,9 @@ class GridCollage5(GridCollage):
 
 class CollageScreen(Screen):
     #Display variables
-    selected = StringProperty('')  #The current folder/album/tag being displayed
-    type = StringProperty('None')  #'Folder', 'Album', 'Tag'
-    target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
+    selected = StringProperty('')  #The current folder/tag being displayed
+    type = StringProperty('None')  #'Folder', 'Tag'
+    target = StringProperty()  #The identifier of the folder/tag that is being viewed
     photos = []  #Photoinfo of all photos in the album
     collage_type = StringProperty('Pile')
 
@@ -1011,15 +1011,7 @@ class CollageScreen(Screen):
 
         #Get photo list
         self.photos = []
-        if self.type == 'Album':
-            for albuminfo in app.albums:
-                if albuminfo['name'] == self.target:
-                    photo_paths = albuminfo['photos']
-                    for fullpath in photo_paths:
-                        photoinfo = app.database_exists(fullpath)
-                        if photoinfo:
-                            self.photos.append(photoinfo)
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             self.photos = app.database_get_tag(self.target)
         else:
             self.photos = app.database_get_folder(self.target)

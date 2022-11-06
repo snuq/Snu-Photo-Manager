@@ -2368,9 +2368,6 @@ Builder.load_string("""
 <TagSelectButton>:
     size_hint_x: 1
 
-<AlbumSelectButton>:
-    size_hint_x: 1
-
 <BatchPhoto>:
     canvas.after:
         Color:
@@ -2632,7 +2629,7 @@ class CoreVideo(KivyCoreVideo):
 class ConversionScreen(Screen):
     #Display variables
     selected = StringProperty('')  #The current folder/album/tag being displayed
-    type = StringProperty('None')  #'Folder', 'Album', 'Tag'
+    type = StringProperty('None')  #'Folder', 'Tag'
     target = StringProperty()  #The identifier of the album/folder/tag that is being viewed
     photos = []  #Photoinfo of all photos in the album
     photoinfo = []  #photoinfo for the currently viewed photo
@@ -4916,10 +4913,7 @@ class AlbumScreen(ConversionScreen):
     def delete_selected_confirm(self):
         """Creates a delete confirmation popup and opens it."""
 
-        if self.type == 'Album':
-            action_text = 'Remove This Photo From The Album "'+self.target+'"?'
-            content = ConfirmPopup(text='The photo will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             action_text = 'Remove The Tag "'+self.target+'" From Selected Photo?'
             content = ConfirmPopup(text='The photo will remain in the database and on the disk.', yes_text='Remove', no_text="Don't Remove", warn_yes=True)
         else:
@@ -4943,12 +4937,7 @@ class AlbumScreen(ConversionScreen):
             self.viewer.stop()
             fullpath = self.fullpath
             filename = self.photo
-            if self.type == 'Album':
-                index = app.album_find(self.target)
-                if index >= 0:
-                    app.album_remove_photo(index, fullpath, message=True)
-                deleted = True
-            elif self.type == 'Tag':
+            if self.type == 'Tag':
                 app.database_remove_tag(fullpath, self.target, message=True)
                 deleted = True
             else:
@@ -5192,16 +5181,7 @@ class AlbumScreen(ConversionScreen):
 
         #Get photo list
         self.photos = []
-        if self.type == 'Album':
-            self.folder_title = 'Album: "'+self.target+'"'
-            for albuminfo in app.albums:
-                if albuminfo['name'] == self.target:
-                    photo_paths = albuminfo['photos']
-                    for fullpath in photo_paths:
-                        photoinfo = app.database_exists(fullpath)
-                        if photoinfo:
-                            self.photos.append(photoinfo)
-        elif self.type == 'Tag':
+        if self.type == 'Tag':
             self.folder_title = 'Tagged As: "'+self.target+'"'
             self.photos = app.database_get_tag(self.target)
         else:
@@ -7738,18 +7718,6 @@ class TagSelectButton(WideButton):
 
     def on_press(self):
         self.owner.add_to_tag(self.target)
-
-
-class AlbumSelectButton(WideButton):
-    """Album display button - used for adding a photo to an album."""
-
-    remove = False
-    target = StringProperty()
-    type = StringProperty('None')
-    owner = ObjectProperty()
-
-    def on_press(self):
-        self.owner.add_to_album(self.target)
 
 
 class RemoveFromTagButton(RemoveButton):

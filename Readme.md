@@ -18,7 +18,7 @@ Watch the demo video:
 
 
 ## Some features that are implemented:  
-* Photo and video database with folders, albums, tags and favorites.  
+* Photo and video database with folders, tags and favorites.  
 * Multiple database support (folders), ability to transfer between databases (for archival purposes).  
 * Importing from multiple sources at once.  
 * Drag-n-drop organization.  
