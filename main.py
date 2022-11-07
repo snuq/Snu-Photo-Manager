@@ -20,7 +20,9 @@ Todo before 1.0:
         add ability to play back video with audio for easier selecting the in/out
     Need to think of a way to divide up years abstractly
         Maybe manually added 'markers' that can be jumped to
-        Maybe add import to year subfolders option
+        Maybe add 'pages' somehow
+            maybe button at bottom that shows 'More albums (number)'
+            maybe buttons next to database scroller that show starting/ending folder names - clicking them reloads scroller with that group
 
 Bugs:
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors

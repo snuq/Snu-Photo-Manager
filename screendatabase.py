@@ -677,7 +677,7 @@ class DatabaseScreen(Screen):
         database = self.ids['database']
         selected = self.selected
         data = database.data
-        current_index = None
+        current_index = 0
         for i, node in enumerate(data):
             if node['target'] == selected and node['type'] == self.type:
                 current_index = i
