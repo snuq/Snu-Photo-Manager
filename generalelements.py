@@ -1856,11 +1856,11 @@ class RecycleTreeViewButton(ButtonBehavior, RecycleItem):
     """
 
     displayable = BooleanProperty(True)
-    target = StringProperty()  #Folder, Album, or Tag
+    target = StringProperty()  #Folder or Tag
     fullpath = StringProperty()  #Folder name, used only on folder type targets
     folder = StringProperty()
     database_folder = StringProperty()
-    type = StringProperty()  #The type the target is: folder, album, tag, extra
+    type = StringProperty()  #The type the target is: folder, tag, extra
     total_photos = StringProperty()
     folder_name = StringProperty()
     subtext = StringProperty()
@@ -2394,11 +2394,11 @@ class TreeViewButton(ButtonBehavior, BoxLayout, TreeViewNode):
     """
 
     displayable = BooleanProperty(True)
-    target = StringProperty()  #Folder, Album, or Tag
+    target = StringProperty()  #Folder, or Tag
     fullpath = StringProperty()  #Folder name, used only on folder type targets
     folder = StringProperty()
     database_folder = StringProperty()
-    type = StringProperty()  #The type the target is: folder, album, tag, extra
+    type = StringProperty()  #The type the target is: folder, tag, extra
     total_photos = StringProperty()
     folder_name = StringProperty()
     subtext = StringProperty()

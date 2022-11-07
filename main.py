@@ -1840,9 +1840,31 @@ class PhotoManager(App):
         tag_name = tag_name.strip(' ')
         tag_filename = tag_name + '.tag'
         filename = os.path.join(self.tag_directory, tag_filename)
-        if not os.path.isfile(filename) and tag_name != 'favorite':
+        if not os.path.isfile(filename) and tag_name.lower() != 'favorite':
             self.tags.append(tag_name)
             open(filename, 'a').close()
+
+    def tag_load_description(self, tag_name):
+        tag_filename = tag_name + '.tag'
+        filename = os.path.join(self.tag_directory, tag_filename)
+        try:
+            tag_file = open(filename, "r")
+            tag_data = tag_file.read()
+            tag_file.close()
+            return tag_data
+        except:
+            return ''
+
+    def tag_save_description(self, tag_name, description):
+        tag_filename = tag_name + '.tag'
+        filename = os.path.join(self.tag_directory, tag_filename)
+        try:
+            tag_file = open(filename, "w")
+            tag_file.write(description)
+            tag_file.close()
+            return True
+        except:
+            return False
 
     def left_panel_width(self):
         """Returns the saved width for the left panel.
@@ -3305,6 +3327,10 @@ class PhotoManager(App):
                 self.database_folder_update_description(folder, description)
                 self.folders.commit()
                 self.update_photoinfo(folders=[folder])
+            elif title_type == 'Tag':
+                saved = self.tag_save_description(folder, description)
+                if not saved:
+                    self.message("Unable to save tag description")
 
     def new_title(self, title_editor, root, folder, title_type):
         """Update the title of a folder or album.

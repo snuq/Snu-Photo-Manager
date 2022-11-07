@@ -1363,6 +1363,12 @@ class DatabaseScreen(Screen):
                         #self.can_new_folder = False
                         self.can_delete_folder = False
                     delete_button.text = 'Remove Selected'
+                    if self.selected.lower() != 'favorite':
+                        self.details = AlbumDetails(owner=self, selected=self.selected, type=self.type)
+                        folder_details.add_widget(self.details)
+                        folder_description = self.details.ids['albumDescription']
+                        tag_description = app.tag_load_description(self.selected)
+                        folder_description.text = tag_description
                     folder_title_type.text = 'Tagged As: '
                     folder_path.text = self.selected
                     photos = app.database_get_tag(self.selected)
