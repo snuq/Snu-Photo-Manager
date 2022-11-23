@@ -64,7 +64,7 @@ from threading import Thread
 
 from generalcommands import find_dictionary, get_keys_from_list, interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
 from filebrowser import FileBrowser
-from generalelements import EncodingSettings, ExpandablePanel, ScrollerContainer, CustomImage, NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, LeftNormalLabel, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
+from generalelements import EncodingSettings, ExpandablePanel, ScrollerContainer, CustomImage, ImageEditor, NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, LeftNormalLabel, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
 from generalconstants import *
 
 from kivy.lang.builder import Builder
@@ -4505,7 +4505,8 @@ class VideoConverterScreen(ConversionScreen):
                 audio_file = ''
                 offset_audio_file = False
 
-                edit_image = CustomImage(photoinfo=photoinfo, source=photo)
+                #edit_image = CustomImage(photoinfo=photoinfo, source=photo)
+                edit_image = ImageEditor(photoinfo=photoinfo, source=photo)
 
                 if self.apply_edit and file['edit']:
                     self.image_preset(edit_image, to_image=True)

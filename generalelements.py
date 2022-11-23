@@ -16,6 +16,7 @@ from kivy.clock import Clock
 from kivy.animation import Animation
 from kivy.cache import Cache
 from kivy.graphics.transformation import Matrix
+from kivy.event import EventDispatcher
 from kivy.uix.widget import Widget
 from kivy.uix.bubble import Bubble
 from kivy.uix.behaviors import ButtonBehavior, DragBehavior
@@ -2829,23 +2830,11 @@ class SequencePlayer(Widget):
             return None, 'eof'
 
 
-class CustomImage(KivyImage):
-    """Custom image display widget.
-    Enables editing operations, displaying them in real-time using a low resolution preview of the original image file.
-    All editing variables are watched by the widget and it will automatically update the preview when they are changed.
+class ImageEditor(EventDispatcher):
+    """Custom image editing widget.
+    Enables editing operations.  When mixed with kivy image class it can display edits in real-time using a low resolution preview of the original image file.
+    All editing variables are watched by the class and it will automatically update the preview when they are changed.
     """
-
-    norm_image_pos = ListProperty([100, 100])
-    o_a = NumericProperty(0)
-    o_b = NumericProperty(0)
-    o_c = NumericProperty(0)
-    o_d = NumericProperty(0)
-    i_a = NumericProperty(0)
-    i_b = NumericProperty(0)
-    i_c = NumericProperty(0)
-    i_d = NumericProperty(0)
-    crop_verts = ListProperty()
-    crop_indices = ListProperty()
 
     sequence = ListProperty()
     framerate_override = NumericProperty(0)  #Externally set the framerate for image sequences
@@ -2901,8 +2890,6 @@ class CustomImage(KivyImage):
     edge_blur_amount = NumericProperty(0)
     edge_blur_size = NumericProperty(.5)
     edge_blur_intensity = NumericProperty(.5)
-    cropper = ObjectProperty(allownone=True)  #Holder for the cropper overlay
-    crop_controls = ObjectProperty(allownone=True)  #Holder for the cropper edit panel object
     crop_text = StringProperty('')
     adaptive_clip = NumericProperty(0)
     border_opacity = NumericProperty(1)
@@ -2926,6 +2913,9 @@ class CustomImage(KivyImage):
     max_frames = 0
     start_seconds = 0
     first_frame = None
+    
+    #variables duplicated in the image class
+    source = StringProperty()
 
     def on_framerate_override(self, *_):
         if self.sequence:
@@ -2933,45 +2923,6 @@ class CustomImage(KivyImage):
             self.length = len(self.sequence) / self.framerate_override
             if self.player:
                 self.player.framerate = self.framerate_override
-
-    def update_norm_image_pos(self, *_):
-        self.norm_image_pos = [self.pos[0] + ((self.width - self.norm_image_size[0]) / 2), self.pos[1] + ((self.height - self.norm_image_size[1]) / 2)]
-
-    def on_norm_image_size(self, *_):
-        self.update_norm_image_pos()
-        self.update_crop_rectangle()
-
-    def update_crop_rectangle(self, *_):
-        self.o_a = self.norm_image_pos[0]
-        self.o_b = self.norm_image_pos[1]
-        self.o_c = self.norm_image_pos[0] + self.norm_image_size[0]
-        self.o_d = self.norm_image_pos[1] + self.norm_image_size[1]
-
-        self.i_a = self.o_a + (self.norm_image_size[0] * self.crop_left)
-        self.i_b = self.o_b + (self.norm_image_size[1] * self.crop_bottom)
-        self.i_c = self.o_c - (self.norm_image_size[0] * self.crop_right)
-        self.i_d = self.o_d - (self.norm_image_size[1] * self.crop_top)
-
-        v_1 = [self.o_a, self.o_b, 0, 0]
-        v_2 = [self.o_c, self.o_b, 0, 0]
-        v_3 = [self.o_a, self.o_d, 0, 0]
-        v_4 = [self.o_c, self.o_d, 0, 0]
-        v_5 = [self.i_a, self.i_b, 0, 0]
-        v_6 = [self.i_c, self.i_b, 0, 0]
-        v_7 = [self.i_a, self.i_d, 0, 0]
-        v_8 = [self.i_c, self.i_d, 0, 0]
-
-        t_1 = [0, 1, 5]
-        t_2 = [0, 5, 4]
-        t_3 = [0, 4, 2]
-        t_4 = [4, 6, 2]
-        t_5 = [2, 6, 3]
-        t_6 = [6, 7, 3]
-        t_7 = [7, 3, 1]
-        t_8 = [7, 5, 1]
-
-        self.crop_verts = v_1 + v_2 + v_3 + v_4 + v_5 + v_6 + v_7 + v_8
-        self.crop_indices = t_1 + t_2 + t_3 + t_4 + t_5 + t_6 + t_7 + t_8
 
     def start_video_convert(self):
         self.close_video()
@@ -3110,226 +3061,6 @@ class CustomImage(KivyImage):
         self.framerate = data['frame_rate']
         self.pixel_format = data['src_pix_fmt']
 
-    def set_aspect(self, aspect_x=None, aspect_y=None, force=None):
-        """Adjusts the cropping of the image to be a given aspect ratio.
-        Attempts to keep the image as large as possible
-        Arguments:
-            aspect_x: Horizontal aspect ratio element, numerical value.
-            aspect_y: Vertical aspect ratio element, numerical value.
-            force: Forces the recrop function to horizontal or vertical.  Must be None, 'h' or 'v'
-        """
-
-        width = 1 - self.crop_left - self.crop_right
-        height = 1 - self.crop_top - self.crop_bottom
-        if height == 0:
-            return
-        if aspect_x is not None and aspect_y is not None:
-            self.aspect = aspect_x / aspect_y
-        current_ratio = width / height
-        image_ratio = self.original_width / self.original_height
-        target_ratio = self.aspect / image_ratio
-        if (force is None and target_ratio > current_ratio) or force == 'v':
-            #crop top/bottom, width is the same
-            new_height = width / target_ratio
-            height_difference = height - new_height
-            crop_right = 0
-            crop_left = 0
-            crop_top = height_difference / 2
-            crop_bottom = crop_top
-        else:
-            #crop sides, height is the same
-            new_width = height * target_ratio
-            width_difference = width - new_width
-            crop_top = 0
-            crop_bottom = 0
-            crop_left = width_difference / 2
-            crop_right = crop_left
-        self.crop_top = self.crop_top + crop_top
-        self.crop_right = self.crop_right + crop_right
-        self.crop_bottom = self.crop_bottom + crop_bottom
-        self.crop_left = self.crop_left + crop_left
-        self.update_cropper()
-
-    def on_crop_top(self, *_):
-        if (self.crop_top + self.crop_bottom) > 0.9:
-            self.crop_top = 0.9 - self.crop_bottom
-            self.update_crop_controls()
-        else:
-            self.update_cropper()
-
-    def on_crop_right(self, *_):
-        if (self.crop_left + self.crop_right) > 0.9:
-            self.crop_right = 0.9 - self.crop_left
-            self.update_crop_controls()
-        else:
-            self.update_cropper()
-
-    def on_crop_bottom(self, *_):
-        if (self.crop_top + self.crop_bottom) > 0.9:
-            self.crop_bottom = 0.9 - self.crop_top
-            self.update_crop_controls()
-        else:
-            self.update_cropper()
-
-    def on_crop_left(self, *_):
-        if (self.crop_left + self.crop_right) > 0.9:
-            self.crop_left = 0.9 - self.crop_right
-            self.update_crop_controls()
-        else:
-            self.update_cropper()
-
-    def set_crop_text(self):
-        #Sets some text that describes the current crop settings
-
-        crop_left = self.original_width * self.crop_left
-        crop_right = self.original_width * self.crop_right
-        crop_top = self.original_height * self.crop_top
-        crop_bottom = self.original_height * self.crop_bottom
-        new_width = self.original_width - crop_left - crop_right
-        new_height = self.original_height - crop_top - crop_bottom
-        if new_height != 0:
-            new_aspect = new_width / new_height
-        else:
-            new_aspect = 0
-        old_aspect = self.original_width / self.original_height
-        self.crop_text = "Size: "+str(int(new_width))+"x"+str(int(new_height))+", Aspect: "+str(round(new_aspect, 2))+" (Original: "+str(round(old_aspect, 2))+")"
-
-    def reset_crop(self):
-        """Sets the crop values back to 0 for all sides"""
-
-        self.crop_top = 0
-        self.crop_bottom = 0
-        self.crop_left = 0
-        self.crop_right = 0
-        self.update_cropper(setup=True)
-
-    def on_cropper(self, *_):
-        self.update_cropper(setup=True)
-
-    def update_cropper(self, setup=False):
-        """Updates the position and size of the cropper overlay object."""
-
-        if self.cropper:
-            texture_size = self.get_texture_size()
-            texture_top_edge = texture_size[0]
-            texture_right_edge = texture_size[1]
-            texture_bottom_edge = texture_size[2]
-            texture_left_edge = texture_size[3]
-
-            texture_width = (texture_right_edge - texture_left_edge)
-            texture_height = (texture_top_edge - texture_bottom_edge)
-
-            top_edge = texture_top_edge - (self.crop_top * texture_height)
-            bottom_edge = texture_bottom_edge + (self.crop_bottom * texture_height)
-            left_edge = texture_left_edge + (self.crop_left * texture_width)
-            right_edge = texture_right_edge - (self.crop_right * texture_width)
-            width = right_edge - left_edge
-            height = top_edge - bottom_edge
-
-            self.cropper.pos = [left_edge, bottom_edge]
-            self.cropper.size = [width, height]
-            if setup:
-                self.cropper.max_resizable_width = width
-                self.cropper.max_resizable_height = height
-        self.set_crop_text()
-        self.update_crop_rectangle()
-
-    def get_texture_size(self):
-        """Returns a list of the texture size coordinates.
-        Returns:
-            List of numbers: [Top edge, Right edge, Bottom edge, Left edge]
-        """
-
-        left_edge = (self.size[0] / 2) - (self.norm_image_size[0] / 2)
-        right_edge = left_edge + self.norm_image_size[0]
-        bottom_edge = (self.size[1] / 2) - (self.norm_image_size[1] / 2)
-        top_edge = bottom_edge + self.norm_image_size[1]
-        return [top_edge, right_edge, bottom_edge, left_edge]
-
-    def point_over_texture(self, pos):
-        """Checks if the given pos (x,y) value is over the image texture.
-        Returns False if not over texture, returns point transformed to texture coordinates if over texture.
-        """
-
-        texture_size = self.get_texture_size()
-        top_edge = texture_size[0]
-        right_edge = texture_size[1]
-        bottom_edge = texture_size[2]
-        left_edge = texture_size[3]
-        if pos[0] > left_edge and pos[0] < right_edge:
-            if pos[1] > bottom_edge and pos[1] < top_edge:
-                texture_x = pos[0] - left_edge
-                texture_y = pos[1] - bottom_edge
-                return [texture_x, texture_y]
-        return False
-
-    def detect_crop_edges(self, first, second):
-        """Given two points, this will detect the proper crop area for the image.
-        Arguments:
-            first: First crop corner.
-            second: Second crop corner.
-        Returns a list of cropping values:
-            [crop_top, crop_bottom, crop_left, crop_right]
-        """
-
-        if first[0] < second[0]:
-            left = first[0]
-            right = second[0]
-        else:
-            left = second[0]
-            right = first[0]
-        if first[1] < second[1]:
-            top = second[1]
-            bottom = first[1]
-        else:
-            top = first[1]
-            bottom = second[1]
-        scale = self.original_width / self.norm_image_size[0]
-        crop_top = (self.norm_image_size[1] - top) * scale
-        crop_bottom = bottom * scale
-        crop_left = left * scale
-        crop_right = (self.norm_image_size[0] - right) * scale
-        return [crop_top, crop_bottom, crop_left, crop_right]
-
-    def set_crop(self, posx, posy, width, height):
-        """Sets the crop values based on the cropper widget."""
-
-        texture_size = self.get_texture_size()
-        texture_top_edge = texture_size[0]
-        texture_right_edge = texture_size[1]
-        texture_bottom_edge = texture_size[2]
-        texture_left_edge = texture_size[3]
-
-        left_crop = posx - texture_left_edge
-        bottom_crop = posy - texture_bottom_edge
-        right_crop = texture_right_edge - width - posx
-        top_crop = texture_top_edge - height - posy
-
-        texture_width = (texture_right_edge - texture_left_edge)
-        texture_height = (texture_top_edge - texture_bottom_edge)
-        if left_crop < 0:
-            self.crop_left = 0
-        else:
-            self.crop_left = left_crop / texture_width
-        if right_crop < 0:
-            self.crop_right = 0
-        else:
-            self.crop_right = right_crop / texture_width
-        if top_crop < 0:
-            self.crop_top = 0
-        else:
-            self.crop_top = top_crop / texture_height
-        if bottom_crop < 0:
-            self.crop_bottom = 0
-        else:
-            self.crop_bottom = bottom_crop / texture_height
-        #self.update_preview(recrop=False)
-        self.update_crop_controls()
-
-    def update_crop_controls(self):
-        if self.crop_controls:
-            self.crop_controls.update_crop_sliders()
-
     def on_sharpen(self, *_):
         self.update_preview()
 
@@ -3420,10 +3151,6 @@ class CustomImage(KivyImage):
     def on_border_tint(self, *_):
         self.update_preview()
 
-    def on_size(self, *_):
-        self.update_cropper(setup=True)
-        self.update_norm_image_pos()
-
     def on_source(self, *_):
         """The source file has been changed, reload image and regenerate preview."""
 
@@ -3434,9 +3161,6 @@ class CustomImage(KivyImage):
         if self.video:
             self.open_video()
         self.reload_edit_image()
-        self.update_texture(self.edit_image)
-        self.update_aspect()
-        #self.update_preview()
 
     def on_position(self, *_):
         self.reload_video_edit_image()
@@ -3504,20 +3228,12 @@ class CustomImage(KivyImage):
         self.size_multiple = self.original_width / image.size[0]
         self.edit_image = image
         Clock.schedule_once(self.update_preview)
-        #Clock.schedule_once(self.update_histogram)  #Need to delay this because kivy will mess up the drawing of it on first load.
-        #self.histogram = image.histogram()
 
     def update_histogram(self, *_):
         self.histogram = self.edit_image.histogram()
 
     def update_aspect(self):
         self.aspect = self.edit_image.width / self.edit_image.height
-
-    def on_texture(self, instance, value):
-        if value is not None:
-            self.texture_size = list(value.size)
-        if self.mirror:
-            self.texture.flip_horizontal()
 
     def denoise_preview(self, width, height, pos_x, pos_y):
         if not opencv:
@@ -3542,20 +3258,7 @@ class CustomImage(KivyImage):
         return preview_bytes
 
     def update_preview(self, *_, denoise=False, recrop=True):
-        """Update the preview image."""
-
-        if self.edit_image:
-            image = self.adjust_image(self.edit_image)
-            if denoise and opencv:
-                open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
-                open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
-                open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
-                image = Image.fromarray(open_cv_image)
-
-            self.update_texture(image)
-            self.histogram = image.histogram()
-            if recrop:
-                self.update_cropper(setup=True)
+        pass
 
     def adjust_image(self, image, preview=True):
         """Applies all current editing opterations to an image.
@@ -3853,18 +3556,6 @@ class CustomImage(KivyImage):
 
         return image
 
-    def update_texture(self, image):
-        """Saves a PIL image to the visible texture.
-        Argument:
-            image: A PIL image
-        """
-
-        image_bytes = BytesIO()
-        image.save(image_bytes, 'jpeg')
-        image_bytes.seek(0)
-        self._coreimage = CoreImage(image_bytes, ext='jpg')
-        self._on_tex_change()
-
     def get_full_quality(self):
         """Generate a full sized and full quality version of the source image.
         Returns: A PIL image.
@@ -3895,8 +3586,6 @@ class CustomImage(KivyImage):
     def clear_image(self):
         self.close_video()
         self.close_image()
-        self.cropper = None
-        self.crop_controls = None
         self.first_frame = None
         self.edit_image = None
 
@@ -3910,6 +3599,347 @@ class CustomImage(KivyImage):
             return ('', image)
         except Exception as e:
             return (str(e), None)
+
+
+class CustomImage(KivyImage, ImageEditor):
+    """Custom image display widget.
+    Enables editing operations, displaying them in real-time using a low resolution preview of the original image file.
+    All editing variables are watched by the widget and it will automatically update the preview when they are changed.
+    """
+
+    cropper = ObjectProperty(allownone=True)  #Holder for the cropper overlay
+    crop_controls = ObjectProperty(allownone=True)  #Holder for the cropper edit panel object
+
+    norm_image_pos = ListProperty([100, 100])
+    o_a = NumericProperty(0)
+    o_b = NumericProperty(0)
+    o_c = NumericProperty(0)
+    o_d = NumericProperty(0)
+    i_a = NumericProperty(0)
+    i_b = NumericProperty(0)
+    i_c = NumericProperty(0)
+    i_d = NumericProperty(0)
+    crop_verts = ListProperty()
+    crop_indices = ListProperty()
+
+    def update_norm_image_pos(self, *_):
+        self.norm_image_pos = [self.pos[0] + ((self.width - self.norm_image_size[0]) / 2), self.pos[1] + ((self.height - self.norm_image_size[1]) / 2)]
+
+    def on_norm_image_size(self, *_):
+        self.update_norm_image_pos()
+        self.update_crop_rectangle()
+
+    def update_crop_rectangle(self, *_):
+        self.o_a = self.norm_image_pos[0]
+        self.o_b = self.norm_image_pos[1]
+        self.o_c = self.norm_image_pos[0] + self.norm_image_size[0]
+        self.o_d = self.norm_image_pos[1] + self.norm_image_size[1]
+
+        self.i_a = self.o_a + (self.norm_image_size[0] * self.crop_left)
+        self.i_b = self.o_b + (self.norm_image_size[1] * self.crop_bottom)
+        self.i_c = self.o_c - (self.norm_image_size[0] * self.crop_right)
+        self.i_d = self.o_d - (self.norm_image_size[1] * self.crop_top)
+
+        v_1 = [self.o_a, self.o_b, 0, 0]
+        v_2 = [self.o_c, self.o_b, 0, 0]
+        v_3 = [self.o_a, self.o_d, 0, 0]
+        v_4 = [self.o_c, self.o_d, 0, 0]
+        v_5 = [self.i_a, self.i_b, 0, 0]
+        v_6 = [self.i_c, self.i_b, 0, 0]
+        v_7 = [self.i_a, self.i_d, 0, 0]
+        v_8 = [self.i_c, self.i_d, 0, 0]
+
+        t_1 = [0, 1, 5]
+        t_2 = [0, 5, 4]
+        t_3 = [0, 4, 2]
+        t_4 = [4, 6, 2]
+        t_5 = [2, 6, 3]
+        t_6 = [6, 7, 3]
+        t_7 = [7, 3, 1]
+        t_8 = [7, 5, 1]
+
+        self.crop_verts = v_1 + v_2 + v_3 + v_4 + v_5 + v_6 + v_7 + v_8
+        self.crop_indices = t_1 + t_2 + t_3 + t_4 + t_5 + t_6 + t_7 + t_8
+
+    def set_aspect(self, aspect_x=None, aspect_y=None, force=None):
+        """Adjusts the cropping of the image to be a given aspect ratio.
+        Attempts to keep the image as large as possible
+        Arguments:
+            aspect_x: Horizontal aspect ratio element, numerical value.
+            aspect_y: Vertical aspect ratio element, numerical value.
+            force: Forces the recrop function to horizontal or vertical.  Must be None, 'h' or 'v'
+        """
+
+        width = 1 - self.crop_left - self.crop_right
+        height = 1 - self.crop_top - self.crop_bottom
+        if height == 0:
+            return
+        if aspect_x is not None and aspect_y is not None:
+            self.aspect = aspect_x / aspect_y
+        current_ratio = width / height
+        image_ratio = self.original_width / self.original_height
+        target_ratio = self.aspect / image_ratio
+        if (force is None and target_ratio > current_ratio) or force == 'v':
+            #crop top/bottom, width is the same
+            new_height = width / target_ratio
+            height_difference = height - new_height
+            crop_right = 0
+            crop_left = 0
+            crop_top = height_difference / 2
+            crop_bottom = crop_top
+        else:
+            #crop sides, height is the same
+            new_width = height * target_ratio
+            width_difference = width - new_width
+            crop_top = 0
+            crop_bottom = 0
+            crop_left = width_difference / 2
+            crop_right = crop_left
+        self.crop_top = self.crop_top + crop_top
+        self.crop_right = self.crop_right + crop_right
+        self.crop_bottom = self.crop_bottom + crop_bottom
+        self.crop_left = self.crop_left + crop_left
+        self.update_cropper()
+
+    def reset_crop(self):
+        """Sets the crop values back to 0 for all sides"""
+
+        self.crop_top = 0
+        self.crop_bottom = 0
+        self.crop_left = 0
+        self.crop_right = 0
+        self.update_cropper(setup=True)
+
+    def on_crop_top(self, *_):
+        if (self.crop_top + self.crop_bottom) > 0.9:
+            self.crop_top = 0.9 - self.crop_bottom
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
+
+    def on_crop_right(self, *_):
+        if (self.crop_left + self.crop_right) > 0.9:
+            self.crop_right = 0.9 - self.crop_left
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
+
+    def on_crop_bottom(self, *_):
+        if (self.crop_top + self.crop_bottom) > 0.9:
+            self.crop_bottom = 0.9 - self.crop_top
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
+
+    def on_crop_left(self, *_):
+        if (self.crop_left + self.crop_right) > 0.9:
+            self.crop_left = 0.9 - self.crop_right
+            self.update_crop_controls()
+        else:
+            self.update_cropper()
+
+    def on_cropper(self, *_):
+        self.update_cropper(setup=True)
+
+    def set_crop_text(self):
+        #Sets some text that describes the current crop settings
+
+        crop_left = self.original_width * self.crop_left
+        crop_right = self.original_width * self.crop_right
+        crop_top = self.original_height * self.crop_top
+        crop_bottom = self.original_height * self.crop_bottom
+        new_width = self.original_width - crop_left - crop_right
+        new_height = self.original_height - crop_top - crop_bottom
+        if new_height != 0:
+            new_aspect = new_width / new_height
+        else:
+            new_aspect = 0
+        old_aspect = self.original_width / self.original_height
+        self.crop_text = "Size: "+str(int(new_width))+"x"+str(int(new_height))+", Aspect: "+str(round(new_aspect, 2))+" (Original: "+str(round(old_aspect, 2))+")"
+
+    def get_texture_size(self):
+        """Returns a list of the texture size coordinates.
+        Returns:
+            List of numbers: [Top edge, Right edge, Bottom edge, Left edge]
+        """
+
+        left_edge = (self.size[0] / 2) - (self.norm_image_size[0] / 2)
+        right_edge = left_edge + self.norm_image_size[0]
+        bottom_edge = (self.size[1] / 2) - (self.norm_image_size[1] / 2)
+        top_edge = bottom_edge + self.norm_image_size[1]
+        return [top_edge, right_edge, bottom_edge, left_edge]
+
+    def point_over_texture(self, pos):
+        """Checks if the given pos (x,y) value is over the image texture.
+        Returns False if not over texture, returns point transformed to texture coordinates if over texture.
+        """
+
+        texture_size = self.get_texture_size()
+        top_edge = texture_size[0]
+        right_edge = texture_size[1]
+        bottom_edge = texture_size[2]
+        left_edge = texture_size[3]
+        if pos[0] > left_edge and pos[0] < right_edge:
+            if pos[1] > bottom_edge and pos[1] < top_edge:
+                texture_x = pos[0] - left_edge
+                texture_y = pos[1] - bottom_edge
+                return [texture_x, texture_y]
+        return False
+
+    def detect_crop_edges(self, first, second):
+        """Given two points, this will detect the proper crop area for the image.
+        Arguments:
+            first: First crop corner.
+            second: Second crop corner.
+        Returns a list of cropping values:
+            [crop_top, crop_bottom, crop_left, crop_right]
+        """
+
+        if first[0] < second[0]:
+            left = first[0]
+            right = second[0]
+        else:
+            left = second[0]
+            right = first[0]
+        if first[1] < second[1]:
+            top = second[1]
+            bottom = first[1]
+        else:
+            top = first[1]
+            bottom = second[1]
+        scale = self.original_width / self.norm_image_size[0]
+        crop_top = (self.norm_image_size[1] - top) * scale
+        crop_bottom = bottom * scale
+        crop_left = left * scale
+        crop_right = (self.norm_image_size[0] - right) * scale
+        return [crop_top, crop_bottom, crop_left, crop_right]
+
+    def set_crop(self, posx, posy, width, height):
+        """Sets the crop values based on the cropper widget."""
+
+        texture_size = self.get_texture_size()
+        texture_top_edge = texture_size[0]
+        texture_right_edge = texture_size[1]
+        texture_bottom_edge = texture_size[2]
+        texture_left_edge = texture_size[3]
+
+        left_crop = posx - texture_left_edge
+        bottom_crop = posy - texture_bottom_edge
+        right_crop = texture_right_edge - width - posx
+        top_crop = texture_top_edge - height - posy
+
+        texture_width = (texture_right_edge - texture_left_edge)
+        texture_height = (texture_top_edge - texture_bottom_edge)
+        if left_crop < 0:
+            self.crop_left = 0
+        else:
+            self.crop_left = left_crop / texture_width
+        if right_crop < 0:
+            self.crop_right = 0
+        else:
+            self.crop_right = right_crop / texture_width
+        if top_crop < 0:
+            self.crop_top = 0
+        else:
+            self.crop_top = top_crop / texture_height
+        if bottom_crop < 0:
+            self.crop_bottom = 0
+        else:
+            self.crop_bottom = bottom_crop / texture_height
+        #self.update_preview(recrop=False)
+        self.update_crop_controls()
+
+    def update_cropper(self, setup=False):
+        """Updates the position and size of the cropper overlay object."""
+
+        if self.cropper:
+            texture_size = self.get_texture_size()
+            texture_top_edge = texture_size[0]
+            texture_right_edge = texture_size[1]
+            texture_bottom_edge = texture_size[2]
+            texture_left_edge = texture_size[3]
+
+            texture_width = (texture_right_edge - texture_left_edge)
+            texture_height = (texture_top_edge - texture_bottom_edge)
+
+            top_edge = texture_top_edge - (self.crop_top * texture_height)
+            bottom_edge = texture_bottom_edge + (self.crop_bottom * texture_height)
+            left_edge = texture_left_edge + (self.crop_left * texture_width)
+            right_edge = texture_right_edge - (self.crop_right * texture_width)
+            width = right_edge - left_edge
+            height = top_edge - bottom_edge
+
+            self.cropper.pos = [left_edge, bottom_edge]
+            self.cropper.size = [width, height]
+            if setup:
+                self.cropper.max_resizable_width = width
+                self.cropper.max_resizable_height = height
+        self.set_crop_text()
+        self.update_crop_rectangle()
+
+    def update_crop_controls(self):
+        if self.crop_controls:
+            self.crop_controls.update_crop_sliders()
+
+    def on_size(self, *_):
+        self.update_cropper(setup=True)
+        self.update_norm_image_pos()
+
+    def on_texture(self, instance, value):
+        if value is not None:
+            self.texture_size = list(value.size)
+        if self.mirror:
+            self.texture.flip_horizontal()
+
+    def update_texture(self, image):
+        """Saves a PIL image to the visible texture.
+        Argument:
+            image: A PIL image
+        """
+
+        image_bytes = BytesIO()
+        image.save(image_bytes, 'jpeg')
+        image_bytes.seek(0)
+        self._coreimage = CoreImage(image_bytes, ext='jpg')
+        self._on_tex_change()
+
+    def on_source(self, *_):
+        """The source file has been changed, reload image and regenerate preview."""
+
+        app = App.get_running_app()
+        self.video = os.path.splitext(self.source)[1].lower() in app.movietypes
+        if self.sequence:
+            self.video = True
+        if self.video:
+            self.open_video()
+        self.reload_edit_image()
+        self.update_texture(self.edit_image)
+        self.update_aspect()
+        #self.update_preview()
+
+    def update_preview(self, *_, denoise=False, recrop=True):
+        """Update the preview image."""
+
+        if self.edit_image:
+            image = self.adjust_image(self.edit_image)
+            if denoise and opencv:
+                open_cv_image = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
+                open_cv_image = cv2.fastNlMeansDenoisingColored(open_cv_image, None, self.luminance_denoise, self.color_denoise, self.search_window, self.block_size)
+                open_cv_image = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2RGB)
+                image = Image.fromarray(open_cv_image)
+
+            self.update_texture(image)
+            self.histogram = image.histogram()
+            if recrop:
+                self.update_cropper(setup=True)
+
+    def clear_image(self):
+        self.close_video()
+        self.close_image()
+        self.cropper = None
+        self.crop_controls = None
+        self.first_frame = None
+        self.edit_image = None
 
 
 class AsyncThumbnail(KivyImage):
