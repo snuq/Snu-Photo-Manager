@@ -967,28 +967,15 @@ Builder.load_string("""
                 BoxLayout:
                     orientation: 'horizontal'
                     size_hint_y: None
-                    height: app.button_scale
+                    height: app.button_scale if not self.disabled else 0
+                    disabled: root.image.video
+                    opacity: 0 if self.disabled else 1
                     NormalToggle:
                         text: "Auto Contrast"
                         id: autocontrastToggle
                         state: 'down' if root.image.autocontrast else 'normal'
                         on_state: root.update_autocontrast(self.state)
                         size_hint_x: 1
-                #SmallBufferY:
-                #BoxLayout:
-                #    orientation: 'horizontal'
-                #    size_hint_y: None
-                #    height: app.button_scale
-                #    LeftNormalLabel:
-                #        text: 'Equalize Histogram:'
-                #    NormalButton:
-                #        text: 'Reset'
-                #        on_release: root.reset_equalize()
-                #HalfSlider:
-                #    id: equalizeSlider
-                #    value: root.image.equalize
-                #    on_value: root.image.equalize = self.value
-                #    reset_value: root.reset_equalize
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
