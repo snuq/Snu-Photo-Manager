@@ -593,7 +593,7 @@ Builder.load_string("""
     AsyncThumbnail:
         photoinfo: root.photoinfo
         loadfullsize: False
-        allow_stretch: True
+        fit_mode: 'contain'
         mipmap: True
         source: root.source
         color: (.5, .5, .5, 1)
@@ -641,7 +641,7 @@ Builder.load_string("""
                     loadfullsize: True
                     source: root.file
                     mirror: root.mirror
-                    allow_stretch: True
+                    fit_mode: 'contain'
                     id: image
                     mipmap: True
     BoxLayout:
@@ -684,7 +684,7 @@ Builder.load_string("""
         favorite: root.favorite
         photoinfo: root.photoinfo
         source: root.file
-        options: {'allow_stretch': True}
+        options: {'fit_mode': 'contain'}
     BoxLayout:
         orientation: 'vertical'
         opacity: 0
@@ -756,8 +756,7 @@ Builder.load_string("""
             height: self.width * .5
             Image:
                 id: histogram
-                allow_stretch: True
-                keep_ratio: False
+                fit_mode: 'fill'
                 opacity: 0
         SmallBufferY:
     ScreenManager:
@@ -797,8 +796,7 @@ Builder.load_string("""
             height: self.width * .5
             Image:
                 id: histogram
-                allow_stretch: True
-                keep_ratio: False
+                fit_mode: 'fill'
                 opacity: 0
         SmallBufferY:
     ScreenManager:
@@ -1548,7 +1546,7 @@ Builder.load_string("""
                                 size_hint: None, None
                                 size: root.image.original_width, root.image.original_height
                                 Image:
-                                    allow_stretch: True
+                                    fit_mode: 'contain'
                                     size: root.image.original_width, root.image.original_height
                                     size_hint: None, None
                                     id: noisePreview
@@ -7146,31 +7144,38 @@ class PauseableVideo(Video):
 
     def get_norm_image_size(self):
         if not self.texture:
-            return self.size
-        ratio = self.image_ratio / self.aspect
+            return list(self.size)
+
+        ratio = self.image_ratio / self.aspect  #changed from original code to allow non-square pixels in videos
         w, h = self.size
         tw, th = self.texture.size
 
-        # ensure that the width is always maximized to the containter width
-        if self.allow_stretch:
-            if not self.keep_ratio:
-                return w, h
+        if self.fit_mode == "cover":
+            widget_ratio = w / max(1, h)
+            if widget_ratio > ratio:
+                return [w, (w * th) / tw]
+            else:
+                return [(h * tw) / th, h]
+        elif self.fit_mode == "fill":
+            return [w, h]
+        elif self.fit_mode == "contain":
             iw = w
         else:
             iw = min(w, tw)
+
         # calculate the appropriate height
         ih = iw / ratio
         # if the height is too higher, take the height of the container
         # and calculate appropriate width. no need to test further. :)
         if ih > h:
-            if self.allow_stretch:
+            if self.fit_mode == "contain":
                 ih = h
             else:
                 ih = min(h, th)
             iw = ih * ratio
-        return iw, ih
+        return [iw, ih]
 
-    norm_image_size = AliasProperty(get_norm_image_size, bind=('texture', 'size', 'allow_stretch', 'image_ratio', 'keep_ratio'), cache=True)
+    norm_image_size = AliasProperty(get_norm_image_size, bind=('texture', 'size', 'image_ratio', 'fit_mode',), cache=True,)
 
     def _do_video_load(self, *largs):
         if CoreVideo is None:

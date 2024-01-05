@@ -986,7 +986,7 @@ Builder.load_string("""
             vertices: self.crop_verts
             indices: self.crop_indices
             mode: 'triangles'
-    allow_stretch: True
+    fit_mode: 'contain'
 
 <AsyncThumbnail>:
     canvas.before:
@@ -997,7 +997,7 @@ Builder.load_string("""
             origin: self.center
     canvas.after:
         PopMatrix
-    allow_stretch: True
+    fit_mode: 'contain'
 
 <PhotoDrag>:
     height: (app.button_scale * 4)

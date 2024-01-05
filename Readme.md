@@ -57,9 +57,9 @@ For now, side-loading of apps is required to be enabled.  Depending on your devi
 
 
 ### Manual Installation:  
-* Install Python 3, should work well on 3.7, 3.8 and 3.9.  
+* Install Python 3, preferred version is 3.10.  
 * Install the Python packages:  
-   * Kivy (Tested with 1.11.1, 2.0.0 mostly works but has some bugs for now)  
+   * Kivy (Tested with 2.2)  
    * ffpyplayer  
    * Pillow  
    * numpy (not strictly required, but some features will be missing without it).  
