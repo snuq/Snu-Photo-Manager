@@ -810,7 +810,7 @@ class PhotoManager(App):
             if extension in self.imagetypes:
                 #This is an image file, use PIL to generate a thumnail
                 image = Image.open(full_filename)
-                image.thumbnail((self.thumbsize, self.thumbsize), Image.ANTIALIAS)
+                image.thumbnail((self.thumbsize, self.thumbsize), Image.Resampling.LANCZOS)
                 if image.mode != 'RGB':
                     image = image.convert('RGB')
                 output = BytesIO()
@@ -851,7 +851,7 @@ class PhotoManager(App):
                 if aspect != 1:
                     image = image.resize(size=(frame_size[0], int(frame_size[1] * aspect)))
 
-                image.thumbnail((self.thumbsize, self.thumbsize), Image.ANTIALIAS)
+                image.thumbnail((self.thumbsize, self.thumbsize), Image.Resampling.LANCZOS)
 
                 output = BytesIO()
                 image.save(output, 'jpeg')
@@ -1490,7 +1490,13 @@ class PhotoManager(App):
                         if not naming(naming_method, title=''):
                             naming_method = naming_method_default
                         delete_originals = to_bool(import_preset['delete_originals'])
-                        single_folder = to_bool(import_preset['single_folder'])
+                        single_folder = import_preset['single_folder'].lower()
+                        if single_folder not in ['single', 'formatted', 'year', 'month']:
+                            is_single = to_bool(single_folder)
+                            if is_single:
+                                single_folder = 'single'
+                            else:
+                                single_folder = 'formatted'
                         if import_preset['import_from']:
                             import_from_folders = local_path(import_preset['import_from'])
                             import_from = import_from_folders.split('|')
@@ -1680,7 +1686,7 @@ class PhotoManager(App):
             import_to = databases[0]
         else:
             import_to = ''
-        preset = {'title': 'Import Preset '+str(len(self.imports)+1), 'import_to': import_to, 'naming_method': naming_method_default, 'delete_originals': False, 'single_folder': False, 'import_from': []}
+        preset = {'title': 'Import Preset '+str(len(self.imports)+1), 'import_to': import_to, 'naming_method': naming_method_default, 'delete_originals': False, 'single_folder': 'formatted', 'import_from': []}
         self.imports.append(preset)
 
     def import_preset_write(self):

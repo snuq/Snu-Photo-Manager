@@ -334,11 +334,10 @@ Builder.load_string("""
                 state: 'down' if root.delete_originals == True else 'normal'
                 text: str(root.delete_originals)
                 on_press: root.set_delete_originals(self.state)
-            NormalToggle:
+            MenuStarterButtonWide:
                 size_hint_x: 1
-                state: 'down' if root.single_folder == True else 'normal'
-                text: 'Single Folder' if root.single_folder == True else 'Dated Folders'
-                on_press: root.set_single_folder(self.state)
+                text: root.import_to_folder_friendly[root.single_folder]
+                on_release: root.import_to_folder_dropdown.open(self)
             MenuStarterButtonWide:
                 id: importToButton
                 size_hint_x: 1
@@ -517,7 +516,7 @@ class ImportingScreen(Screen):
     import_to = StringProperty('')
     naming_method = StringProperty('')
     delete_originals = BooleanProperty(False)
-    single_folder = BooleanProperty(False)
+    single_folder = StringProperty('formatted')
     import_from = ListProperty()
     popup = None
     import_photos = []
@@ -565,11 +564,11 @@ class ImportingScreen(Screen):
         else:
             return False
 
-    def date_to_folder(self, date):
+    def date_to_folder(self, date_info):
         """Generates a string from a date in the format YYYYMMDD."""
 
-        date_info = datetime.datetime.fromtimestamp(date)
-        return str(date_info.year)+str(date_info.month).zfill(2)+str(date_info.day).zfill(2)
+        folder = str(date_info.year)+str(date_info.month).zfill(2)+str(date_info.day).zfill(2)
+        return folder
 
     def on_leave(self, *_):
         app = App.get_running_app()
@@ -631,15 +630,31 @@ class ImportingScreen(Screen):
                                 #Non-imported file encountered
                                 self.total_size = self.total_size+photo_info[4]
                                 self.import_photos.append(photo_info)
-                                if self.single_folder:
+                                if self.single_folder == 'single':
                                     date = current_timestamp
-                                    folderdate = self.date_to_folder(date)
                                 else:
                                     date = photo_info[3]
-                                    folderdate = self.date_to_folder(date)
+                                date_info = datetime.datetime.fromtimestamp(date)
+                                foldername = self.date_to_folder(date_info)
+                                year = str(date_info.year)
+                                month = str(date_info.month).zfill(2)
+                                if self.single_folder == 'year':
+                                    parent = year
+                                    folderdate = parent+os.path.sep+foldername
+                                    if year not in self.folders:
+                                        self.folders[year] = {'name': year, 'naming': False, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': ''}
+                                elif self.single_folder == 'month':
+                                    parent = year+os.path.sep+month
+                                    folderdate = parent+os.path.sep+foldername
+                                    if year not in self.folders:
+                                        self.folders[year] = {'name': year, 'naming': False, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': ''}
+                                    if parent not in self.folders:
+                                        self.folders[parent] = {'name': month, 'naming': False, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': year}
+                                else:
+                                    folderdate = foldername
+                                    parent = ''
                                 if folderdate not in self.folders:
-                                    date_info = datetime.datetime.fromtimestamp(date)
-                                    self.folders[folderdate] = {'name': folderdate, 'naming': True, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': ''}
+                                    self.folders[folderdate] = {'name': foldername, 'naming': True, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': parent}
                                 self.folders[folderdate]['photos'].append(photo_info)
                             else:
                                 self.duplicates.append(photo_info)
@@ -1288,16 +1303,23 @@ class ImportPresetArea(GridLayout):
     naming_method = StringProperty('')
     last_naming_method = StringProperty('')
     delete_originals = BooleanProperty(False)
-    single_folder = BooleanProperty(False)
+    single_folder = StringProperty('formatted')
     preset_index = NumericProperty()
     naming_example = StringProperty('Naming Example')
     owner = ObjectProperty()
     import_from = ListProperty()
     index = NumericProperty()
+    import_to_folder_friendly = {'single': 'All One Folder', 'formatted': 'Date Formatted Subfolders', 'year': 'Yearly Dated Subfolders', 'month': 'Year and Month Subfolders'}
 
     def __init__(self, **kwargs):
         super(ImportPresetArea, self).__init__(**kwargs)
         app = App.get_running_app()
+        self.import_to_folder_dropdown = NormalDropDown()
+        self.import_to_folder_dropdown.basic_animation = True
+        for import_to_folder in self.import_to_folder_friendly.values():
+            menu_button = MenuButton(text=import_to_folder)
+            menu_button.bind(on_release=self.change_import_to_folder)
+            self.import_to_folder_dropdown.add_widget(menu_button)
         self.imports_dropdown = NormalDropDown()
         self.imports_dropdown.basic_animation = True
         database_folders = app.config.get('Database Directories', 'paths')
@@ -1347,13 +1369,6 @@ class ImportPresetArea(GridLayout):
                 self.naming_example = naming(self.naming_method)
                 self.update_preset()
 
-    def set_single_folder(self, state):
-        if state == 'down':
-            self.single_folder = True
-        else:
-            self.single_folder = False
-        self.update_preset()
-
     def set_delete_originals(self, state):
         if state == 'down':
             self.delete_originals = True
@@ -1367,6 +1382,14 @@ class ImportPresetArea(GridLayout):
         self.update_import_from()
         self.owner.data['import_from'] = self.import_from
         self.owner.update_title()
+
+    def change_import_to_folder(self, instance):
+        self.import_to_folder_dropdown.dismiss()
+        for setting, value in self.import_to_folder_friendly.items():
+            if value == instance.text:
+                self.single_folder = setting
+                self.update_preset()
+                return
 
     def change_import_to(self, instance):
         self.imports_dropdown.dismiss()
