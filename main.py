@@ -508,6 +508,7 @@ class PhotoManager(App):
         Saves all settings and data.
         """
 
+        self.screen_manager.current_screen.on_leave()
         if self.database_scanning:
             self.cancel_database_import()
             self.scanningthread.join()
