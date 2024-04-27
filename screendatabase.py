@@ -1221,9 +1221,9 @@ class DatabaseScreen(Screen):
         if answer == 'yes':
             text = instance.ids['input'].text.strip(' ')
             app = App.get_running_app()
-            app.rename_folder(self.selected, text)
+            renamed = app.rename_folder(self.selected, text)
             self.update_folders = True
-            self.selected = text
+            self.selected = renamed
         self.dismiss_popup()
         self.update_treeview()
 

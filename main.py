@@ -2454,6 +2454,7 @@ class PhotoManager(App):
 
         folder_path, old_name = os.path.split(old_folder_path)
         self.move_folder(old_folder_path, folder_path, rename=new_name)
+        return os.path.join(folder_path, new_name)
 
     def add_folder(self, folder):
         """Attempts to create a new folder in every database directory.
