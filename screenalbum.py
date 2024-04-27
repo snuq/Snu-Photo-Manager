@@ -5248,6 +5248,17 @@ class AlbumScreen(ConversionScreen):
         else:
             file_size = format_size(photoinfo[4])
         info_panel.add_node(TreeViewInfo(title='File Size: ' + file_size))
+        orientation = photoinfo[13]
+        orientation_text = 'No Rotation'
+        if orientation == 3 or orientation == 4:
+            orientation_text = "Rotate 180 Degrees"
+        elif orientation == 5 or orientation == 6:
+            orientation_text = "Rotate 90 Degrees"
+        elif orientation == 7 or orientation == 8:
+            orientation_text = "Rotate 270 Degrees"
+        if orientation in [2, 4, 5, 7]:
+            orientation_text = orientation_text + ', Flipped'
+        info_panel.add_node(TreeViewInfo(title="Orientation: "+orientation_text))
 
     def refresh_photoinfo_full(self, video=None):
         """Displays all the info for the current photo in the photo info right tab."""
