@@ -3543,16 +3543,16 @@ class ImageEditor(EventDispatcher):
                             crop_bottom = crop_bottom - 1
                 image = image.crop((crop_left, crop_top, crop_right, crop_bottom))
 
-        if not preview and self.photoinfo:
-            orientation = self.photoinfo[13]
-            if orientation == 3 or orientation == 4:
-                image = image.transpose(PIL.Image.ROTATE_180)
-            elif orientation == 5 or orientation == 6:
-                image = image.transpose(PIL.Image.ROTATE_90)
-            elif orientation == 7 or orientation == 8:
-                image = image.transpose(PIL.Image.ROTATE_270)
-            if orientation in [2, 4, 5, 7]:
-                image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+        #if not preview and self.photoinfo:
+        #    orientation = self.photoinfo[13]
+        #    if orientation == 3 or orientation == 4:
+        #        image = image.transpose(PIL.Image.ROTATE_180)
+        #    elif orientation == 5 or orientation == 6:
+        #        image = image.transpose(PIL.Image.ROTATE_90)
+        #    elif orientation == 7 or orientation == 8:
+        #        image = image.transpose(PIL.Image.ROTATE_270)
+        #    if orientation in [2, 4, 5, 7]:
+        #        image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
 
         return image
 

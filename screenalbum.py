@@ -3552,9 +3552,11 @@ class ConversionScreen(Screen):
             error = 'Could not generate image out of memory error, please try again.'
             app.popup_message(text=error, title='Warning')
             return
-        exif = self.viewer.edit_image.exif
-        #new_exif = exif[:274] + b'1' + exif[275:]
-        #exif = new_exif
+        try:
+            exif = self.viewer.edit_image.original_image.getexif()
+            exif[274] = 1  #Reset rotation
+        except:
+            exif = self.viewer.edit_image.exif
         self.viewer.stop()
 
         #back up old image and save new edit
@@ -3589,6 +3591,7 @@ class ConversionScreen(Screen):
             edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
         except Exception as e:
             error = str(e)
+            print(error)
             if os.path.isfile(photo_file):
                 os.remove(photo_file)
         if not os.path.isfile(photo_file):
@@ -3606,6 +3609,7 @@ class ConversionScreen(Screen):
         #update photo info
         new_fullpath = os.path.splitext(self.photoinfo[0])[0]+'.jpg'
         update_photoinfo = list(self.photoinfo)
+        update_photoinfo[13] = 1  #reset rotation
         update_photoinfo[10] = agnostic_path(backup_photo_file_relative)
         update_photoinfo[0] = agnostic_path(new_fullpath)
         update_photoinfo[1] = agnostic_path(update_photoinfo[1])
@@ -3630,6 +3634,7 @@ class ConversionScreen(Screen):
         self.fullpath = local_path(update_photoinfo[0])
         self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0])))
         #Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
+        self.on_photo()
 
         app.message("Saved edits to image")
 
