@@ -26,7 +26,6 @@ Todo before 1.0:
 
 Bugs:
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
-    editing rotated photos may not rotate them back when editing
 
 Todo Possible Future:
     Export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
