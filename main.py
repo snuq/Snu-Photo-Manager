@@ -24,7 +24,6 @@ Todo before 1.0:
             maybe buttons next to database scroller that show starting/ending folder names - clicking them reloads scroller with that group
 
 Bugs:
-    minimizing messes up the width of the side panels
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
 Todo Possible Future:
