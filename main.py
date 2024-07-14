@@ -1883,6 +1883,8 @@ class PhotoManager(App):
         leftpanel = float(self.config.get('Settings', 'leftpanel'))
         leftpanelsize = (leftpanel * Window.width)
         maxwidth = Window.width * 0.4
+        if Window.width == 0:
+            return leftpanel
         if leftpanelsize > minpanelsize and leftpanelsize < maxwidth:
             panelwidth = leftpanelsize
         elif leftpanelsize >= maxwidth:
@@ -2064,6 +2066,8 @@ class PhotoManager(App):
             first_change = True
         else:
             first_change = False
+        if Window.width == 0:
+            return
         if Window.width != self.last_width or force:
             self.popup_x = int(Window.width * .75)
             self.last_width = Window.width
