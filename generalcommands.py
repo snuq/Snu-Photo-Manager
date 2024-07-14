@@ -284,12 +284,24 @@ def isfile2(path):
     return filename in os.listdir(directory)
 
 
-def time_index(seconds):
+def time_index(seconds, limited=0):
+    def format_time(time_amount):
+        return str(int(time_amount)).zfill(2)
+
     all_minutes, final_seconds = divmod(seconds, 60)
     all_hours, final_minutes = divmod(all_minutes, 60)
     all_days, final_hours = divmod(all_hours, 24)
-    time_remaining = str(int(all_days)).zfill(2) + ':' + str(int(final_hours)).zfill(2) + ':' + str(int(final_minutes)).zfill(2) + ':' + str(int(final_seconds)).zfill(2)
-    return time_remaining
+    if limited == 1:
+        times = [seconds]
+    elif limited == 2:
+        times = [all_minutes, final_seconds]
+    elif limited == 3:
+        times = [all_hours, final_minutes, final_seconds]
+    else:
+        times = [all_days, final_hours, final_minutes, final_seconds]
+
+    time_formatted = ":".join([format_time(x) for x in times])
+    return time_formatted
 
 
 def verify_copy(copy_from, copy_to):

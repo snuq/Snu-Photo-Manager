@@ -72,6 +72,7 @@ Builder.load_string("""
 #:import os os
 #:import SlideTransition kivy.uix.screenmanager.SlideTransition
 #:import platform kivy.platform
+#:import time_index generalcommands.time_index
 
 <AlbumScreen>:
     canvas.before:
@@ -667,6 +668,47 @@ Builder.load_string("""
             reset_value: root.reset_zoom
         Label:
             size_hint_x: .25
+
+<-SpecialVideoPlayer>:
+    container: container
+    cols: 1
+    FloatLayout:
+        cols: 1
+        id: container
+    GridLayout:
+        rows: 1
+        size_hint_y: None
+        height: app.button_scale
+        VideoPlayerStop:
+            size_hint_x: None
+            video: root
+            width: '44dp'
+            source: root.image_stop
+            fit_mode: "contain"
+        VideoPlayerPlayPause:
+            size_hint_x: None
+            video: root
+            width: '44dp'
+            source: root.image_pause if root.state == 'play' else root.image_play
+            fit_mode: "contain"
+        VideoPlayerVolume:
+            video: root
+            size_hint_x: None
+            width: '44dp'
+            source: root.image_volumehigh if root.volume > 0.8 else (root.image_volumemedium if root.volume > 0.4 else (root.image_volumelow if root.volume > 0 else root.image_volumemuted))
+            fit_mode: "contain"
+        Widget:
+            size_hint_x: None
+            width: 5
+        VideoPlayerProgressBar:
+            video: root
+            max: max(root.duration, root.position, 1)
+            value: root.position
+        Widget:
+            size_hint_x: None
+            width: 10
+        ShortLabel:
+            text: time_index(root.position, 2)+'/'+time_index(root.duration, 2)
 
 <VideoViewer>:
     SpecialVideoPlayer:
