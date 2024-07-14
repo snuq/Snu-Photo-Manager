@@ -9,7 +9,7 @@ except:
     from os import sep
 from io import BytesIO
 import datetime
-from shutil import copy2
+from shutil import copy2, copystat
 import subprocess
 import time
 from operator import itemgetter
@@ -3485,6 +3485,7 @@ class ConversionScreen(Screen):
                 #File is not in database, or being exported to a different folder
                 #output_temp_file : finished encodeded temp file, in the output_file_folder_reencode folder
                 #check if output exists, rename if needed
+                new_original_file = input_file
                 new_encoded_file = output_file_folder+sep+output_filename
                 new_encoded_basefile, new_encoded_extension = os.path.splitext(new_encoded_file)
                 index = 1
@@ -3526,6 +3527,7 @@ class ConversionScreen(Screen):
             return ["Error", message]
         if no_audio:
             self.append_log("[WARNING] : Could not encode audio element, file may not have audio.")
+        copystat(new_original_file, new_encoded_file)
         return_prefix = "Complete"
         return_text = "Completed encoding file to: "+new_encoded_file
         self.end_encode(return_text, end_type='info')
@@ -3549,7 +3551,7 @@ class ConversionScreen(Screen):
         try:
             edit_image = self.viewer.edit_image.get_full_quality()
         except MemoryError as e:
-            error = 'Could not generate image out of memory error, please try again.'
+            error = 'Could not generate image: out of memory error, please try again.'
             app.popup_message(text=error, title='Warning')
             return
         try:
@@ -3615,11 +3617,12 @@ class ConversionScreen(Screen):
         update_photoinfo[1] = agnostic_path(update_photoinfo[1])
         update_photoinfo[2] = agnostic_path(update_photoinfo[2])
         update_photoinfo[9] = 1
-        update_photoinfo[7] = int(os.path.getmtime(photo_file))
+        #update_photoinfo[7] = int(os.path.getmtime(photo_file))
         if self.photoinfo[0] != new_fullpath:
             app.database_item_rename(self.photoinfo[0], update_photoinfo[0], update_photoinfo[1])
         app.database_item_update(update_photoinfo)
         app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
+        copystat(backup_photo_file, photo_file)
 
         #regenerate thumbnail
         app.database_thumbnail_update(update_photoinfo[0], update_photoinfo[2], update_photoinfo[7], update_photoinfo[13])

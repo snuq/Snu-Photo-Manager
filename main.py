@@ -15,7 +15,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 Todo before 1.0:
-    Update readme - add some gifs/screenshots
     Video editor:
         add ability to play back video with audio for easier selecting the in/out
     Need to think of a way to divide up years abstractly
@@ -25,10 +24,11 @@ Todo before 1.0:
             maybe buttons next to database scroller that show starting/ending folder names - clicking them reloads scroller with that group
 
 Bugs:
+    
+    minimizing messes up the width of the side panels
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
 Todo Possible Future:
-    Export to facebook - https://github.com/mobolic/facebook-sdk , https://blog.kivy.org/2013/08/using-facebook-sdk-with-python-for-android-kivy/
     RAW import - https://github.com/photoshell/rawkit , need to get libraw working
 
 """
