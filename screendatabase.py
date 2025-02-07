@@ -485,9 +485,9 @@ class DatabaseScreen(Screen):
                     path = os.path.join(photo[2], photo[1])
                     folders.append(path)
                 if folders:
-                    folder = max(set(folders), key=folders.count)
+                    folder = os.path.abspath(max(set(folders), key=folders.count))
                     webbrowser.open(folder)
-            except:
+            except Exception as e:
                 pass
 
     def update_can_browse(self):

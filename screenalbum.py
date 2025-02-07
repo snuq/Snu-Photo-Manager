@@ -3219,7 +3219,7 @@ class ConversionScreen(Screen):
 
         #setup file variables
         self.export_folder = ''
-        input_file = photo
+        input_file = os.path.abspath(photo)
         input_file_folder, input_filename = os.path.split(input_file)
         input_basename = os.path.splitext(input_filename)[0]
         output_file_folder = input_file_folder
@@ -3622,7 +3622,7 @@ class ConversionScreen(Screen):
         self.viewer.stop()
 
         #back up old image and save new edit
-        photo_file_original = self.photo
+        photo_file_original = os.path.abspath(self.photo)
         backup_directory = os.path.join(local_path(self.photoinfo[2]), local_path(self.photoinfo[1]), '.originals')
         if not os.path.exists(backup_directory):
             os.mkdir(backup_directory)
