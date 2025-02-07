@@ -371,7 +371,7 @@ class PhotoManager(App):
         self.tags_load()  #Load tags
         self.load_encoding_presets()
 
-        database_directory = self.data_directory+sep+'Databases'
+        database_directory = os.path.join(self.data_directory, 'Databases')
         if not os.path.exists(database_directory):
             os.makedirs(database_directory)
         self.photos_name = os.path.join(database_directory, 'photos.db')
@@ -1021,14 +1021,14 @@ class PhotoManager(App):
             configfile.set(section, 'name', name)
             configfile.set(section, 'command', command)
             configfile.set(section, 'argument', argument)
-        with open(self.data_directory+sep+'programs.ini', 'w') as config:
+        with open(os.path.join(self.data_directory, 'programs.ini'), 'w') as config:
             configfile.write(config)
 
     def program_import(self):
         """Import external program presets from the config file."""
 
         self.programs = []
-        filename = self.data_directory+sep+'programs.ini'
+        filename = os.path.join(self.data_directory, 'programs.ini')
         if os.path.isfile(filename):
             configfile = ConfigParser(interpolation=None)
             configfile.read(filename)
@@ -1474,7 +1474,7 @@ class PhotoManager(App):
         """Reads the import presets from the config file and saves them to the app.imports variable."""
 
         self.imports = []
-        filename = self.data_directory+sep+'imports.ini'
+        filename = os.path.join(self.data_directory, 'imports.ini')
         if os.path.isfile(filename):
             try:
                 configfile = ConfigParser(interpolation=None)
@@ -1517,7 +1517,7 @@ class PhotoManager(App):
         """Reads the export presets from the config file and saves them to the app.exports variable."""
 
         self.exports = []
-        filename = self.data_directory+sep+'exports.ini'
+        filename = os.path.join(self.data_directory, 'exports.ini')
         if os.path.isfile(filename):
             try:
                 configfile = ConfigParser(interpolation=None)
@@ -1646,7 +1646,7 @@ class PhotoManager(App):
             configfile.set(section, 'ignore_tags', '|'.join(preset['ignore_tags']))
             configfile.set(section, 'export_videos', str(preset['export_videos']))
 
-        with open(self.data_directory+sep+'exports.ini', 'w') as config:
+        with open(os.path.join(self.data_directory, 'exports.ini'), 'w') as config:
             configfile.write(config)
 
     def export_preset_remove(self, index):
@@ -1703,12 +1703,12 @@ class PhotoManager(App):
             import_from = agnostic_path('|'.join(preset['import_from']))
             configfile.set(section, 'import_from', import_from)
 
-        with open(self.data_directory+sep+'imports.ini', 'w') as config:
+        with open(os.path.join(self.data_directory, 'imports.ini'), 'w') as config:
             configfile.write(config)
 
     def database_backup(self):
         """Makes a copy of the photos, folders and imported databases to a backup directory"""
-        database_directory = self.data_directory+sep+'Databases'
+        database_directory = os.path.join(self.data_directory, 'Databases')
         database_backup_dir = os.path.join(database_directory, 'backup')
         if not os.path.exists(database_backup_dir):
             os.makedirs(database_backup_dir)
@@ -1751,7 +1751,7 @@ class PhotoManager(App):
         self.show_database_restore()
 
     def database_restore_process(self):
-        database_directory = self.data_directory+sep+'Databases'
+        database_directory = os.path.join(self.data_directory, 'Databases')
         database_backup_dir = os.path.join(database_directory, 'backup')
 
         photos_db = os.path.join(database_directory, 'photos.db')
@@ -1913,15 +1913,15 @@ class PhotoManager(App):
         self.app_directory = app_directory
         Logger.info('App Folder: '+self.app_directory)
         if platform == 'win':
-            self.data_directory = os.getenv('APPDATA')+sep+"Snu Photo Manager"
+            self.data_directory = os.path.join(os.getenv('APPDATA'), "Snu Photo Manager")
             if not os.path.isdir(self.data_directory):
                 os.makedirs(self.data_directory)
         elif platform == 'linux':
-            self.data_directory = os.path.expanduser('~')+sep+".snuphotomanager"
+            self.data_directory = os.path.join(os.path.expanduser('~'), ".snuphotomanager")
             if not os.path.isdir(self.data_directory):
                 os.makedirs(self.data_directory)
         elif platform == 'macosx':
-            self.data_directory = os.path.expanduser('~')+sep+".snuphotomanager"
+            self.data_directory = os.path.join(os.path.expanduser('~'), ".snuphotomanager")
             if not os.path.isdir(self.data_directory):
                 os.makedirs(self.data_directory)
         elif platform == 'android':
@@ -1942,7 +1942,7 @@ class PhotoManager(App):
         presets = self.parse_encoding_presets_file('data/encoding_presets.ini')
         self.encoding_presets = [EncodingSettings(name='Automatic')] + presets
         self.encoding_presets_extra = self.parse_encoding_presets_file('data/encoding_presets_extra.ini')
-        self.encoding_presets_user = self.parse_encoding_presets_file(self.data_directory+sep+'encoding_presets_user.ini')
+        self.encoding_presets_user = self.parse_encoding_presets_file(os.path.join(self.data_directory, 'encoding_presets_user.ini'))
 
     def new_user_encoding_preset(self):
         current_preset = self.encoding_settings
@@ -1966,7 +1966,7 @@ class PhotoManager(App):
             pass
 
     def save_user_encoding_presets(self):
-        user_preset_file = self.data_directory+sep+'encoding_presets_user.ini'
+        user_preset_file = os.path.join(self.data_directory, 'encoding_presets_user.ini')
         configfile = ConfigParser(interpolation=None)
         for index, preset in enumerate(self.encoding_presets_user):
             section = preset.name
@@ -2199,7 +2199,7 @@ class PhotoManager(App):
 
         if not photoinfo[10]:
             return False, 'Could not find original file'
-        original_file = os.path.abspath(local_path(photoinfo[2])+sep+local_path(photoinfo[1])+sep+local_path(photoinfo[10]))
+        original_file = os.path.abspath(os.path.join(local_path(photoinfo[2]), local_path(photoinfo[1]), local_path(photoinfo[10])))
         current_file = os.path.abspath(os.path.join(local_path(photoinfo[2]), local_path(photoinfo[0])))
         if os.path.isfile(original_file) and original_file != current_file:
             deleted = self.delete_file(original_file)

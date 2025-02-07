@@ -640,12 +640,12 @@ class ImportingScreen(Screen):
                                 month = str(date_info.month).zfill(2)
                                 if self.single_folder == 'year':
                                     parent = year
-                                    folderdate = parent+os.path.sep+foldername
+                                    folderdate = os.path.join(parent, foldername)
                                     if year not in self.folders:
                                         self.folders[year] = {'name': year, 'naming': False, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': ''}
                                 elif self.single_folder == 'month':
-                                    parent = year+os.path.sep+month
-                                    folderdate = parent+os.path.sep+foldername
+                                    parent = os.path.join(year, month)
+                                    folderdate = os.path.join(parent, foldername)
                                     if year not in self.folders:
                                         self.folders[year] = {'name': year, 'naming': False, 'title': '', 'description': '', 'year': date_info.year, 'month': date_info.month, 'day': date_info.day, 'photos': [], 'parent': ''}
                                     if parent not in self.folders:
