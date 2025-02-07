@@ -134,7 +134,7 @@ def get_drives():
     drives = []
     if platform == 'win':
         for path in ['Desktop', 'Documents', 'Pictures']:
-            drives.append((os.path.expanduser(u'~')+sep+path+sep, path))
+            drives.append((os.path.join(os.path.expanduser(u'~'), path)+sep, path))
         bitmask = windll.kernel32.GetLogicalDrives()
         for letter in string.ascii_uppercase:
             if bitmask & 1:
@@ -155,7 +155,7 @@ def get_drives():
         for place in places:
             if os.path.isdir(place):
                 for directory in next(os.walk(place))[1]:
-                    drives.append((place+sep+directory+sep, directory))
+                    drives.append((os.path.join(place, directory)+sep, directory))
     elif platform == 'macosx' or platform == 'ios':
         drives.append((os.path.expanduser(u'~')+sep, 'Home'))
         vol = sep+u'Volume'
