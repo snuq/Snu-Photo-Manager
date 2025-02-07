@@ -3,10 +3,6 @@ import PIL
 from PIL import Image, ImageEnhance, ImageOps, ImageChops, ImageDraw, ImageFilter, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import os
-try:
-    from os.path import sep
-except:
-    from os import sep
 from io import BytesIO
 import datetime
 from shutil import copy2, copystat
@@ -2672,7 +2668,7 @@ class ConversionScreen(Screen):
     cancel_encoding = BooleanProperty()
     encoding = BooleanProperty(False)
     encodingthread = ObjectProperty()
-    encoding_process_thread = ObjectProperty()
+    encoding_process_thread = ObjectProperty(allownone=True)
     audio_file = StringProperty()
     use_audio = BooleanProperty(False)
     offset_audio_file = BooleanProperty(False)
@@ -2861,8 +2857,8 @@ class ConversionScreen(Screen):
             seek = ' -ss '+str(start)
         else:
             seek = ''
-        video_file = video_input_folder+sep+video_input_filename
-        audio_file = audio_input_folder+sep+audio_input_filename
+        video_file = os.path.join(video_input_folder, video_input_filename)
+        audio_file = os.path.join(audio_input_folder, audio_input_filename)
         if isfile2(audio_file_override):
             audio_extension = os.path.splitext(audio_file_override)[1].lower()
             if audio_extension in app.movietypes + app.audiotypes:
@@ -2871,7 +2867,7 @@ class ConversionScreen(Screen):
                     seek = ''
 
         output_filename = os.path.splitext(video_input_filename)[0]+'-mux.'+extension
-        output_file = output_file_folder+sep+output_filename
+        output_file = os.path.join(output_file_folder, output_filename)
         audio_bitrate_settings = "-b:a " + audio_bitrate + "k"
         audio_codec_settings = "-c:a " + audio_codec + " -strict -2"
 
@@ -2948,7 +2944,7 @@ class ConversionScreen(Screen):
         else:
             duration = ''
         if not input_file:
-            input_file = input_folder+sep+input_filename
+            input_file = os.path.join(input_folder, input_filename)
         if input_framerate:
             output_framerate = self.new_framerate(video_codec, input_framerate)
         else:
@@ -3046,13 +3042,13 @@ class ConversionScreen(Screen):
                 if not extension:
                     return [False, 'Could not determine ffmpeg container format.', '']
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
-            output_file = output_file_folder+sep+output_filename
+            output_file = os.path.join(output_file_folder, output_filename)
             input_settings = ' -i "'+input_file+'" '
             encoding_command_reformat = encoding_command.replace('%c', file_format_settings).replace('%v', video_codec_settings).replace('%a', audio_codec_settings).replace('%f', output_framerate_setting).replace('%p', pixel_format_setting).replace('%b', video_bitrate_settings).replace('%d', audio_bitrate_settings).replace('%i', input_settings).replace('%%', '%')
             command = executable+seek+' '+input_format_settings+' '+encoding_command_reformat+duration+' "'+output_file+'"'
         else:
             output_filename = os.path.splitext(output_filename)[0]+'.'+extension
-            output_file = output_file_folder+sep+output_filename
+            output_file = os.path.join(output_file_folder, output_filename)
             command = executable+threads_command+seek+' '+input_format_settings+' -i "'+input_file+'" '+file_format_settings+' '+filter_settings+' -sn '+speed_setting+' '+video_codec_settings+gop_setting+' '+audio_codec_settings+' '+output_framerate_setting+' '+pixel_format_setting+' '+video_bitrate_settings+' '+audio_bitrate_settings+duration+' "'+output_file+'"'
         return [True, command, output_filename]
 
@@ -3237,7 +3233,7 @@ class ConversionScreen(Screen):
             if os.path.isdir(export_folder_test):
                 output_file_folder = export_folder_test
 
-        output_file_folder_reencode = output_file_folder+sep+'reencode'
+        output_file_folder_reencode = os.path.join(output_file_folder, 'reencode')
 
         #setup encoding settings
         self.append_log("[INFO] : "+'Using FFMPEG from: '+ffmpeg_command)
@@ -3270,7 +3266,7 @@ class ConversionScreen(Screen):
             message = 'Command not valid: '+command
             self.end_encode(message, end_type='fail')
             return ['Error', message]
-        output_file = output_file_folder_reencode+sep+output_filename
+        output_file = os.path.join(output_file_folder_reencode, output_filename)
         if os.path.isfile(output_file):
             if photoinfo:
                 deleted = self.delete_output(output_file)
@@ -3296,7 +3292,15 @@ class ConversionScreen(Screen):
 
         if video_codec == 'copy':
             #Copy video only, no processing to do
-            self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+            try:
+                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+            except Exception as e:
+                message = "Video encode failed: "+str(e)
+                self.end_encode(message, end_type='fail')
+                self.kill_encoding_process_thread()
+                self.delete_temp_encode(output_file, output_file_folder_reencode)
+                return ["Error", message]
+
             while True:
                 if self.cancel_encoding:
                     self.kill_encoding_process_thread()
@@ -3326,9 +3330,16 @@ class ConversionScreen(Screen):
                 self.append_log(output.strip())
         else:
             #Process video frame-by-frame and encode
-            self.encoding_process_thread = subprocess.Popen(command, creationflags=creationflags, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
-            read_stdout = threading.Thread(target=self.read_stdout_thread)
-            read_stdout.start()
+            try:
+                self.encoding_process_thread = subprocess.Popen(command, creationflags=creationflags, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+                read_stdout = threading.Thread(target=self.read_stdout_thread)
+                read_stdout.start()
+            except Exception as e:
+                message = "Video encode failed: "+str(e)
+                self.end_encode(message, end_type='fail')
+                self.kill_encoding_process_thread()
+                self.delete_temp_encode(output_file, output_file_folder_reencode)
+                return ["Error", message]
 
             #Poll process for new output until finished
             while True:
@@ -3405,7 +3416,7 @@ class ConversionScreen(Screen):
             else:
                 #Add audio track
                 command_valid, command, output_temp_filename = self.get_ffmpeg_audio_command(output_file_folder_reencode, output_filename, input_file_folder, input_filename, output_file_folder_reencode, audio_file, offset_audio_file, encoding_settings=encoding_settings, start=start_seconds)
-                output_temp_file = output_file_folder_reencode+sep+output_temp_filename
+                output_temp_file = os.path.join(output_file_folder_reencode, output_temp_filename)
 
                 self.append_log("[INFO] : "+"Encoding audio using the command:")
                 self.append_log(command)
@@ -3417,8 +3428,14 @@ class ConversionScreen(Screen):
                     return ["Error", message]
 
                 #Poll process for new output until finished
-                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
-                while True:
+                try:
+                    self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+                except Exception as e:
+                    self.encoding_process_thread = None
+                    self.append_log("[WARNING] : "+"Audio encode process failed: "+str(e))
+                    exit_code = -1
+
+                while self.encoding_process_thread:
                     if self.cancel_encoding:
                         self.kill_encoding_process_thread()
                         self.delete_temp_encode(output_file, output_file_folder_reencode)
@@ -3443,13 +3460,14 @@ class ConversionScreen(Screen):
                             time_text = ""
                         self.popup.scanning_text = str(int(scanning_percentage)) + "%" + time_text
 
-                output = self.encoding_process_thread.communicate()[0]
-                if output:
-                    self.append_log(output.strip())
-                exit_code = self.encoding_process_thread.returncode
-                self.encoding_process_thread.wait()
-                self.append_log("[INFO] : "+"Audio encode process ended with exit code: "+str(exit_code))
-                self.append_log('')
+                if self.encoding_process_thread:
+                    output = self.encoding_process_thread.communicate()[0]
+                    if output:
+                        self.append_log(output.strip())
+                    exit_code = self.encoding_process_thread.returncode
+                    self.encoding_process_thread.wait()
+                    self.append_log("[INFO] : "+"Audio encode process ended with exit code: "+str(exit_code))
+                    self.append_log('')
 
                 if exit_code != 0:
                     #Could not encode audio element, video file may not include audio, warn the user and continue
@@ -3471,11 +3489,11 @@ class ConversionScreen(Screen):
             if not self.advanced_encode or (photoinfo and (not export_file or (output_file_folder == input_file_folder and output_basename == input_basename))):
                 #File is in database, not being exported to a different file
                 edit_image.close_video()
-                new_original_file = input_file_folder+sep+'.originals'+sep+input_filename
-                new_original_file_relative = '.originals'+sep+input_filename
-                if not os.path.isdir(input_file_folder+sep+'.originals'):
-                    os.makedirs(input_file_folder+sep+'.originals')
-                new_encoded_file = input_file_folder+sep+output_filename
+                new_original_file = os.path.join(input_file_folder, '.originals', input_filename)
+                new_original_file_relative = os.path.join('.originals', input_filename)
+                if not os.path.isdir(os.path.join(input_file_folder, '.originals')):
+                    os.makedirs(os.path.join(input_file_folder, '.originals'))
+                new_encoded_file = os.path.join(input_file_folder, output_filename)
 
                 #check if original file has been backed up already
                 if not os.path.isfile(new_original_file):
@@ -3528,7 +3546,7 @@ class ConversionScreen(Screen):
                 #output_temp_file : finished encodeded temp file, in the output_file_folder_reencode folder
                 #check if output exists, rename if needed
                 new_original_file = input_file
-                new_encoded_file = output_file_folder+sep+output_filename
+                new_encoded_file = os.path.join(output_file_folder, output_filename)
                 new_encoded_basefile, new_encoded_extension = os.path.splitext(new_encoded_file)
                 index = 1
                 while os.path.isfile(new_encoded_file):
@@ -3605,14 +3623,14 @@ class ConversionScreen(Screen):
 
         #back up old image and save new edit
         photo_file_original = self.photo
-        backup_directory = local_path(self.photoinfo[2])+sep+local_path(self.photoinfo[1])+sep+'.originals'
+        backup_directory = os.path.join(local_path(self.photoinfo[2]), local_path(self.photoinfo[1]), '.originals')
         if not os.path.exists(backup_directory):
             os.mkdir(backup_directory)
         if not os.path.exists(backup_directory):
             app.popup_message(text='Could not create backup directory', title='Warning')
             return
-        backup_photo_file = backup_directory+sep+os.path.basename(self.photo)
-        backup_photo_file_relative = '.originals'+sep+os.path.basename(self.photo)
+        backup_photo_file = os.path.join(backup_directory, os.path.basename(self.photo))
+        backup_photo_file_relative = os.path.join('.originals', os.path.basename(self.photo))
         if not os.path.isfile(photo_file_original):
             app.popup_message(text='Photo file no longer exists', title='Warning')
             return
@@ -3831,13 +3849,13 @@ class VideoConverterScreen(ConversionScreen):
             configfile.set(section, 'encode_state', batch['encode_state'])
             configfile.set(section, 'edit', str(batch['edit']))
 
-        with open(app.data_directory+sep+'batch.ini', 'w') as config:
+        with open(os.path.join(app.data_directory, 'batch.ini', 'w')) as config:
             configfile.write(config)
 
     def load_batch(self):
         app = App.get_running_app()
 
-        filename = app.data_directory+sep+'batch.ini'
+        filename = os.path.join(app.data_directory, 'batch.ini')
         if os.path.isfile(filename):
             configfile = ConfigParser(interpolation=None)
             configfile.read(filename)
@@ -4727,7 +4745,7 @@ class AlbumScreen(ConversionScreen):
         self.viewer.stop()
         app = App.get_running_app()
         edited_file = self.photo
-        original_file = os.path.abspath(local_path(self.photoinfo[2])+sep+local_path(self.photoinfo[1])+sep+local_path(self.photoinfo[10]))
+        original_file = os.path.abspath(os.path.join(local_path(self.photoinfo[2]), local_path(self.photoinfo[1]), local_path(self.photoinfo[10])))
         original_filename = os.path.split(original_file)[1]
         edited_filename = os.path.split(edited_file)[1]
         new_original_file = os.path.join(os.path.split(edited_file)[0], original_filename)
@@ -5734,7 +5752,7 @@ class EditPanelAlbumBase(EditPanelBase):
 
         delete_original_button = self.ids['deleteOriginal']
         photoinfo = self.owner.owner.photoinfo
-        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+sep+photoinfo[1]+sep+photoinfo[10]):
+        if photoinfo[9] == 1 and os.path.isfile(os.path.join(photoinfo[2], photoinfo[1], photoinfo[10])):
             delete_original_button.disabled = False
         else:
             delete_original_button.disabled = True
@@ -5753,7 +5771,7 @@ class EditPanelAlbumBase(EditPanelBase):
 
         undo_button = self.ids['undoEdits']
         photoinfo = self.owner.owner.photoinfo
-        if photoinfo[9] == 1 and os.path.isfile(photoinfo[2]+sep+photoinfo[1]+sep+photoinfo[10]):
+        if photoinfo[9] == 1 and os.path.isfile(os.path.join(photoinfo[2], photoinfo[1], photoinfo[10])):
             undo_button.disabled = False
         else:
             undo_button.disabled = True
