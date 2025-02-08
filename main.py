@@ -14,21 +14,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 """
-Todo before 1.0:
-    Video editor:
-        add ability to play back video with audio for easier selecting the in/out
-    Need to think of a way to divide up years abstractly
-        Maybe manually added 'markers' that can be jumped to
-        Maybe add 'pages' somehow
-            maybe button at bottom that shows 'More albums (number)'
-            maybe buttons next to database scroller that show starting/ending folder names - clicking them reloads scroller with that group
-
-Bugs:
+Known Bugs:
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
-Todo Possible Future:
+Todo:
+    Video editor: add ability to play back video with audio for easier selecting the in/out
     RAW import - https://github.com/photoshell/rawkit , need to get libraw working
-
 """
 import time
 start = time.perf_counter()
