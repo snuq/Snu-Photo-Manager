@@ -3999,6 +3999,7 @@ class ThumbnailCache:
             self.add_cache(image, filename)
         if not self.cancel_queue:
             self.load_queue.insert(0, [filename, photoinfo, temporary, callback])
+            self.start_queue()
         self.generator_thread = None
 
     def queue_thread_run(self, *_):
