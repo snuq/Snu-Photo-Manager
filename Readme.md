@@ -63,7 +63,7 @@ For now, side-loading of apps is required to be enabled.  Depending on your devi
    * ffpyplayer  
    * Pillow  
    * numpy (not strictly required, but some features will be missing without it).  
-   * opencv-python (same as numpy).  
+   * opencv-python or opencv-python-headless (same as numpy).  
 * Download the repository.  
 * Unzip the repository to the location of your choice.  
 * For video conversions, the ffmpeg executable must be installed in a path that Python can find (the root directory of Snu Photo Manager will work).  Tested with 2.8.11.  
