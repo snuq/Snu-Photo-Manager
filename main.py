@@ -289,6 +289,7 @@ class PhotoManager(App):
     encoding_presets = ListProperty()
     encoding_presets_extra = ListProperty()
     encoding_presets_user = ListProperty()
+    show_database_delay = None
 
     #Widget holders
     drag_image = ObjectProperty()
@@ -1457,7 +1458,9 @@ class PhotoManager(App):
                     if extension in self.movietypes:
                         Clock.schedule_once(self.show_video_converter)
                         return
-        Clock.schedule_once(self.show_database)
+        if self.show_database_delay:
+            self.show_database_delay.cancel()
+        self.show_database_delay = Clock.schedule_once(self.show_database, 0.2)
 
     def open_settings(self, *largs):
         self.clear_drags()

@@ -1766,9 +1766,7 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
         self.index = index
         self.data = data
         thumbnail = self.ids['thumbnail']
-        thumbnail.temporary = self.data['temporary']
-        thumbnail.photoinfo = self.data['photoinfo']
-        thumbnail.source = self.data['source']
+        thumbnail.update(self.data['source'], self.data['photoinfo'], self.data['temporary'])
         self.image = thumbnail
         return super(PhotoRecycleThumb, self).refresh_view_attrs(rv, index, data)
 
@@ -3968,6 +3966,12 @@ class AsyncThumbnail(KivyImage):
         if self.source:
             self._load_source()
 
+    def update(self, source, photoinfo, temporary):
+        if self.source != source:
+            self.photoinfo = photoinfo
+            self.temporary = temporary
+            self.source = source
+
     def load_thumbnail(self, filename):
         """Load from thumbnail database, or generate a new thumbnail of the given image filename.
         Argument:
@@ -3977,7 +3981,7 @@ class AsyncThumbnail(KivyImage):
         root_widget = True
         if root_widget or self.loadanyway:
             app = App.get_running_app()
-            full_filename = filename
+            full_filename = self.source
             photo = self.photoinfo
 
             file_found = isfile2(full_filename)
@@ -4042,6 +4046,8 @@ class AsyncThumbnail(KivyImage):
         elif not photo:
             Clock.schedule_once(lambda *dt: self._load_source(), .25)
         else:
+            if self._coreimage is not None:
+                self._coreimage.unbind(on_texture=self._on_tex_change)
             ThumbLoader.max_upload_per_frame = 50
             ThumbLoader.num_workers = 2
             ThumbLoader.loading_image = 'data/loadingthumbnail.png'
