@@ -1088,7 +1088,7 @@ class DatabaseScreen(Screen):
                         if child['folder'] == root:
                             root_element = child
                     if not root_element:
-                        children.append({'folder': root, 'title': folder_title, 'full_folder': parent_folder, 'children': []})
+                        children.append({'folder': root, 'title': '', 'full_folder': parent_folder, 'children': []})
                         root_element = children[-1]
                     children = root_element['children']
                     newname = leaf
@@ -1099,6 +1099,8 @@ class DatabaseScreen(Screen):
                 if not root_element:
                     children.append({'folder': newname, 'title': folder_title, 'full_folder': full_folder, 'children': []})
 
+        for folder in root_folders:
+            print(folder)
         #ensure that selected folder is expanded up to
         selected_folder = self.selected
         while sep in selected_folder:
