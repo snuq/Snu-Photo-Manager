@@ -100,6 +100,13 @@ if platform == 'android':
     from android.permissions import request_permissions, Permission
     request_permissions([Permission.WRITE_EXTERNAL_STORAGE])
 
+if platform == 'linux':
+    #Linux has some weirdness with the touchpad by default... remove it
+    options = Config.options('input')
+    for option in options:
+        if Config.get('input', option) == 'probesysfs':
+            Config.remove_option('input', option)
+
 
 class MainWindow(FloatLayout):
     pass
