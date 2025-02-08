@@ -5,7 +5,7 @@ import math
 from io import BytesIO
 import PIL
 from PIL import Image, ImageEnhance, ImageOps, ImageChops, ImageDraw, ImageFilter, ImageFile
-
+from threading import Thread
 from ffpyplayer.player import MediaPlayer
 from ffpyplayer.pic import SWScale
 from ffpyplayer import tools as fftools
@@ -38,7 +38,6 @@ from kivy.uix.image import Image as KivyImage
 from kivy.core.image import Image as CoreImage
 from kivy.core.image import ImageLoader
 from kivy.uix.scrollview import ScrollView
-from kivy.loader import Loader as ThumbLoader
 from kivy.core.image.img_pil import ImageLoaderPIL
 from kivy.uix.stencilview import StencilView
 from kivy.uix.recycleview import RecycleView
@@ -3940,6 +3939,107 @@ class CustomImage(KivyImage, ImageEditor):
         self.edit_image = None
 
 
+class ThumbnailCache:
+    thumbnails = {}
+    cache_order = []
+    max_size = 1000
+    loaders = {}
+    load_queue = []
+    queue_thread = None
+    cancel_queue = False
+    generator_thread = None
+
+    def add_cache(self, image, filename):
+        self.thumbnails[filename] = image
+        self.cache_order.append(filename)
+        while len(self.cache_order) > self.max_size:
+            old_cache = self.cache_order.pop(0)
+            del self.thumbnails[old_cache]
+
+    def clear(self):
+        self.stop_queue()
+        self.thumbnails = {}
+        self.cache_order = []
+        self.load_queue = []
+
+    def stop_queue(self):
+        self.load_queue = []
+        if self.queue_thread:
+            self.queue_thread.cancel()
+            self.queue_thread = None
+        self.cancel_queue = True
+        while self.generator_thread:
+            time.sleep(0.05)
+
+    def start_queue(self):
+        self.cancel_queue = False
+        if not self.queue_thread:
+            self.queue_thread = Clock.schedule_once(self.queue_thread_run, 0)
+
+    def load(self, filename, photoinfo, temporary, callback):
+        #checks cache for thumbnail, retrns immediately if exists, else loads in a thread.
+        #calls 'callback' with the thumbnail image when loaded
+        if filename in self.thumbnails:
+            #thumbnail in cache
+            callback(filename, self.thumbnails[filename])
+        else:
+            self.load_queue.append([filename, photoinfo, temporary, callback])
+            self.start_queue()
+
+    def generate_thumbnail(self, filename, photoinfo, temporary, callback, modified_date):
+        app = App.get_running_app()
+        updated = app.database_thumbnail_update(photoinfo[0], photoinfo[2], modified_date, photoinfo[13], temporary=temporary)
+        if updated:
+            thumbnail_image = app.database_thumbnail_get(photoinfo[0], temporary=temporary)
+            data = BytesIO(thumbnail_image[2])
+            image = CoreImage(data, ext='jpg')
+            self.add_cache(image, filename)
+        else:
+            image = ImageLoader.load(filename)
+            self.add_cache(image, filename)
+        if not self.cancel_queue:
+            self.load_queue.insert(0, [filename, photoinfo, temporary, callback])
+        self.generator_thread = None
+
+    def queue_thread_run(self, *_):
+        app = App.get_running_app()
+        frame = 1/30
+        start = time.time()
+        while not self.generator_thread and self.load_queue and (time.time() - start) < frame:
+            if self.cancel_queue:
+                self.stop_queue()
+            filename, photoinfo, temporary, callback = self.load_queue.pop(0)
+            file_found = isfile2(filename)
+            if file_found:
+                #image is readable right now
+                modified_date = int(os.path.getmtime(filename))
+                if modified_date > photoinfo[7]:
+                    app.database_thumbnail_update(photoinfo[0], photoinfo[2], modified_date, photoinfo[13], temporary=temporary)
+            thumbnail_image = app.database_thumbnail_get(photoinfo[0], temporary=temporary)
+            if thumbnail_image:
+                #thumbnail was in database
+                imagedata = bytes(thumbnail_image[2])
+                data = BytesIO()
+                data.write(imagedata)
+                data.seek(0)
+                image = CoreImage(data, ext='jpg')
+                self.add_cache(image, filename)
+            else:
+                #thumbnail not in database
+                if file_found:
+                    #file exists, generate thumbnail from file and add to database
+                    self.generator_thread = Thread(target=self.generate_thumbnail, args=[filename, photoinfo, temporary, callback, modified_date])
+                    self.generator_thread.start()
+                    break
+                else:
+                    #not in database and file doesnt exist, return blank image
+                    image = ImageLoader.load('data/null.jpg')
+            callback(filename, image)
+        self.queue_thread = None
+        if self.load_queue:
+            self.start_queue()
+
+
 class AsyncThumbnail(KivyImage):
     """AsyncThumbnail is a modified version of the kivy AsyncImage class,
     used to automatically generate and save thumbnails of a specified image.
@@ -3972,48 +4072,6 @@ class AsyncThumbnail(KivyImage):
             self.temporary = temporary
             self.source = source
 
-    def load_thumbnail(self, filename):
-        """Load from thumbnail database, or generate a new thumbnail of the given image filename.
-        Argument:
-            filename: Image filename.
-        Returns: A Kivy image"""
-
-        root_widget = True
-        if root_widget or self.loadanyway:
-            app = App.get_running_app()
-            full_filename = self.source
-            photo = self.photoinfo
-
-            file_found = isfile2(full_filename)
-            if file_found:
-                modified_date = int(os.path.getmtime(full_filename))
-                if modified_date > photo[7]:
-                    #if not self.temporary:
-                    #    app.database_item_update(photo)
-                    #    app.update_photoinfo(folders=[photo[1]])
-                    app.database_thumbnail_update(photo[0], photo[2], modified_date, photo[13], temporary=self.temporary)
-            thumbnail_image = app.database_thumbnail_get(photo[0], temporary=self.temporary)
-            if thumbnail_image:
-                imagedata = bytes(thumbnail_image[2])
-                data = BytesIO()
-                data.write(imagedata)
-                data.seek(0)
-                image = CoreImage(data, ext='jpg')
-            else:
-                if file_found:
-                    updated = app.database_thumbnail_update(photo[0], photo[2], modified_date, photo[13], temporary=self.temporary)
-                    if updated:
-                        thumbnail_image = app.database_thumbnail_get(photo[0], temporary=self.temporary)
-                        data = BytesIO(thumbnail_image[2])
-                        image = CoreImage(data, ext='jpg')
-                    else:
-                        image = ImageLoader.load(full_filename)
-                else:
-                    image = ImageLoader.load('data/null.jpg')
-            return image
-        else:
-            return ImageLoader.load('data/null.jpg')
-
     def set_angle(self):
         if not self.disable_rotate:
             orientation = self.photoinfo[13]
@@ -4039,48 +4097,26 @@ class AsyncThumbnail(KivyImage):
         photo = self.photoinfo
         self.nocache = True
         if not source and not photo:
-            if self._coreimage is not None:
-                self._coreimage.unbind(on_texture=self._on_tex_change)
             self.texture = None
             self._coreimage = None
         elif not photo:
             Clock.schedule_once(lambda *dt: self._load_source(), .25)
         else:
-            if self._coreimage is not None:
-                self._coreimage.unbind(on_texture=self._on_tex_change)
-            ThumbLoader.max_upload_per_frame = 50
-            ThumbLoader.num_workers = 2
-            ThumbLoader.loading_image = 'data/loadingthumbnail.png'
-            self._coreimage = image = ThumbLoader.image(source, load_callback=self.load_thumbnail, nocache=self.nocache, mipmap=self.mipmap, anim_delay=self.anim_delay)
-            image.bind(on_load=self._on_source_load)
-            self.texture = image.texture  #displays the 'loading' image
+            app = App.get_running_app()
+            self.texture = app.thumbnail_loading.texture
+            app.thumbnail_cache.load(source, photo, self.temporary, self.apply_thumbnail)
+
+    def apply_thumbnail(self, source, image):
+        if source == self.source:
+            self.texture = image.texture
+            if self.loadfullsize:
+                Clock.schedule_once(self._load_fullsize)
 
     def on_loadfullsize(self, *_):
         if self.thumbnail and not self.is_full_size and self.loadfullsize:
-            self._on_source_load()
+            self._load_fullsize()
 
-    def _on_source_load(self, *_):
-        try:
-            image = self._coreimage.image
-            if not image:
-                return
-        except:
-            return
-        self.thumbnail = image
-        self.thumbsize = image.size
-        self.texture = image.texture
-        self.aspect = image.size[1] / image.size[0]
-
-        if self.loadfullsize:
-            Cache.remove('kv.image', self.source)
-            try:
-                self._coreimage.image.remove_from_cache()
-                self._coreimage.remove_from_cache()
-            except:
-                pass
-            Clock.schedule_once(lambda dt: self._load_fullsize())
-
-    def _load_fullsize(self):
+    def _load_fullsize(self, *_):
         app = App.get_running_app()
         if not self.lowmem:
             low_memory = to_bool(app.config.get("Settings", "lowmem"))

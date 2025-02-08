@@ -64,6 +64,7 @@ from kivy.uix.screenmanager import ScreenManager
 from kivy.uix.screenmanager import SlideTransition, NoTransition
 from kivy.properties import ObjectProperty, StringProperty, ListProperty, BooleanProperty, NumericProperty
 from kivy.uix.floatlayout import FloatLayout
+from kivy.core.image import ImageLoader
 from kivy.core.window import Window
 from send2trash import send2trash
 from queue import Queue
@@ -74,7 +75,7 @@ except:
 
 from generalconstants import *
 from generalcommands import get_crashlog, save_crashlog, list_folders, get_folder_info, local_thumbnail, isfile2, naming, to_bool, local_path, local_paths, agnostic_path, local_photoinfo, agnostic_photoinfo, get_file_info
-from generalelements import ClickFade, EncodingSettings, PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu
+from generalelements import ClickFade, EncodingSettings, PhotoDrag, TreenodeDrag, NormalPopup, MessagePopup, InputMenu, ThumbnailCache
 from screendatabase import DatabaseScreen, DatabaseRestoreScreen, TransferScreen
 from screensettings import PhotoManagerSettings, AboutPopup
 
@@ -290,6 +291,8 @@ class PhotoManager(App):
     encoding_presets_extra = ListProperty()
     encoding_presets_user = ListProperty()
     show_database_delay = None
+    thumbnail_cache = None
+    thumbnail_loading = None
 
     #Widget holders
     drag_image = ObjectProperty()
@@ -468,6 +471,11 @@ class PhotoManager(App):
         Window.bind(on_key_down=self.key_down)
         Window.bind(on_key_up=self.key_up)
         Window.bind(on_dropfile=self.drop_file)
+
+        #Set up thumbnail cache
+        self.thumbnail_cache = ThumbnailCache()
+        self.thumbnail_loading = ImageLoader.load('data/loadingthumbnail.png')
+
         return self.main_layout
 
     def on_start(self):
@@ -505,6 +513,7 @@ class PhotoManager(App):
         Saves all settings and data.
         """
 
+        self.thumbnail_cache.stop_queue()
         self.screen_manager.current_screen.on_leave()
         if self.database_scanning:
             self.cancel_database_import()

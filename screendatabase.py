@@ -1326,6 +1326,7 @@ class DatabaseScreen(Screen):
             photos_container = self.ids['photosContainer']
             photos_container.scroll_y = 1
             app = App.get_running_app()
+            app.thumbnail_cache.stop_queue()
             folder_title_type = self.ids['folderType']
             folder_details = self.ids['folderDetails']
             folder_details.clear_widgets()
