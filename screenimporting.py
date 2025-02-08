@@ -744,7 +744,11 @@ class ImportingScreen(Screen):
                         parent = newfolder['parent']
                     for path in path_string:
                         folder_name = os.path.join(path, folder_name)
-                folderinfo = [folder_name, folder['title'], folder['description']]
+                if '%T' in self.naming_method:
+                    title = ''
+                else:
+                    title = folder['title']
+                folderinfo = [folder_name, title, folder['description']]
                 path = os.path.join(import_to, folder_name)
                 if not os.path.isdir(path):
                     os.makedirs(path)
