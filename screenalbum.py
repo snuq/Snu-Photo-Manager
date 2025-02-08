@@ -3849,7 +3849,7 @@ class VideoConverterScreen(ConversionScreen):
             configfile.set(section, 'encode_state', batch['encode_state'])
             configfile.set(section, 'edit', str(batch['edit']))
 
-        with open(os.path.join(app.data_directory, 'batch.ini', 'w')) as config:
+        with open(os.path.join(app.data_directory, 'batch.ini'), 'w') as config:
             configfile.write(config)
 
     def load_batch(self):

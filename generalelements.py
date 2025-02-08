@@ -4047,8 +4047,7 @@ class AsyncThumbnail(KivyImage):
             ThumbLoader.loading_image = 'data/loadingthumbnail.png'
             self._coreimage = image = ThumbLoader.image(source, load_callback=self.load_thumbnail, nocache=self.nocache, mipmap=self.mipmap, anim_delay=self.anim_delay)
             image.bind(on_load=self._on_source_load)
-            image.bind(on_texture=self._on_tex_change)
-            self.texture = image.texture
+            self.texture = image.texture  #displays the 'loading' image
 
     def on_loadfullsize(self, *_):
         if self.thumbnail and not self.is_full_size and self.loadfullsize:
