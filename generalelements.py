@@ -3949,6 +3949,10 @@ class ThumbnailCache:
     cancel_queue = False
     generator_thread = None
 
+    def remove_cache(self, filename):
+        if filename in self.thumbnails:
+            del self.thumbnails[filename]
+
     def add_cache(self, image, filename):
         self.thumbnails[filename] = image
         self.cache_order.append(filename)

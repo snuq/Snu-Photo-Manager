@@ -3537,6 +3537,7 @@ class ConversionScreen(Screen):
                         app.database_item_rename(photoinfo[0], new_photoinfo[0], new_photoinfo[1])
                     app.database_item_update(new_photoinfo)
                     photoinfo = new_photoinfo
+                    app.thumbnail_cache.remove_cache(input_file)
                     app.database_thumbnail_update(photoinfo[0], photoinfo[2], photoinfo[7], photoinfo[13], force=True)
                     self.fullpath = local_path(new_photoinfo[0])
                 self.export_folder = output_file_folder
@@ -3685,6 +3686,7 @@ class ConversionScreen(Screen):
         copystat(backup_photo_file, photo_file)
 
         #regenerate thumbnail
+        app.thumbnail_cache.remove_cache(photo_file)
         app.database_thumbnail_update(update_photoinfo[0], update_photoinfo[2], update_photoinfo[7], update_photoinfo[13], force=True)
 
         self.set_edit_panel('main')
@@ -4791,6 +4793,7 @@ class AlbumScreen(ConversionScreen):
             app.save_photoinfo(target=self.photoinfo[1], save_location=os.path.join(self.photoinfo[2], self.photoinfo[1]))
 
             #regenerate thumbnail
+            app.thumbnail_cache.remove_cache(edited_file)
             app.database_thumbnail_update(self.photoinfo[0], self.photoinfo[2], self.photoinfo[7], self.photoinfo[13], force=True)
 
             #reload photo image in ui
