@@ -475,6 +475,7 @@ class DatabaseScreen(Screen):
     def rescale_screen(self):
         app = App.get_running_app()
         self.ids['leftpanel'].width = app.left_panel_width()
+        self.update_treeview()
 
     def open_browser(self):
         if self.can_browse:
@@ -1099,8 +1100,6 @@ class DatabaseScreen(Screen):
                 if not root_element:
                     children.append({'folder': newname, 'title': folder_title, 'full_folder': full_folder, 'children': []})
 
-        for folder in root_folders:
-            print(folder)
         #ensure that selected folder is expanded up to
         selected_folder = self.selected
         while sep in selected_folder:
