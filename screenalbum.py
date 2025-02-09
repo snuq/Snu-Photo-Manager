@@ -3488,7 +3488,7 @@ class ConversionScreen(Screen):
             #Deal with original file if needed
             if not self.advanced_encode or (photoinfo and (not export_file or (output_file_folder == input_file_folder and output_basename == input_basename))):
                 #File is in database, not being exported to a different file
-                edit_image.close_video()
+                #edit_image.close_video()
                 new_original_file = os.path.join(input_file_folder, '.originals', input_filename)
                 new_original_file_relative = os.path.join('.originals', input_filename)
                 if not os.path.isdir(os.path.join(input_file_folder, '.originals')):
