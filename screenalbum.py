@@ -3293,7 +3293,7 @@ class ConversionScreen(Screen):
         if video_codec == 'copy':
             #Copy video only, no processing to do
             try:
-                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+                self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1, shell=True)
             except Exception as e:
                 message = "Video encode failed: "+str(e)
                 self.end_encode(message, end_type='fail')
@@ -3429,7 +3429,7 @@ class ConversionScreen(Screen):
 
                 #Poll process for new output until finished
                 try:
-                    self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1)
+                    self.encoding_process_thread = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1, shell=True)
                 except Exception as e:
                     self.encoding_process_thread = None
                     self.append_log("[WARNING] : "+"Audio encode process failed: "+str(e))
@@ -3568,7 +3568,6 @@ class ConversionScreen(Screen):
 
             #Notify user of success
             if no_audio:
-                self.append_log("[WARNING] : Could not encode audio track")
                 Clock.schedule_once(lambda x: app.message("Completed encoding file, could not find audio track."))
             else:
                 Clock.schedule_once(lambda x: app.message("Completed encoding file '"+new_encoded_file+"'"))
