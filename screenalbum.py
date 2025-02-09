@@ -4822,7 +4822,6 @@ class AlbumScreen(ConversionScreen):
                 #Start edit mode
                 self.viewer.stop()
                 self.viewer.edit_mode = self.edit_panel
-                self.viewer.init_edit_mode()
                 self.viewer.bypass = True
                 self.edit_panel_object = EditPanel(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
                 self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
@@ -6919,7 +6918,9 @@ class PhotoViewer(BoxLayout):
 
     def init_edit_mode(self, *_):
         if not self.edit_image:
+            start = time.time()
             self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            print(3, time.time() - start)
             viewer = self.ids['photoShow']
             viewer.add_widget(self.edit_image)
 
