@@ -255,9 +255,7 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
         d = 1
     linear_y = y
     for x in range(length):
-        if rounding:
-            y = round(y)
-        values.append(y)
+
         linear_y = linear_y + step
         if mode == 'cubic' or mode == 'catmull':
             mu = x / length
@@ -274,6 +272,9 @@ def interpolate(start, stop, length, minimum, maximum, before=None, before_dista
             y = maximum
         if y < minimum:
             y = minimum
+        if rounding:
+            y = round(y)
+        values.append(y)
     return values
 
 
@@ -559,3 +560,56 @@ def get_file_info(file_info, import_mode=False, modified_date=False):
         pass
 
     return [os.path.join(filepath, filename), filepath, database_folder, original_date, original_size, rename, import_date, modified_date, tags, edited, original_file, owner, export, orientation]
+
+
+def generate_curve(points, resolution, resolution_bytes):
+    app = App.get_running_app()
+    curve = []
+    resolution = resolution - 1
+    total_bytes = resolution_bytes - 1
+    interpolation = app.interpolation
+
+    x = 0
+    index = 0
+    previous_point = False
+    start_point = points[index]
+
+    while x < resolution:
+        if index < (len(points)-2):
+            next_point = points[index+2]
+        else:
+            next_point = False
+        stop_point = points[index+1]
+        stop_x = int(stop_point[0]*resolution)
+        distance = stop_x - x
+        start_y = start_point[1] * total_bytes
+        stop_y = stop_point[1] * total_bytes
+        if previous_point != False:
+            previous_y = previous_point[1] * total_bytes
+            previous_distance = (start_point[0] - previous_point[0]) * total_bytes
+        else:
+            previous_y = None
+            previous_distance = distance
+        if next_point != False:
+            next_y = next_point[1] * total_bytes
+            next_distance = (next_point[0] - stop_point[0]) * total_bytes
+        else:
+            next_distance = distance
+            next_y = None
+        if interpolation == 'Catmull-Rom':
+            ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='catmull', rounding=True)
+        elif interpolation == 'Cubic':
+            ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='cubic', rounding=True)
+        elif interpolation == 'Cosine':
+            ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine', rounding=True)
+        else:
+            ys = interpolate(start_y, stop_y, distance, 0, total_bytes, rounding=True)
+        curve = curve + ys
+        x = stop_x
+        index = index + 1
+        previous_point = start_point
+        start_point = stop_point
+    curve.append(round(points[-1][1] * total_bytes))
+    return curve
+
+

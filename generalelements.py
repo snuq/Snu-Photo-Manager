@@ -48,7 +48,7 @@ from kivy.uix.recycleview.layout import LayoutSelectionBehavior
 from kivy.uix.slider import Slider
 
 from generalconstants import *
-from generalcommands import get_keys_from_list, to_bool, isfile2, rotated_rect_with_max_area
+from generalcommands import get_keys_from_list, to_bool, isfile2, rotated_rect_with_max_area, generate_curve
 
 from kivy.lang.builder import Builder
 Builder.load_string("""
@@ -305,20 +305,21 @@ Builder.load_string("""
     size_hint: None, None
     size: app.button_scale * 9, app.button_scale
     show_arrow: False
-    MenuButton:
-        text: 'Select All'
-        on_release: root.select_all()
-    MenuButton:
-        disabled: not root.edit
-        text: 'Cut'
-        on_release: root.cut()
-    MenuButton:
-        text: 'Copy'
-        on_release: root.copy()
-    MenuButton:
-        disabled: not root.edit
-        text: 'Paste'
-        on_release: root.paste()
+    BoxLayout:
+        MenuButton:
+            text: 'Select All'
+            on_release: root.select_all()
+        MenuButton:
+            disabled: not root.edit
+            text: 'Cut'
+            on_release: root.cut()
+        MenuButton:
+            text: 'Copy'
+            on_release: root.copy()
+        MenuButton:
+            disabled: not root.edit
+            text: 'Paste'
+            on_release: root.paste()
 
 <-TextInput>:
     canvas.before:
@@ -2914,6 +2915,19 @@ class ImageEditor(EventDispatcher):
     #variables duplicated in the image class
     source = StringProperty()
 
+    curve_resolution = 256
+    curve_bytes = 256
+
+    def set_curve(self, curve_points, curve=None):
+        self.curve_points = curve_points
+        if curve:
+            self.curve = curve
+        else:
+            if not curve_points or curve_points == [[0, 0], [1, 1]]:
+                self.curve = []
+            else:
+                self.curve = generate_curve(self.curve_points, self.curve_resolution, self.curve_bytes)
+
     def on_framerate_override(self, *_):
         if self.sequence:
             self.framerate = [self.framerate_override, 1]
@@ -3596,6 +3610,119 @@ class ImageEditor(EventDispatcher):
             return ('', image)
         except Exception as e:
             return (str(e), None)
+
+    def reset_color(self, *_):
+        self.reset_slide()
+        self.reset_brightness()
+        self.reset_shadow()
+        self.reset_gamma()
+        self.reset_saturation()
+        self.reset_temperature()
+        self.reset_equalize()
+        self.reset_autocontrast()
+        self.reset_adaptive()
+        self.reset_curves()
+        self.reset_tint()
+
+    def reset_autocontrast(self, *_):
+        self.autocontrast = CustomImage().autocontrast
+
+    def reset_equalize(self, *_):
+        self.equalize = CustomImage().equalize
+
+    def reset_adaptive(self, *_):
+        self.adaptive_clip = CustomImage().adaptive_clip
+
+    def reset_slide(self, *_):
+        self.slide = CustomImage().slide
+
+    def reset_brightness(self, *_):
+        self.brightness = CustomImage().brightness
+
+    def reset_gamma(self, *_):
+        self.gamma = CustomImage().gamma
+
+    def reset_shadow(self, *_):
+        self.shadow = CustomImage().shadow
+
+    def reset_temperature(self, *_):
+        self.temperature = CustomImage().temperature
+
+    def reset_saturation(self, *_):
+        self.saturation = CustomImage().saturation
+
+    def reset_curves(self, *_):
+        self.set_curve([])
+
+    def reset_tint(self, *_):
+        self.tint = CustomImage().tint
+
+    def reset_filter(self, *_):
+        self.reset_sharpen()
+        self.reset_median()
+        self.reset_bilateral_amount()
+        self.reset_bilateral()
+        self.reset_vignette_amount()
+        self.reset_vignette_size()
+        self.reset_edge_blur_amount()
+        self.reset_edge_blur_size()
+        self.reset_edge_blur_intensity()
+
+    def reset_sharpen(self, *_):
+        self.sharpen = CustomImage().sharpen
+
+    def reset_median(self, *_):
+        self.median_blur = CustomImage().median_blur
+
+    def reset_bilateral_amount(self, *_):
+        self.bilateral_amount = CustomImage().bilateral_amount
+
+    def reset_bilateral(self, *_):
+        self.bilateral = CustomImage().bilateral
+
+    def reset_vignette_amount(self, *_):
+        self.vignette_amount = CustomImage().vignette_amount
+
+    def reset_vignette_size(self, *_):
+        self.vignette_size = CustomImage().vignette_size
+
+    def reset_edge_blur_amount(self, *_):
+        self.edge_blur_amount = CustomImage().edge_blur_amount
+
+    def reset_edge_blur_size(self, *_):
+        self.edge_blur_size = CustomImage().edge_blur_size
+
+    def reset_edge_blur_intensity(self, *_):
+        self.edge_blur_intensity = CustomImage().edge_blur_intensity
+
+    def reset_border(self, *_):
+        self.reset_border_image()
+        self.reset_border_x_scale()
+        self.reset_border_y_scale()
+        self.reset_border_opacity()
+        self.reset_border_tint()
+
+    def reset_border_image(self, *_):
+        self.border_image = []
+
+    def reset_border_x_scale(self, *_):
+        self.border_x_scale = CustomImage().border_x_scale
+
+    def reset_border_y_scale(self, *_):
+        self.border_y_scale = CustomImage().border_y_scale
+
+    def reset_border_opacity(self, *_):
+        self.border_opacity = CustomImage().border_opacity
+
+    def reset_border_tint(self, *_):
+        self.border_tint = CustomImage().border_tint
+
+    def reset_denoise(self, *_):
+        self.denoise = False
+        self.luminance_denoise = CustomImage().luminance_denoise
+        self.color_denoise = CustomImage().color_denoise
+        self.search_window = CustomImage().search_window
+        self.block_size = CustomImage().block_size
 
 
 class CustomImage(KivyImage, ImageEditor):

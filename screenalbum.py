@@ -58,7 +58,7 @@ from colorpickercustom import ColorPickerCustom
 from kivy.core.video import Video as KivyCoreVideo
 from threading import Thread
 
-from generalcommands import find_dictionary, get_keys_from_list, interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2
+from generalcommands import find_dictionary, get_keys_from_list, interpolate, agnostic_path, local_path, time_index, format_size, to_bool, isfile2, generate_curve
 from filebrowser import FileBrowser
 from generalelements import EncodingSettings, ExpandablePanel, ScrollerContainer, CustomImage, ImageEditor, NormalButton, ExpandableButton, ScanningPopup, NormalPopup, ConfirmPopup, LeftNormalLabel, NormalLabel, ShortLabel, NormalDropDown, AlbumSortDropDown, MenuButton, TreeViewButton, RemoveButton, WideButton, RecycleItem, PhotoRecycleViewButton, AlbumExportDropDown
 from generalconstants import *
@@ -799,7 +799,6 @@ Builder.load_string("""
         SmallBufferY:
     ScreenManager:
         id: sm
-        on_current: root.change_screen(self.current)
 
 <EditPanel>:
     orientation: 'vertical'
@@ -839,7 +838,6 @@ Builder.load_string("""
         SmallBufferY:
     ScreenManager:
         id: sm
-        on_current: root.change_screen(self.current)
 
 <EditPanelConversionBase>:
     name: 'edit'
@@ -852,31 +850,31 @@ Builder.load_string("""
             height: self.minimum_height
             WideButton:
                 text: 'Color Adjustments'
-                on_release: root.manager.current = 'color'
+                on_release: root.owner.set_screen('color')
             SmallBufferY:
             WideButton:
                 text: 'Filters'
-                on_release: root.manager.current = 'filter'
+                on_release: root.owner.set_screen('filter')
             SmallBufferY:
             WideButton:
                 text: 'Image Borders'
-                on_release: root.manager.current = 'border'
+                on_release: root.owner.set_screen('border')
             SmallBufferY:
             WideButton:
                 height: app.button_scale if app.opencv else 0
                 opacity: 1 if app.opencv else 0
                 text: 'Denoise'
-                on_release: root.manager.current = 'denoise'
+                on_release: root.owner.set_screen('denoise')
                 disabled: not app.opencv
             SmallBufferY:
                 height: int(app.button_scale / 4) if app.opencv else 0
             WideButton:
                 text: 'Rotate'
-                on_release: root.manager.current = 'rotate'
+                on_release: root.owner.set_screen('rotate')
             SmallBufferY:
             WideButton:
                 text: 'Crop'
-                on_release: root.manager.current = 'crop'
+                on_release: root.owner.set_screen('crop')
 
 <EditPanelAlbumBase>:
     name: 'edit'
@@ -898,42 +896,42 @@ Builder.load_string("""
                 height: 0 if (root.owner.owner.view_image or not app.ffmpeg) else (app.button_scale / 4)
             WideButton:
                 text: 'Video Convert Settings'
-                on_release: root.manager.current = 'video'
+                on_release: root.owner.set_screen('video')
                 disabled: root.owner.owner.view_image or not app.ffmpeg
                 height: 0 if (root.owner.owner.view_image or not app.ffmpeg) else app.button_scale
                 opacity: 0 if (root.owner.owner.view_image or not app.ffmpeg) else 1
             SmallBufferY:
             WideButton:
                 text: 'Color Adjustments'
-                on_release: root.manager.current = 'color'
+                on_release: root.owner.set_screen('color')
                 disabled: not root.owner.owner.view_image and not app.ffmpeg
             SmallBufferY:
             WideButton:
                 text: 'Filters'
-                on_release: root.manager.current = 'filter'
+                on_release: root.owner.set_screen('filter')
                 disabled: not root.owner.owner.view_image and not app.ffmpeg
             SmallBufferY:
             WideButton:
                 text: 'Image Borders'
-                on_release: root.manager.current = 'border'
+                on_release: root.owner.set_screen('border')
                 disabled: not root.owner.owner.view_image and not app.ffmpeg
             SmallBufferY:
             WideButton:
                 height: app.button_scale if app.opencv else 0
                 opacity: 1 if app.opencv else 0
                 text: 'Denoise'
-                on_release: root.manager.current = 'denoise'
+                on_release: root.owner.set_screen('denoise')
                 disabled: (not root.owner.owner.view_image and not app.ffmpeg) or not app.opencv
             SmallBufferY:
                 height: int(app.button_scale / 4) if app.opencv else 0
             WideButton:
                 text: 'Rotate'
-                on_release: root.manager.current = 'rotate'
+                on_release: root.owner.set_screen('rotate')
                 disabled: not root.owner.owner.view_image and not app.ffmpeg
             SmallBufferY:
             WideButton:
                 text: 'Crop'
-                on_release: root.manager.current = 'crop'
+                on_release: root.owner.set_screen('crop')
                 disabled: not root.owner.owner.view_image and not app.ffmpeg
             MediumBufferY:
             WideButton:
@@ -981,7 +979,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.set_screen('edit')
         SmallBufferY:
         ScrollerContainer:
             cols: 1
@@ -999,19 +997,19 @@ Builder.load_string("""
                         text: 'Color Adjustments:'
                     NormalButton:
                         text: 'Reset All'
-                        on_release: root.reset()
-                BoxLayout:
-                    orientation: 'horizontal'
-                    size_hint_y: None
-                    height: app.button_scale if not self.disabled else 0
+                        on_release: 
+                            root.reset()
+                            root.image.reset_color()
+
+                NormalToggle:
+                    text: "Auto Contrast"
                     disabled: root.image.video
                     opacity: 0 if self.disabled else 1
-                    NormalToggle:
-                        text: "Auto Contrast"
-                        id: autocontrastToggle
-                        state: 'down' if root.image.autocontrast else 'normal'
-                        on_state: root.update_autocontrast(self.state)
-                        size_hint_x: 1
+                    id: autocontrastToggle
+                    state: 'down' if root.image.autocontrast else 'normal'
+                    on_state: root.update_autocontrast(self.state)
+                    height: app.button_scale if not self.disabled else 0
+                    size_hint_x: 1
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
@@ -1023,14 +1021,14 @@ Builder.load_string("""
                         text: 'Adaptive Histogram Equalize:'
                     NormalButton:
                         text: 'Reset'
-                        on_release: root.reset_adaptive()
+                        on_release: root.image.reset_adaptive()
                 HalfSlider:
                     disabled: not app.opencv
                     opacity: 1 if app.opencv else 0
                     height: app.button_scale if app.opencv else 0
                     value: root.image.adaptive_clip
                     on_value: root.image.adaptive_clip = self.value
-                    reset_value: root.reset_adaptive
+                    reset_value: root.image.reset_adaptive
                 SmallBufferY:
                     height: int(app.button_scale / 4) if app.opencv else 0
                 BoxLayout:
@@ -1041,11 +1039,11 @@ Builder.load_string("""
                         text: "Brightness Addition:"
                     NormalButton:
                         text: "Reset"
-                        on_release: root.reset_slide()
+                        on_release: root.image.reset_slide()
                 HalfSlider:
                     value: root.image.slide
                     on_value: root.image.slide = self.value
-                    reset_value: root.reset_slide
+                    reset_value: root.image.reset_slide
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
@@ -1055,11 +1053,11 @@ Builder.load_string("""
                         text: 'Highs:'
                     NormalButton:
                         text: 'Reset'
-                        on_release: root.reset_brightness()
+                        on_release: root.image.reset_brightness()
                 NormalSlider:
                     value: root.image.brightness
                     on_value: root.image.brightness = self.value
-                    reset_value: root.reset_brightness
+                    reset_value: root.image.reset_brightness
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
@@ -1069,11 +1067,11 @@ Builder.load_string("""
                         text: 'Mids:'
                     NormalButton:
                         text: 'Reset'
-                        on_release: root.reset_gamma()
+                        on_release: root.image.reset_gamma()
                 NormalSlider:
                     value: root.image.gamma
                     on_value: root.image.gamma = self.value
-                    reset_value: root.reset_gamma
+                    reset_value: root.image.reset_gamma
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
@@ -1083,11 +1081,11 @@ Builder.load_string("""
                         text: 'Lows:'
                     NormalButton:
                         text: 'Reset'
-                        on_release: root.reset_shadow()
+                        on_release: root.image.reset_shadow()
                 NormalSlider:
                     value: root.image.shadow
                     on_value: root.image.shadow = self.value
-                    reset_value: root.reset_shadow
+                    reset_value: root.image.reset_shadow
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
@@ -1097,11 +1095,11 @@ Builder.load_string("""
                         text: 'Color Temperature:'
                     NormalButton:
                         text: 'Reset'
-                        on_release: root.reset_temperature()
+                        on_release: root.image.reset_temperature()
                 NormalSlider:
                     value: root.image.temperature
                     on_value: root.image.temperature = self.value
-                    reset_value: root.reset_temperature
+                    reset_value: root.image.reset_temperature
                 SmallBufferY:
                 BoxLayout:
                     orientation: 'horizontal'
@@ -1111,11 +1109,11 @@ Builder.load_string("""
                         text: 'Saturation:'
                     NormalButton:
                         text: 'Reset'
-                        on_release: root.reset_saturation()
+                        on_release: root.image.reset_saturation()
                 NormalSlider:
                     value: root.image.saturation
                     on_value: root.image.saturation = self.value
-                    reset_value: root.reset_saturation
+                    reset_value: root.image.reset_saturation
                 SmallBufferY:
                 GridLayout:
                     canvas.before:
@@ -1168,7 +1166,7 @@ Builder.load_string("""
                             text: 'Tinting:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_tint()
+                            on_release: root.image.reset_tint()
                     BoxLayout:
                         size_hint_y: None
                         height: sp(33)*10
@@ -1183,7 +1181,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.set_screen('edit')
         SmallBufferY:
         ScrollerContainer:
             cols: 1
@@ -1201,7 +1199,7 @@ Builder.load_string("""
                         text: 'Filter Image:'
                     NormalButton:
                         text: 'Reset All'
-                        on_release: root.reset()
+                        on_release: root.image.reset_filter()
                 GridLayout:
                     canvas.before:
                         Color:
@@ -1222,11 +1220,11 @@ Builder.load_string("""
                             text: 'Soften/Sharpen:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_sharpen()
+                            on_release: root.image.reset_sharpen()
                     NormalSlider:
                         value: root.image.sharpen
                         on_value: root.image.sharpen = self.value
-                        reset_value: root.reset_sharpen
+                        reset_value: root.image.reset_sharpen
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -1236,7 +1234,7 @@ Builder.load_string("""
                             text: 'Median Blur (Despeckle):'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_median()
+                            on_release: root.image.reset_median()
                             disabled: not app.opencv
                     HalfSlider:
                         height: app.button_scale if app.opencv else 0
@@ -1244,7 +1242,7 @@ Builder.load_string("""
                         value: root.image.median_blur
                         on_value: root.image.median_blur = self.value
                         disabled: not app.opencv
-                        reset_value: root.reset_median
+                        reset_value: root.image.reset_median
                 MediumBufferY:
                 GridLayout:
                     canvas.before:
@@ -1268,11 +1266,11 @@ Builder.load_string("""
                             text: 'Edge-Preserve Blur:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_bilateral_amount()
+                            on_release: root.image.reset_bilateral_amount()
                     HalfSlider:
                         value: root.image.bilateral_amount
                         on_value: root.image.bilateral_amount = self.value
-                        reset_value: root.reset_bilateral_amount
+                        reset_value: root.image.reset_bilateral_amount
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -1281,11 +1279,11 @@ Builder.load_string("""
                             text: 'Blur Size:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_bilateral()
+                            on_release: root.image.reset_bilateral()
                     HalfSlider:
                         value: root.image.bilateral
                         on_value: root.image.bilateral = self.value
-                        reset_value: root.reset_bilateral
+                        reset_value: root.image.reset_bilateral
                 MediumBufferY:
                     height: int(app.button_scale / 2) if app.opencv else 0
                 GridLayout:
@@ -1308,11 +1306,11 @@ Builder.load_string("""
                             text: 'Vignette:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_vignette_amount()
+                            on_release: root.image.reset_vignette_amount()
                     HalfSlider:
                         value: root.owner.image.vignette_amount
                         on_value: root.image.vignette_amount = self.value
-                        reset_value: root.reset_vignette_amount
+                        reset_value: root.image.reset_vignette_amount
                     SmallBufferY:
                     BoxLayout:
                         orientation: 'horizontal'
@@ -1322,11 +1320,11 @@ Builder.load_string("""
                             text: 'Size:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_vignette_size()
+                            on_release: root.image.reset_vignette_size()
                     HalfSlider:
                         value: root.image.vignette_size
                         on_value: root.image.vignette_size = self.value
-                        reset_value: root.reset_vignette_size
+                        reset_value: root.image.reset_vignette_size
                 MediumBufferY:
                 GridLayout:
                     canvas.before:
@@ -1348,11 +1346,11 @@ Builder.load_string("""
                             text: 'Edge Blur:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_edge_blur_amount()
+                            on_release: root.image.reset_edge_blur_amount()
                     HalfSlider:
                         value: root.image.edge_blur_amount
                         on_value: root.image.edge_blur_amount = self.value
-                        reset_value: root.reset_edge_blur_amount
+                        reset_value: root.image.reset_edge_blur_amount
                     SmallBufferY:
                     BoxLayout:
                         orientation: 'horizontal'
@@ -1362,11 +1360,11 @@ Builder.load_string("""
                             text: 'Size:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_edge_blur_size()
+                            on_release: root.image.reset_edge_blur_size()
                     HalfSlider:
                         value: root.image.edge_blur_size
                         on_value: root.image.edge_blur_size = self.value
-                        reset_value: root.reset_edge_blur_size
+                        reset_value: root.image.reset_edge_blur_size
                     SmallBufferY:
                     BoxLayout:
                         orientation: 'horizontal'
@@ -1376,11 +1374,11 @@ Builder.load_string("""
                             text: 'Intensity:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_edge_blur_intensity()
+                            on_release: root.image.reset_edge_blur_intensity()
                     HalfSlider:
                         value: root.image.edge_blur_intensity
                         on_value: root.image.edge_blur_intensity = self.value
-                        reset_value: root.reset_edge_blur_intensity
+                        reset_value: root.image.reset_edge_blur_intensity
 
 <EditPanelBorder>:
     name: 'border'
@@ -1388,7 +1386,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.set_screen('edit')
         SmallBufferY:
         ScrollerContainer:
             cols: 1
@@ -1406,7 +1404,9 @@ Builder.load_string("""
                         text: 'Border Overlays:'
                     NormalButton:
                         text: 'Reset All'
-                        on_release: root.reset()
+                        on_release: 
+                            root.image.reset_border()
+                            root.reset()
                 GridLayout:
                     canvas.before:
                         Color:
@@ -1427,11 +1427,11 @@ Builder.load_string("""
                             text: 'Border Opacity:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_border_opacity()
+                            on_release: root.image.reset_border_opacity()
                     HalfSlider:
                         value: root.image.border_opacity
                         on_value: root.image.border_opacity = self.value
-                        reset_value: root.reset_border_opacity
+                        reset_value: root.image.reset_border_opacity
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -1440,11 +1440,11 @@ Builder.load_string("""
                             text: 'X Size:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_border_x_scale()
+                            on_release: root.image.reset_border_x_scale()
                     NormalSlider:
                         value: root.image.border_x_scale
                         on_value: root.image.border_x_scale = self.value
-                        reset_value: root.reset_border_x_scale
+                        reset_value: root.image.reset_border_x_scale
                     BoxLayout:
                         orientation: 'horizontal'
                         size_hint_y: None
@@ -1453,11 +1453,11 @@ Builder.load_string("""
                             text: 'Y Size:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_border_y_scale()
+                            on_release: root.image.reset_border_y_scale()
                     NormalSlider:
                         value: root.image.border_y_scale
                         on_value: root.image.border_y_scale = self.value
-                        reset_value: root.reset_border_y_scale
+                        reset_value: root.image.reset_border_y_scale
                     SmallBufferY:
                     LeftNormalLabel:
                         text: 'Select A Border:'
@@ -1499,7 +1499,7 @@ Builder.load_string("""
                             text: 'Border Tinting:'
                         NormalButton:
                             text: 'Reset'
-                            on_release: root.reset_border_tint()
+                            on_release: root.image.reset_border_tint()
                     BoxLayout:
                         size_hint_y: None
                         height: sp(33)*10
@@ -1513,7 +1513,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.set_screen('edit')
         SmallBufferY:
         ScrollerContainer:
             do_scroll_x: False
@@ -1530,7 +1530,9 @@ Builder.load_string("""
                         text: 'Denoise Image:'
                     NormalButton:
                         text: 'Reset All'
-                        on_release: root.reset()
+                        on_release:
+                            root.image.reset_denoise()
+                            root.reset()
                 GridLayout:
                     canvas.before:
                         Color:
@@ -1638,7 +1640,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.set_screen('edit')
         SmallBufferY:
         ScrollerContainer:
             cols: 1
@@ -1746,7 +1748,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.set_screen('edit')
         SmallBufferY:
         ScrollerContainer:
             cols: 1
@@ -1866,7 +1868,7 @@ Builder.load_string("""
         orientation: 'vertical'
         WideButton:
             text: 'More Editing'
-            on_release: root.manager.current = 'edit'
+            on_release: root.owner.edit_panel_object.set_screen('edit')
             disabled: root.advanced
             opacity: 0 if root.advanced else 1
             height: 0 if root.advanced else app.button_scale
@@ -2697,13 +2699,13 @@ class ConversionScreen(Screen):
     contrast = NumericProperty(0)
     saturation = NumericProperty(0)
     tint = ListProperty([1.0, 1.0, 1.0, 1.0])
-    curve = ListProperty([[0, 0], [1, 1]])
+    curve_points = ListProperty([[0, 0], [1, 1]])
     curve_data = ListProperty()
     denoise = BooleanProperty(False)
-    luminance_denoise = StringProperty('10')
-    color_denoise = StringProperty('10')
-    search_window = StringProperty('15')
-    block_size = StringProperty('5')
+    luminance_denoise = NumericProperty(10)
+    color_denoise = NumericProperty(10)
+    search_window = NumericProperty(15)
+    block_size = NumericProperty(5)
     luminance_denoise_data = NumericProperty(10)
     color_denoise_data = NumericProperty(10)
     search_window_data = NumericProperty(15)
@@ -2718,7 +2720,7 @@ class ConversionScreen(Screen):
     edge_blur_amount = NumericProperty(0)
     edge_blur_intensity = NumericProperty(0.5)
     edge_blur_size = NumericProperty(0.5)
-    border_selected = StringProperty()
+    border_selected = ListProperty()
     border_data = ListProperty()  #border_image
     border_x_scale = NumericProperty(0)
     border_y_scale = NumericProperty(0)
@@ -3911,7 +3913,7 @@ class VideoConverterScreen(ConversionScreen):
             #Store current preset to a CustomImage
             save = image
             load = preset
-            save.curve_points = load.curve
+            save.curve = load.curve
             save.curve = load.curve_data
             save.adaptive_clip = load.adaptive
             save.median_blur = load.median
@@ -5842,45 +5844,11 @@ class EditPanelConversionBase(EditPanelBase):
 
 class EditPanelColor(EditPanelBase):
     def reset(self, *_):
-        self.reset_slide()
-        self.reset_brightness()
-        self.reset_shadow()
-        self.reset_gamma()
-        self.reset_saturation()
-        self.reset_temperature()
-        self.reset_equalize()
-        self.reset_autocontrast()
-        self.reset_adaptive()
         self.reset_curves()
-        self.reset_tint()
 
-    def save(self, preset):
-        preset.equalize = self.image.equalize
-        preset.autocontrast = self.image.autocontrast
-        preset.adaptive = self.image.adaptive_clip
-        preset.slide = self.image.slide
-        preset.brightness = self.image.brightness
-        preset.gamma = self.image.gamma
-        preset.saturation = self.image.saturation
-        preset.temperature = self.image.temperature
-        preset.shadow = self.image.shadow
-        preset.tint = self.image.tint
+    def load(self):
         curves = self.ids['curves']
-        preset.curve = curves.points
-
-    def load(self, preset):
-        self.image.equalize = preset.equalize
-        self.image.autocontrast = preset.autocontrast
-        self.image.adaptive_clip = preset.adaptive
-        self.image.slide = preset.slide
-        self.image.brightness = preset.brightness
-        self.image.gamma = preset.gamma
-        self.image.saturation = preset.saturation
-        self.image.temperature = preset.temperature
-        self.image.shadow = preset.shadow
-        self.image.tint = preset.tint
-        curves = self.ids['curves']
-        curves.points = preset.curve
+        curves.points = self.image.curve_points
         curves.refresh()
 
     def update_autocontrast(self, state):
@@ -5888,33 +5856,6 @@ class EditPanelColor(EditPanelBase):
             self.image.autocontrast = True
         else:
             self.image.autocontrast = False
-
-    def reset_autocontrast(self, *_):
-        self.image.autocontrast = CustomImage().autocontrast
-
-    def reset_equalize(self, *_):
-        self.image.equalize = CustomImage().equalize
-
-    def reset_adaptive(self, *_):
-        self.image.adaptive_clip = CustomImage().adaptive_clip
-
-    def reset_slide(self, *_):
-        self.image.slide = CustomImage().slide
-
-    def reset_brightness(self, *_):
-        self.image.brightness = CustomImage().brightness
-
-    def reset_gamma(self, *_):
-        self.image.gamma = CustomImage().gamma
-
-    def reset_shadow(self, *_):
-        self.image.shadow = CustomImage().shadow
-
-    def reset_temperature(self, *_):
-        self.image.temperature = CustomImage().temperature
-
-    def reset_saturation(self, *_):
-        self.image.saturation = CustomImage().saturation
 
     def remove_point(self, *_):
         """Tells the curves widget to remove its last point."""
@@ -5925,73 +5866,13 @@ class EditPanelColor(EditPanelBase):
     def reset_curves(self, *_):
         """Tells the curves widget to reset to its default points."""
 
+        self.image.reset_curves()
         curves = self.ids['curves']
         curves.reset()
 
-    def reset_tint(self, *_):
-        self.image.tint = CustomImage().tint
-
 
 class EditPanelFilter(EditPanelBase):
-    def reset(self, *_):
-        self.reset_sharpen()
-        self.reset_median()
-        self.reset_bilateral_amount()
-        self.reset_bilateral()
-        self.reset_vignette_amount()
-        self.reset_vignette_size()
-        self.reset_edge_blur_amount()
-        self.reset_edge_blur_size()
-        self.reset_edge_blur_intensity()
-
-    def save(self, preset):
-        preset.sharpen = self.image.sharpen
-        preset.median = self.image.median_blur
-        preset.bilateral_amount = self.image.bilateral_amount
-        preset.bilateral = self.image.bilateral
-        preset.vignette_amount = self.image.vignette_amount
-        preset.vignette_size = self.image.vignette_size
-        preset.edge_blur_amount = self.image.edge_blur_amount
-        preset.edge_blur_size = self.image.edge_blur_size
-        preset.edge_blur_intensity = self.image.edge_blur_intensity
-
-    def load(self, preset):
-        self.image.sharpen = preset.sharpen
-        self.image.median_blur = preset.median
-        self.image.bilateral_amount = preset.bilateral_amount
-        self.image.bilateral = preset.bilateral
-        self.image.vignette_amount = preset.vignette_amount
-        self.image.vignette_size = preset.vignette_size
-        self.image.edge_blur_amount = preset.edge_blur_amount
-        self.image.edge_blur_size = preset.edge_blur_size
-        self.image.edge_blur_intensity = preset.edge_blur_intensity
-
-    def reset_sharpen(self, *_):
-        self.image.sharpen = CustomImage().sharpen
-
-    def reset_median(self, *_):
-        self.image.median_blur = CustomImage().median_blur
-
-    def reset_bilateral_amount(self, *_):
-        self.image.bilateral_amount = CustomImage().bilateral_amount
-
-    def reset_bilateral(self, *_):
-        self.image.bilateral = CustomImage().bilateral
-
-    def reset_vignette_amount(self, *_):
-        self.image.vignette_amount = CustomImage().vignette_amount
-
-    def reset_vignette_size(self, *_):
-        self.image.vignette_size = CustomImage().vignette_size
-
-    def reset_edge_blur_amount(self, *_):
-        self.image.edge_blur_amount = CustomImage().edge_blur_amount
-
-    def reset_edge_blur_size(self, *_):
-        self.image.edge_blur_size = CustomImage().edge_blur_size
-
-    def reset_edge_blur_intensity(self, *_):
-        self.image.edge_blur_intensity = CustomImage().edge_blur_intensity
+    pass
 
 
 class EditPanelBorder(EditPanelBase):
@@ -6004,24 +5885,16 @@ class EditPanelBorder(EditPanelBase):
 
     def reset(self, *_):
         self.selected = ''
-        self.reset_border_x_scale()
-        self.reset_border_y_scale()
-        self.reset_border_opacity()
-        self.reset_border_tint()
+        self.select_border()
 
-    def save(self, preset):
-        preset.border_selected = self.selected
-        preset.border_x_scale = self.image.border_x_scale
-        preset.border_y_scale = self.image.border_y_scale
-        preset.border_opacity = self.image.border_opacity
-        preset.border_tint = self.image.border_tint
-
-    def load(self, preset):
-        self.selected = preset.border_selected
-        self.image.border_x_scale = preset.border_x_scale
-        self.image.border_y_scale = preset.border_y_scale
-        self.image.border_opacity = preset.border_opacity
-        self.image.border_tint = preset.border_tint
+    def load(self):
+        selected = ''
+        if self.image.border_image:
+            for index, border in enumerate(self.borders):
+                if border[0] == self.image.border_image[0]:
+                    self.selected = str(index)
+                    break
+        self.selected = selected
         self.select_border()
 
     def populate_borders(self, *_):
@@ -6069,29 +5942,21 @@ class EditPanelBorder(EditPanelBase):
                     borders_tree.select_node(node)
                     break
 
-    def on_selected(self, *_):
-        if self.selected:
-            border_index = int(self.selected)
+    def get_border_image(self, selected):
+        if selected:
+            border_index = int(selected)
         else:
             border_index = 0
-        self.reset_border_x_scale()
-        self.reset_border_y_scale()
         if border_index == 0:
-            self.image.border_image = []
+            border_image = []
         else:
-            self.image.border_image = self.borders[border_index]
+            border_image = self.borders[border_index]
+        return border_image
 
-    def reset_border_x_scale(self, *_):
-        self.image.border_x_scale = CustomImage().border_x_scale
-
-    def reset_border_y_scale(self, *_):
-        self.image.border_y_scale = CustomImage().border_y_scale
-
-    def reset_border_opacity(self, *_):
-        self.image.border_opacity = CustomImage().border_opacity
-
-    def reset_border_tint(self, *_):
-        self.image.border_tint = CustomImage().border_tint
+    def on_selected(self, *_):
+        self.image.reset_border_x_scale()
+        self.image.reset_border_y_scale()
+        self.image.border_image = self.get_border_image(self.selected)
 
 
 class EditPanelDenoise(EditPanelBase):
@@ -6109,22 +5974,14 @@ class EditPanelDenoise(EditPanelBase):
         self.image.denoise = False
         self.luminance_denoise = '10'
         self.color_denoise = '10'
-        self.search_window = '21'
-        self.block_size = '7'
+        self.search_window = '15'
+        self.block_size = '5'
 
-    def save(self, preset):
-        preset.denoise = self.image.denoise
-        preset.luminance_denoise = self.luminance_denoise
-        preset.color_denoise = self.color_denoise
-        preset.search_window = self.search_window
-        preset.block_size = self.block_size
-
-    def load(self, preset):
-        self.image.denoise = preset.denoise
-        self.luminance_denoise = preset.luminance_denoise
-        self.color_denoise = preset.color_denoise
-        self.search_window = preset.search_window
-        self.block_size = preset.block_size
+    def load(self):
+        self.luminance_denoise = str(self.image.luminance_denoise)
+        self.color_denoise = str(self.image.color_denoise)
+        self.search_window = str(self.image.search_window)
+        self.block_size = str(self.image.block_size)
 
     def update_denoise(self, state):
         if state == 'down':
@@ -6549,26 +6406,34 @@ class EditPanelConvert(BoxLayout):
         Clock.schedule_once(self.setup_screen_manager)
         super(EditPanelConvert, self).__init__(**kwargs)
 
+    def set_screen(self, screen):
+        screen_manager = self.ids['sm']
+        if screen == 'color' and not self.edit_panel_color:
+            self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_color)
+        if screen == 'filter' and not self.edit_panel_filter:
+            self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_filter)
+        if screen == 'border' and not self.edit_panel_border:
+            self.edit_panel_border = EditPanelBorder(name='border', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_border)
+        if screen == 'denoise' and not self.edit_panel_denoise:
+            self.edit_panel_denoise = EditPanelDenoise(name='denoise', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_denoise)
+        if screen == 'rotate' and not self.edit_panel_rotate:
+            self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_rotate)
+        if screen == 'crop' and not self.edit_panel_crop:
+            self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_crop)
+
+        screen_manager.current = screen
+        self.viewer.edit_mode = screen
+
     def setup_screen_manager(self, *_):
         screen_manager = self.ids['sm']
         self.edit_panel_base = EditPanelConversionBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_border = EditPanelBorder(name='border', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_denoise = EditPanelDenoise(name='denoise', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
         screen_manager.add_widget(self.edit_panel_base)
-        screen_manager.add_widget(self.edit_panel_color)
-        screen_manager.add_widget(self.edit_panel_filter)
-        screen_manager.add_widget(self.edit_panel_border)
-        screen_manager.add_widget(self.edit_panel_denoise)
-        screen_manager.add_widget(self.edit_panel_rotate)
-        screen_manager.add_widget(self.edit_panel_crop)
-
-    def change_screen(self, current):
-        #Called when edit screen changes, sets the image to the right edit type
-        self.viewer.edit_mode = current
 
     def confirm_edit(self, *_):
         self.owner.save_edit()
@@ -6626,12 +6491,20 @@ class EditPanelConvert(BoxLayout):
         pass
 
     def reset_all(self, *_):
-        self.edit_panel_color.reset()
-        self.edit_panel_filter.reset()
-        self.edit_panel_border.reset()
-        self.edit_panel_denoise.reset()
-        self.edit_panel_rotate.reset()
-        self.edit_panel_crop.reset()
+        self.image.reset_color()
+        if self.edit_panel_color:
+            self.edit_panel_color.reset()
+        self.image.reset_filter()
+        self.image.reset_border()
+        if self.edit_panel_border:
+            self.edit_panel_border.reset()
+        self.image.reset_denoise()
+        if self.edit_panel_denoise:
+            self.edit_panel_denoise.reset()
+        if self.edit_panel_rotate:
+            self.edit_panel_rotate.reset()
+        if self.edit_panel_crop:
+            self.edit_panel_crop.reset()
 
 
 class EditPanel(BoxLayout):
@@ -6650,33 +6523,40 @@ class EditPanel(BoxLayout):
 
     def __init__(self, **kwargs):
         super(EditPanel, self).__init__(**kwargs)
-        self.setup_screens()
         Clock.schedule_once(self.setup_screen_manager)
 
-    def setup_screens(self):
-        self.edit_panel_base = EditPanelAlbumBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_border = EditPanelBorder(name='border', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_denoise = EditPanelDenoise(name='denoise', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
-        self.edit_panel_video = EditPanelVideo(name='video', owner=self.owner, image=self.image, viewer=self.viewer)
+    def set_screen(self, screen):
+        screen_manager = self.ids['sm']
+        if screen == 'color' and not self.edit_panel_color:
+            self.edit_panel_color = EditPanelColor(name='color', owner=self, image=self.image, viewer=self.viewer)
+            self.edit_panel_color.load()
+            screen_manager.add_widget(self.edit_panel_color)
+        if screen == 'filter' and not self.edit_panel_filter:
+            self.edit_panel_filter = EditPanelFilter(name='filter', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_filter)
+        if screen == 'border' and not self.edit_panel_border:
+            self.edit_panel_border = EditPanelBorder(name='border', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_border)
+        if screen == 'denoise' and not self.edit_panel_denoise:
+            self.edit_panel_denoise = EditPanelDenoise(name='denoise', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_denoise)
+        if screen == 'rotate' and not self.edit_panel_rotate:
+            self.edit_panel_rotate = EditPanelRotate(name='rotate', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_rotate)
+        if screen == 'crop' and not self.edit_panel_crop:
+            self.edit_panel_crop = EditPanelCrop(name='crop', owner=self, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_crop)
+        if screen == 'video' and not self.edit_panel_video:
+            self.edit_panel_video = EditPanelVideo(name='video', owner=self.owner, image=self.image, viewer=self.viewer)
+            screen_manager.add_widget(self.edit_panel_video)
+
+        screen_manager.current = screen
+        self.viewer.edit_mode = screen
 
     def setup_screen_manager(self, *_):
         screen_manager = self.ids['sm']
+        self.edit_panel_base = EditPanelAlbumBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
         screen_manager.add_widget(self.edit_panel_base)
-        screen_manager.add_widget(self.edit_panel_color)
-        screen_manager.add_widget(self.edit_panel_filter)
-        screen_manager.add_widget(self.edit_panel_border)
-        screen_manager.add_widget(self.edit_panel_denoise)
-        screen_manager.add_widget(self.edit_panel_rotate)
-        screen_manager.add_widget(self.edit_panel_crop)
-        screen_manager.add_widget(self.edit_panel_video)
-
-    def change_screen(self, current):
-        #Called when edit screen changes, sets the image to the right edit type
-        self.viewer.edit_mode = current
 
     def confirm_edit(self, *_):
         self.owner.save_edit()
@@ -6734,25 +6614,108 @@ class EditPanel(BoxLayout):
             histogram._on_tex_change()
 
     def save_last(self, *_):
-        self.owner.edit_color = True
-        self.edit_panel_color.save(self.owner)
-        self.edit_panel_filter.save(self.owner)
-        self.edit_panel_border.save(self.owner)
-        self.edit_panel_denoise.save(self.owner)
+        preset = self.owner
+        image = self.image
+        preset.edit_color = True
+
+        preset.equalize = image.equalize
+        preset.autocontrast = image.autocontrast
+        preset.adaptive = image.adaptive_clip
+        preset.slide = image.slide
+        preset.brightness = image.brightness
+        preset.gamma = image.gamma
+        preset.saturation = image.saturation
+        preset.temperature = image.temperature
+        preset.shadow = image.shadow
+        preset.tint = image.tint
+        if self.edit_panel_color:
+            preset.curve_points = self.edit_panel_color.ids['curves'].points
+        else:
+            preset.curve_points = [[0, 0], [1, 1]]
+
+        preset.sharpen = image.sharpen
+        preset.median = image.median_blur
+        preset.bilateral_amount = image.bilateral_amount
+        preset.bilateral = image.bilateral
+        preset.vignette_amount = image.vignette_amount
+        preset.vignette_size = image.vignette_size
+        preset.edge_blur_amount = image.edge_blur_amount
+        preset.edge_blur_size = image.edge_blur_size
+        preset.edge_blur_intensity = image.edge_blur_intensity
+
+        if self.edit_panel_border:
+            preset.border_selected = self.edit_panel_border.get_border_image(self.edit_panel_border.selected)
+        else:
+            preset.border_selected = []
+        preset.border_x_scale = image.border_x_scale
+        preset.border_y_scale = image.border_y_scale
+        preset.border_opacity = image.border_opacity
+        preset.border_tint = image.border_tint
+
+        preset.denoise = image.denoise
+        preset.luminance_denoise = image.luminance_denoise
+        preset.color_denoise = image.color_denoise
+        preset.search_window = image.search_window
+        preset.block_size = image.block_size
 
     def load_last(self, *_):
-        self.edit_panel_color.load(self.owner)
-        self.edit_panel_filter.load(self.owner)
-        self.edit_panel_border.load(self.owner)
-        self.edit_panel_denoise.load(self.owner)
+        preset = self.owner
+        image = self.image
+        image.equalize = preset.equalize
+        image.autocontrast = preset.autocontrast
+        image.adaptive_clip = preset.adaptive
+        image.slide = preset.slide
+        image.brightness = preset.brightness
+        image.gamma = preset.gamma
+        image.saturation = preset.saturation
+        image.temperature = preset.temperature
+        image.shadow = preset.shadow
+        image.tint = preset.tint
+        image.curve_points = preset.curve_points
+        if self.edit_panel_color:
+            self.edit_panel_color.load()
+
+        image.sharpen = preset.sharpen
+        image.median_blur = preset.median
+        image.bilateral_amount = preset.bilateral_amount
+        image.bilateral = preset.bilateral
+        image.vignette_amount = preset.vignette_amount
+        image.vignette_size = preset.vignette_size
+        image.edge_blur_amount = preset.edge_blur_amount
+        image.edge_blur_size = preset.edge_blur_size
+        image.edge_blur_intensity = preset.edge_blur_intensity
+
+        image.border_x_scale = preset.border_x_scale
+        image.border_y_scale = preset.border_y_scale
+        image.border_opacity = preset.border_opacity
+        image.border_tint = preset.border_tint
+        image.border_image = preset.border_selected
+        if self.edit_panel_border:
+            self.edit_panel_border.load()
+
+        image.denoise = preset.denoise
+        image.luminance_denoise = preset.luminance_denoise
+        image.color_denoise = preset.color_denoise
+        image.search_window = preset.search_window
+        image.block_size = preset.block_size
+        if self.edit_panel_denoise:
+            self.edit_panel_denoise.load()
 
     def reset_all(self, *_):
-        self.edit_panel_color.reset()
-        self.edit_panel_filter.reset()
-        self.edit_panel_border.reset()
-        self.edit_panel_denoise.reset()
-        self.edit_panel_rotate.reset()
-        self.edit_panel_crop.reset()
+        self.image.reset_color()
+        if self.edit_panel_color:
+            self.edit_panel_color.reset()
+        self.image.reset_filter()
+        self.image.reset_border()
+        if self.edit_panel_border:
+            self.edit_panel_border.reset()
+        self.image.reset_denoise()
+        if self.edit_panel_denoise:
+            self.edit_panel_denoise.reset()
+        if self.edit_panel_rotate:
+            self.edit_panel_rotate.reset()
+        if self.edit_panel_crop:
+            self.edit_panel_crop.reset()
 
 
 class PanelTabs(FloatLayout):
@@ -7371,19 +7334,18 @@ class Curves(FloatLayout):
         canvas.before.clear()
         canvas.before.add(Color(0, 0, 0))
         canvas.before.add(Rectangle(size=self.size, pos=self.pos))
-        self.generate_curve()
-        self.draw_line(canvas)
-
-        for point in self.points:
-            self.draw_point(canvas, point)
-
+        self.curve = []
         if self.owner:
             image = self.owner.image
             if image:
-                if self.points == [[0, 0], [1, 1]]:
-                    image.curve = []
-                else:
-                    image.curve = self.curve
+                image.set_curve(self.points)
+                self.curve = image.curve
+        if not self.curve:
+            self.curve = generate_curve([[0, 0], [1, 1]], self.resolution, self.bytes)
+
+        self.draw_line(canvas)
+        for point in self.points:
+            self.draw_point(canvas, point)
 
     def relative_to_local(self, point):
         """Convert relative coordinates (0-1) into window coordinates.
@@ -7471,57 +7433,6 @@ class Curves(FloatLayout):
                 if point[0] == self.current_point[0] and point[1] == self.current_point[1]:
                     self.points.pop(index)
         self.refresh()
-
-    def generate_curve(self):
-        """Regenerates the curve data based on self.points."""
-
-        app = App.get_running_app()
-        self.curve = []
-        resolution = self.resolution - 1
-        total_bytes = self.bytes - 1
-        interpolation = app.interpolation
-
-        x = 0
-        index = 0
-        previous_point = False
-        start_point = self.points[index]
-
-        while x < resolution:
-            if index < (len(self.points)-2):
-                next_point = self.points[index+2]
-            else:
-                next_point = False
-            stop_point = self.points[index+1]
-            stop_x = int(stop_point[0]*resolution)
-            distance = stop_x - x
-            start_y = start_point[1] * total_bytes
-            stop_y = stop_point[1] * total_bytes
-            if previous_point != False:
-                previous_y = previous_point[1] * total_bytes
-                previous_distance = (start_point[0] - previous_point[0]) * total_bytes
-            else:
-                previous_y = None
-                previous_distance = distance
-            if next_point != False:
-                next_y = next_point[1] * total_bytes
-                next_distance = (next_point[0] - stop_point[0]) * total_bytes
-            else:
-                next_distance = distance
-                next_y = None
-            if interpolation == 'Catmull-Rom':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='catmull', rounding=True)
-            elif interpolation == 'Cubic':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, before=previous_y, before_distance=previous_distance, after=next_y, after_distance=next_distance, mode='cubic', rounding=True)
-            elif interpolation == 'Cosine':
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, mode='cosine', rounding=True)
-            else:
-                ys = interpolate(start_y, stop_y, distance, 0, total_bytes, rounding=True)
-            self.curve = self.curve + ys
-            x = stop_x
-            index = index + 1
-            previous_point = start_point
-            start_point = stop_point
-        self.curve.append(round(self.points[-1][1] * total_bytes))
 
     def near_x(self, first, second):
         """Check if two points on the x axis are near each other using self.touch_range.
