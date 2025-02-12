@@ -3575,8 +3575,8 @@ class ImageEditor(EventDispatcher):
         Returns: A PIL image.
         """
 
-        image = self.get_original_image()
-        #image = original_image.copy()
+        original_image = self.get_original_image()
+        image = original_image.copy()  #unfortunately is needed to prevent pillow from closing original image when saving it
         #if not self.video:
         #    if self.angle != 0:
         #        if self.angle == 90:
