@@ -3180,7 +3180,20 @@ class ImageEditor(EventDispatcher):
     def reload_video_edit_image(self):
         location = self.length * self.position
         frame = self.seek_player(location)
-        Clock.schedule_once(self.reload_edit_image)
+        self.reload_edit_image(image=self.frame_to_image(frame[0]))
+        #Clock.schedule_once(self.reload_edit_image)
+
+    def frame_to_image(self, frame):
+        frame_size = frame.get_size()
+        pixel_format = frame.get_pixel_format()
+        if pixel_format != 'rgb24':
+            frame_converter = SWScale(frame_size[0], frame_size[1], pixel_format, ofmt='rgb24')
+            frame = frame_converter.scale(frame)
+        image_data = bytes(frame.to_bytearray()[0])
+        original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
+        #for some reason, video frames are read upside-down? fix it here...
+        #original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        return original_image
 
     def get_original_image(self, reload=False):
         if reload or self.original_image is None:
@@ -3191,15 +3204,7 @@ class ImageEditor(EventDispatcher):
                 frame = self.seek_player(location)
                 frame = frame[0]
                 if not self.sequence:
-                    frame_size = frame.get_size()
-                    pixel_format = frame.get_pixel_format()
-                    if pixel_format != 'rgb24':
-                        frame_converter = SWScale(frame_size[0], frame_size[1], pixel_format, ofmt='rgb24')
-                        frame = frame_converter.scale(frame)
-                    image_data = bytes(frame.to_bytearray()[0])
-                    original_image = Image.frombuffer(mode='RGB', size=(frame_size[0], frame_size[1]), data=image_data, decoder_name='raw')
-                    #for some reason, video frames are read upside-down? fix it here...
-                    #original_image = original_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+                    original_image = self.frame_to_image(frame)
                 else:
                     original_image = frame
             else:
@@ -3225,10 +3230,11 @@ class ImageEditor(EventDispatcher):
             original_image = self.original_image
         return original_image
 
-    def reload_edit_image(self, *_):
+    def reload_edit_image(self, *_, image=None):
         """Regenerate the edit preview image."""
 
-        image = self.get_original_image()
+        if image is None:
+            image = self.get_original_image()
         image_width = Window.width * .75
         width = int(image_width)
         height = int(image_width*(image.size[1]/image.size[0]))
