@@ -2834,6 +2834,7 @@ class ImageEditor(EventDispatcher):
     All editing variables are watched by the class and it will automatically update the preview when they are changed.
     """
 
+    image_bytes = ObjectProperty(allownone=True)  #optional cache of image byte data to load instead of from disk
     sequence = ListProperty()
     framerate_override = NumericProperty(0)  #Externally set the framerate for image sequences
     exif = ''
@@ -3202,7 +3203,10 @@ class ImageEditor(EventDispatcher):
                 else:
                     original_image = frame
             else:
-                original_image = Image.open(self.source)
+                if self.image_bytes:
+                    original_image = Image.open(self.image_bytes)
+                else:
+                    original_image = Image.open(self.source)
                 try:
                     self.exif = original_image.info.get('exif', b'')
                 except:
@@ -4176,6 +4180,7 @@ class AsyncThumbnail(KivyImage):
     used to automatically generate and save thumbnails of a specified image.
     """
 
+    image_bytes = None
     loadfullsize = BooleanProperty(False)  #Enable loading the full-sized image, thumbnail will be displayed temporarily
     temporary = BooleanProperty(False)  #This image is a temporary file, not in the database
     photoinfo = ListProperty()  #Photo data of the image
@@ -4199,6 +4204,7 @@ class AsyncThumbnail(KivyImage):
 
     def update(self, source, photoinfo, temporary):
         if self.source != source:
+            self.image_bytes = None
             self.photoinfo = photoinfo
             self.temporary = temporary
             self.source = source
@@ -4248,6 +4254,7 @@ class AsyncThumbnail(KivyImage):
             self._load_fullsize()
 
     def _load_fullsize(self, *_):
+        self.image_bytes = None
         app = App.get_running_app()
         if not self.lowmem:
             low_memory = to_bool(app.config.get("Settings", "lowmem"))
@@ -4259,12 +4266,17 @@ class AsyncThumbnail(KivyImage):
                 #default image loader messes up bmp files, use pil instead
                 self._coreimage = ImageLoaderPIL(self.source)
             else:
-                self._coreimage = KivyImage(source=self.source)
+                with open(self.source, 'rb') as image_file:
+                    image_data = image_file.read()
+                self.image_bytes = BytesIO(image_data)
+                def dont_close_bytesio():
+                    pass
+                self.image_bytes.close = dont_close_bytesio  #override the close function to prevent pillow from closing this stream
+                self._coreimage = CoreImage(self.image_bytes, ext='jpg')
+                #self._coreimage = KivyImage(source=self.source)
         else:
             #load and rescale image
-            original_image = Image.open(self.source)
-            image = original_image.copy()
-            original_image.close()
+            image = Image.open(self.source)
             resize_width = Window.size[0]
             if image.size[0] > resize_width:
                 width = int(resize_width)

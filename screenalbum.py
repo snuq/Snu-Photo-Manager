@@ -6881,7 +6881,8 @@ class PhotoViewer(BoxLayout):
 
     def init_edit_mode(self, *_):
         if not self.edit_image:
-            self.edit_image = CustomImage(mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
+            image = self.ids['image']
+            self.edit_image = CustomImage(image_bytes=image.image_bytes, mirror=self.mirror, angle=self.angle, photoinfo=self.photoinfo, source=self.file)
             viewer = self.ids['photoShow']
             viewer.add_widget(self.edit_image)
 
