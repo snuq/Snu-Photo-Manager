@@ -3224,8 +3224,7 @@ class ImageEditor(EventDispatcher):
     def reload_edit_image(self, *_):
         """Regenerate the edit preview image."""
 
-        original_image = self.get_original_image(reload=True)
-        image = original_image.copy()
+        image = self.get_original_image()
         image_width = Window.width * .75
         width = int(image_width)
         height = int(image_width*(image.size[1]/image.size[0]))
@@ -3572,8 +3571,8 @@ class ImageEditor(EventDispatcher):
         Returns: A PIL image.
         """
 
-        original_image = self.get_original_image()
-        image = original_image.copy()
+        image = self.get_original_image()
+        #image = original_image.copy()
         #if not self.video:
         #    if self.angle != 0:
         #        if self.angle == 90:

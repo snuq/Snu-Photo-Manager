@@ -32,6 +32,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 import sqlite3
 import os
 os.environ['KIVY_VIDEO'] = 'ffpyplayer'
+#os.environ['KIVY_IMAGE'] = 'pil'
 try:
     from os.path import sep
 except:
@@ -324,6 +325,15 @@ class PhotoManager(App):
     imported = None
 
     about_text = StringProperty()
+    timer_current = 0
+
+    def timer(self, *_):
+        #Testing function, returns the amount of time elapsed since the function was last run
+
+        timer_current = time.time()
+        timer_amount = timer_current - self.timer_current
+        self.timer_current = timer_current
+        return timer_amount
 
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
