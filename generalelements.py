@@ -4272,6 +4272,9 @@ class AsyncThumbnail(KivyImage):
                 #default image loader messes up bmp files, use pil instead
                 self._coreimage = ImageLoaderPIL(self.source)
             else:
+                if not isfile2(self.source):
+                    print('Image not found')
+                    return
                 with open(self.source, 'rb') as image_file:
                     image_data = image_file.read()
                 self.image_bytes = BytesIO(image_data)

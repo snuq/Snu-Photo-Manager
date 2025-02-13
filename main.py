@@ -18,6 +18,7 @@ Known Bugs:
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
 Todo:
+    implement save edit to new image
     Video editor: add ability to play back video with audio for easier selecting the in/out
     RAW import - https://github.com/photoshell/rawkit , need to get libraw working
 """
@@ -325,15 +326,6 @@ class PhotoManager(App):
     imported = None
 
     about_text = StringProperty()
-    timer_current = 0
-
-    def timer(self, *_):
-        #Testing function, returns the amount of time elapsed since the function was last run
-
-        timer_current = time.time()
-        timer_amount = timer_current - self.timer_current
-        self.timer_current = timer_current
-        return timer_amount
 
     def build(self):
         """Called when the app starts.  Load and set up all variables, data, and screens."""
@@ -2623,6 +2615,22 @@ class PhotoManager(App):
         """Add a new photo to the database.
         Argument:
             fileinfo: List, a photoinfo object.
+
+        photoinfo object is a list with the following data:
+            0:  FullPath        Text pointer for photo, is the path of the photo relative to the database directory
+            1:  Folder          Text of the relative path of the image (not includiing filename)
+            2:  DatabaseFolder  Text path to the photo databse this photo is in
+            3:  OriginalDate    Date the photo had when originally imported
+            4:  OriginalSize    Size of the photo when originally imported
+            5:  Rename          Currently unused
+            6:  ImportDate      Date this database item was added
+            7:  ModifiedDate    Last recorded modified date of image
+            8:  Tags            Comma-separated list of tags applied to this image
+            9:  Edited          0 if this image has not been modified by photo manager, 1 if it has
+            10: OriginalFile    Original file name of image when it was imported
+            11: Owner           Currently unused
+            12: Export          1 if this file can be exprorted, 0 will hide it from exporting
+            13: Orientation     integer describing the orientation of the image, follows exif orientation values
         """
 
         fileinfo = agnostic_photoinfo(fileinfo)

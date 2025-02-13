@@ -818,6 +818,9 @@ Builder.load_string("""
                 warn: True
                 on_release: root.cancel_edit()
         WideButton:
+            text: 'Save Edit To New File'
+            on_release: root.confirm_edit_new()
+        WideButton:
             id: loadLast
             disabled: not root.owner.edit_color
             text: "Load Last Settings"
@@ -3102,11 +3105,11 @@ class ConversionScreen(Screen):
         else:
             return False
 
-    def save_edit(self):
+    def save_edit(self, replace=True):
         if not self.photo:
             return
         if self.view_image:
-            self.save_image()
+            self.save_image(replace=replace)
         else:
             self.save_video()
 
@@ -3603,7 +3606,7 @@ class ConversionScreen(Screen):
         except:
             pass
 
-    def save_image(self):
+    def save_image(self, replace=True):
         """Saves any temporary edits on the currently viewed image."""
 
         app = App.get_running_app()
@@ -3625,32 +3628,43 @@ class ConversionScreen(Screen):
 
         #back up old image and save new edit
         photo_file_original = os.path.abspath(self.photo)
-        backup_directory = os.path.join(local_path(self.photoinfo[2]), local_path(self.photoinfo[1]), '.originals')
-        if not os.path.exists(backup_directory):
-            os.mkdir(backup_directory)
-        if not os.path.exists(backup_directory):
-            app.popup_message(text='Could not create backup directory', title='Warning')
-            return
-        backup_photo_file = os.path.join(backup_directory, os.path.basename(self.photo))
-        backup_photo_file_relative = os.path.join('.originals', os.path.basename(self.photo))
-        if not os.path.isfile(photo_file_original):
-            app.popup_message(text='Photo file no longer exists', title='Warning')
-            return
-        if not os.path.isfile(backup_photo_file):
-            try:
-                os.rename(photo_file_original, backup_photo_file)
-            except Exception as e:
-                error = str(e)
-        if not os.path.isfile(backup_photo_file):
-            app.popup_message(text='Could not create backup photo', title='Warning')
-            return
-        if os.path.isfile(photo_file_original):
-            error = app.delete_file(photo_file_original)
-            #os.remove(photo_file_original)
-        if os.path.isfile(photo_file_original):
-            app.popup_message(text='Could not save edited photo', title='Warning')
-            return
-        photo_file = os.path.splitext(photo_file_original)[0]+'.jpg'
+        if replace:
+            backup_directory = os.path.join(local_path(self.photoinfo[2]), local_path(self.photoinfo[1]), '.originals')
+            if not os.path.exists(backup_directory):
+                os.mkdir(backup_directory)
+            if not os.path.exists(backup_directory):
+                app.popup_message(text='Could not create backup directory', title='Warning')
+                return
+            backup_photo_file = os.path.join(backup_directory, os.path.basename(self.photo))
+            backup_photo_file_relative = os.path.join('.originals', os.path.basename(self.photo))
+            if not os.path.isfile(photo_file_original):
+                app.popup_message(text='Photo file no longer exists', title='Warning')
+                return
+            if not os.path.isfile(backup_photo_file):
+                try:
+                    os.rename(photo_file_original, backup_photo_file)
+                except Exception as e:
+                    error = str(e)
+            if not os.path.isfile(backup_photo_file):
+                app.popup_message(text='Could not create backup photo', title='Warning')
+                return
+            if os.path.isfile(photo_file_original):
+                error = app.delete_file(photo_file_original)
+                #os.remove(photo_file_original)
+            if os.path.isfile(photo_file_original):
+                app.popup_message(text='Could not replace photo', title='Warning')
+                return
+            photo_file = os.path.splitext(photo_file_original)[0]+'.jpg'
+            new_fullpath = os.path.splitext(self.photoinfo[0])[0] + '.jpg'
+        else:
+            #find an available edit file name
+            photo_file_base = os.path.splitext(photo_file_original)[0]+'-edit'
+            photo_file = photo_file_base+'.jpg'
+            iteration = 0
+            while isfile2(photo_file):
+                iteration += 1
+                photo_file = photo_file_base+"_"+str(iteration)+'.jpg'
+            new_fullpath = photo_file
         try:
             edit_image.save(photo_file, "JPEG", quality=95, exif=exif)
         except Exception as e:
@@ -3659,7 +3673,7 @@ class ConversionScreen(Screen):
             if os.path.isfile(photo_file):
                 os.remove(photo_file)
         if not os.path.isfile(photo_file):
-            if os.path.isfile(backup_photo_file):
+            if replace and os.path.isfile(backup_photo_file):
                 copy2(backup_photo_file, photo_file)
                 if os.path.isfile(photo_file):
                     os.remove(backup_photo_file)
@@ -3671,20 +3685,24 @@ class ConversionScreen(Screen):
             return
 
         #update photo info
-        new_fullpath = os.path.splitext(self.photoinfo[0])[0]+'.jpg'
         update_photoinfo = list(self.photoinfo)
-        update_photoinfo[13] = 1  #reset rotation
-        update_photoinfo[10] = agnostic_path(backup_photo_file_relative)
         update_photoinfo[0] = agnostic_path(new_fullpath)
         update_photoinfo[1] = agnostic_path(update_photoinfo[1])
         update_photoinfo[2] = agnostic_path(update_photoinfo[2])
         update_photoinfo[9] = 1
-        #update_photoinfo[7] = int(os.path.getmtime(photo_file))
-        if self.photoinfo[0] != new_fullpath:
-            app.database_item_rename(self.photoinfo[0], update_photoinfo[0], update_photoinfo[1])
-        app.database_item_update(update_photoinfo)
-        app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
-        copystat(backup_photo_file, photo_file)
+        update_photoinfo[13] = 1  #reset rotation
+        if replace:
+            update_photoinfo[10] = agnostic_path(backup_photo_file_relative)
+            #update_photoinfo[7] = int(os.path.getmtime(photo_file))
+            if self.photoinfo[0] != new_fullpath:
+                app.database_item_rename(self.photoinfo[0], update_photoinfo[0], update_photoinfo[1])
+            app.database_item_update(update_photoinfo)
+            app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
+            copystat(backup_photo_file, photo_file)
+        else:
+            update_photoinfo[5] = self.photoinfo[0]
+            app.database_add(update_photoinfo)
+            app.save_photoinfo(target=update_photoinfo[1], save_location=os.path.join(update_photoinfo[2], update_photoinfo[1]))
 
         #regenerate thumbnail
         app.thumbnail_cache.remove_cache(photo_file)
@@ -3700,7 +3718,7 @@ class ConversionScreen(Screen):
         self.fullpath = local_path(update_photoinfo[0])
         self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0])))
         #Clock.schedule_once(lambda *dt: self.set_photo(os.path.join(local_path(update_photoinfo[2]), local_path(update_photoinfo[0]))))
-        self.on_photo()
+        #self.on_photo()
 
         app.message("Saved edits to image")
 
@@ -4486,7 +4504,7 @@ class VideoConverterScreen(ConversionScreen):
             if hasattr(self.popup, 'encode_log'):
                 self.popup.encode_log = self.encode_log
 
-    def save_edit(self):
+    def save_edit(self, replace=True):
         app = App.get_running_app()
         self.apply_edit = False
         if self.use_batch:
@@ -6557,6 +6575,9 @@ class EditPanel(BoxLayout):
         screen_manager = self.ids['sm']
         self.edit_panel_base = EditPanelAlbumBase(name='edit', owner=self, image=self.image, viewer=self.viewer)
         screen_manager.add_widget(self.edit_panel_base)
+
+    def confirm_edit_new(self):
+        self.owner.save_edit(replace=False)
 
     def confirm_edit(self, *_):
         self.owner.save_edit()
