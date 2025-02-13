@@ -818,6 +818,9 @@ Builder.load_string("""
                 warn: True
                 on_release: root.cancel_edit()
         WideButton:
+            disabled: not root.owner.view_image
+            size_hint_y: 0.01 if self.disabled else None
+            opacity: 0 if self.disabled else 1
             text: 'Save Edit To New File'
             on_release: root.confirm_edit_new()
         WideButton:
