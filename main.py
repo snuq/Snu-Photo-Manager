@@ -18,7 +18,6 @@ Known Bugs:
     seems that hd mpeg2 videos do not respect given bitrate settings... might be a buffer problem? causes 'buffer underflow' errors
 
 Todo:
-    implement save edit to new image
     Video editor: add ability to play back video with audio for easier selecting the in/out
     RAW import - https://github.com/photoshell/rawkit , need to get libraw working
 """
