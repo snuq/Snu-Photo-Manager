@@ -5,10 +5,8 @@ A feature-rich photo manager with photo and video editing capabilities, written 
 * Edit photos and videos with color adjustments, filters, rotation, cropping and more.
 * Export your photos for websites, create collages, or convert your videos to a smaller format.
 
-It should run on any platform that the required libraries can be run on.  So far, I have made Windows, Linux (Ubuntu 16+) and Android binaries.  It should be possible to create OSX and ios binaries as well, but I do not have the required hardware to do so.  
-Download latest binaries at: www.snuq.com/snuphotomanager/  
+It should run on any platform that the required libraries can be run on.  
 
-Note that the android version is very beta - some features are missing, it is pretty slow, and it is not yet a signed executable (debug only for now).  
 
 This program is released under the GNU General Public License.
 
@@ -34,26 +32,17 @@ Watch the demo video:
 
 
 ## Installation:  
-Depending on your browser, left clicking the files may not download them, you may need to right click on the file and select save as, or save link as.  
 
 
 ### Windows:  
+* Download latest binaries at: www.snuq.com/snuphotomanager/  
+* Depending on your browser, left-clicking the files may not download them, you may need to right click on the file and select save as, or save link as.  
 * Download the "Snu Photo Manager Installer v#.#.###.exe" file.  
 * Run the file.  
 
 
 ### Linux:  
-Due to many differences in linux desktop environments, the install script may not work.  If this is the case, you will need to extract the .tar.gz file and create a shortcut yourself.  
-* Download both files in the 'linux' subdirectory.  
-* Place the files in the location where you would like the 'Snu Photo Manager' folder to be (such as in your home directory).  
-* Run the 'snuphotomanagerinstall' file.  Double clicking may work, otherwise open a terminal, go to the directory, and type "./snuphotomanagerinstall" (without the quotes).
-* A new shortcut file should be created in the current folder: 'Snu Photo Manager.desktop', this may be moved to your desktop or any other location.  
-
-
-### Android:  
-For now, side-loading of apps is required to be enabled.  Depending on your device, this may be enabled already, or may be impossible to enable.  
-* Download "snuphotomanager-#.#.###-debug.apk" to your android device, or transfer from a computer using your preferred method.  
-* Run the file from your file manager of choice.  
+Due to many differences in linux desktop environments, it is very difficult to include a pre-compiled version.  It is recommended to follow the manual installation instructions, then edit "SnuPhotoManager.sh" as needed to run the correct python version.
 
 
 ### Manual Installation:  
