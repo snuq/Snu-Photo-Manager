@@ -4088,13 +4088,27 @@ class ThumbnailCache:
     def remove_cache(self, filename):
         if filename in self.thumbnails:
             del self.thumbnails[filename]
+        if filename in self.cache_order:
+            self.cache_order.remove(filename)
 
     def add_cache(self, image, filename):
         self.thumbnails[filename] = image
         self.cache_order.append(filename)
         while len(self.cache_order) > self.max_size:
             old_cache = self.cache_order.pop(0)
-            del self.thumbnails[old_cache]
+            try:
+                del self.thumbnails[old_cache]
+            except Exception as e:
+                self.clean_cache()
+
+    def clean_cache(self):
+        #removes any thumbnails that arent in the cache order
+        to_remove = []
+        for cache_key in self.thumbnails.keys():
+            if cache_key not in self.cache_order:
+                to_remove.append(cache_key)
+        for remove_key in to_remove:
+            del self.thumbnails[remove_key]
 
     def clear(self):
         self.stop_queue()
