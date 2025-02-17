@@ -4149,7 +4149,12 @@ class ThumbnailCache:
             image = CoreImage(data, ext='jpg')
             self.add_cache(image, filename)
         else:
-            image = ImageLoader.load(filename)
+            try:
+                image = ImageLoader.load(filename)
+            except Exception as e:
+                print(e)
+                self.generator_thread = None
+                return
             self.add_cache(image, filename)
         if not self.cancel_queue:
             self.load_queue.insert(0, [filename, photoinfo, temporary, callback])
