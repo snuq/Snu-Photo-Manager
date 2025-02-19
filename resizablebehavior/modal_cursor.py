@@ -1,4 +1,4 @@
-from kivy.properties import BooleanProperty, StringProperty, ListProperty
+from kivy.properties import BooleanProperty, StringProperty, ListProperty, ObjectProperty
 from kivy.graphics import InstructionGroup
 from kivy.uix.modalview import ModalView
 from kivy.graphics import Rectangle
@@ -26,6 +26,7 @@ class CursorModalView(ModalView):
     '''
 
     last_opened = 0.0
+    attach_to = ObjectProperty(allownone=True)
 
     def __init__(self, **kwargs):
         super(CursorModalView, self).__init__(**kwargs)
