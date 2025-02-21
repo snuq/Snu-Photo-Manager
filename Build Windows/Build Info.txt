@@ -1,0 +1,24 @@
+Notes for building for Windows using PyInstaller:
+    I have included the .bat file I use to build this app, but please note that it has specific paths on my system in the file and will need to be edited depending on how your system is set up.
+
+    Start by setting up the build environment:
+        Install Python
+        Install the necessary python libraries: kivy, ffpyplayer, pillow, numpy, opencv-python, pyinstaller.
+        Installing kivy-deps.ffpyplayer may be required as well.
+
+    Building the binaries:
+        From this folder run the command: python -m PyInstaller "Snu Photo Manager.spec"
+        A subfolder called "dist" will be created with the binaries.
+
+        If you wish to pack the binaries using upx, use the command: python -m PyInstaller "Snu Photo Manager.spec" --upx-dir=Path\to\upx
+        Please note that upx will break some included dlls, specifically "ucrtbase.dll" and "VCRUNTIME140.dll", be sure to copy uncompressed versions of these files before attempting to run the program.  Excluding the files from upx should be possible as well, but I had difficulty getting this working.
+
+        To reduce the size of the install, some unnecessary files may be deleted, specifically "cv2\opencv_videoio_ffmpeg440_64.dll" as it is quite large and redundant since ffpyplayer already implements ffmpeg.
+
+        You may delete/ignore the "build" folder
+
+    Creating an installer:
+        Note: "Nullsoft Scriptable Install System" must be installed for this step.
+        After the binaries are built, copy "installer.nsi" into "dist\Snu Photo Manager\"
+        run: makensis.exe "dist\Snu Photo Manager\installer.nsi"
+        The installer exe file will be created in "dist\Snu Photo Manager\"
