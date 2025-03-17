@@ -305,6 +305,16 @@ def time_index(seconds, limited=0):
     return time_formatted
 
 
+def offset_file_time(filename, time_hours):
+    mod_time = os.path.getmtime(filename)
+    cre_time = os.path.getctime(filename)
+    time_seconds = time_hours * 60 * 60
+    new_cre = cre_time+time_seconds
+    new_mod = mod_time+time_seconds
+    os.utime(filename, (new_cre, new_mod))
+    return new_cre, new_mod
+
+
 def verify_copy(copy_from, copy_to):
     if not os.path.exists(copy_to):
         copy2(copy_from, copy_to)

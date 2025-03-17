@@ -16,7 +16,7 @@ try:
 except:
     disk_usage = None
 
-from generalcommands import local_path, list_files, format_size, naming, get_file_info
+from generalcommands import local_path, list_files, format_size, naming, get_file_info, offset_file_time
 from generalelements import NormalPopup, ScanningPopup, NormalLabel, InputPopup, TreeViewButton, NormalDropDown, MenuButton, ExpandableButton
 from filebrowser import FileBrowser
 from generalconstants import *
@@ -208,11 +208,11 @@ Builder.load_string("""
                         NormalLabel:
                             text: 'Folders:'
                         NormalButton:
-                            text: 'Delete Folder'
+                            text: 'Delete'
                             on_release: root.delete_folder()
                             warn: True
                         NormalButton:
-                            text: 'New Folder'
+                            text: 'New'
                             on_release: root.add_folder()
                     BoxLayout:
                         Scroller:
@@ -220,6 +220,15 @@ Builder.load_string("""
                             do_scroll_x: True
                             NormalTreeView:
                                 id: folders
+                    Header:
+                        size_hint_y: None
+                        height: app.button_scale
+                        NormalLabel:
+                            text: 'File Date Offset:'
+                        FloatInput:
+                            hint_text: "Hours"
+                            text: root.timezone_offset
+                            on_text: root.timezone_offset = self.text
             BoxLayout:
                 orientation: 'vertical'
                 Header:
@@ -273,8 +282,7 @@ Builder.load_string("""
     size_hint_y: None
     padding: app.padding
     spacing: app.padding, 0
-    height: (app.button_scale * (12 if app.simple_interface else 6))+(app.padding*2)
-    #height: self.minimum_height if (self.minimum_height >= (app.button_scale * 6)+(app.padding*2)) else int((app.button_scale * 6)+(app.padding * 2))
+    height: (app.button_scale * (13 if app.simple_interface else 7))+(app.padding*2)
     GridLayout:
         cols: 2
         spacing: app.padding, 0
@@ -298,6 +306,10 @@ Builder.load_string("""
                 size_hint_x: None
                 width: self.texture_size[0]
                 text: 'Naming Method:  '
+            NormalLabel:
+                size_hint_x: None
+                width: self.texture_size[0]
+                text: 'Adjust File Date Hours: '
             NormalLabel:
                 size_hint_x: None
                 width: self.texture_size[0]
@@ -329,6 +341,12 @@ Builder.load_string("""
                 multiline: False
                 input_filter: root.test_naming_method
                 on_focus: root.new_naming_method(self)
+            FloatInput:
+                size_hint_x: 1
+                text: root.timezone_offset
+                hint_text: 'Hours'
+                multiline: False
+                on_focus: root.set_timezone_offset(self)
             NormalToggle:
                 size_hint_x: 1
                 state: 'down' if root.delete_originals == True else 'normal'
@@ -427,6 +445,8 @@ class ImportScreen(Screen):
         app.importing_screen.delete_originals = preset['delete_originals']
         app.importing_screen.import_from = preset['import_from']
         app.importing_screen.single_folder = preset['single_folder']
+        app.importing_screen.timezone_offset = preset['timezone_offset']
+        app.importing_screen.import_index = self.selected_import
         app.show_importing()
 
     def add_preset(self):
@@ -511,6 +531,7 @@ class ImportingScreen(Screen):
     Displays photos from directories and lets you select which ones to import.
     """
 
+    import_index = NumericProperty(0)  #Index of the import preset being used
     type = StringProperty('')
     selected = StringProperty('')
     import_to = StringProperty('')
@@ -533,6 +554,7 @@ class ImportingScreen(Screen):
     percent_completed = NumericProperty()
     start_time = NumericProperty()
     import_scanning = BooleanProperty(False)
+    timezone_offset = StringProperty('')
 
     def back(self, *_):
         app = App.get_running_app()
@@ -573,6 +595,9 @@ class ImportingScreen(Screen):
     def on_leave(self, *_):
         app = App.get_running_app()
         app.clear_drags()
+        if app.imports[self.import_index]['timezone_offset'] != self.timezone_offset:
+            app.imports[self.import_index]['timezone_offset'] = self.timezone_offset
+            app.import_preset_write()
 
     def on_enter(self):
         """Called when the screen is entered.  Sets up variables, and scans the import folders."""
@@ -793,6 +818,13 @@ class ImportingScreen(Screen):
                             failed_files = failed_files + 1
                             imported_size = imported_size + photo[4]
                         else:
+                            try:
+                                timezone_offset = float(self.timezone_offset)
+                            except:
+                                timezone_offset = 0.0
+                            if timezone_offset:
+                                new_cre, new_mod = offset_file_time(new_full_filename, timezone_offset)
+                                photo[3] = new_mod
                             if self.delete_originals:
                                 if os.path.isfile(new_full_filename):
                                     if os.path.getsize(new_full_filename) == os.path.getsize(old_full_filename):
@@ -1314,6 +1346,7 @@ class ImportPresetArea(GridLayout):
     import_from = ListProperty()
     index = NumericProperty()
     import_to_folder_friendly = {'single': 'All One Folder', 'formatted': 'Date Formatted Subfolders', 'year': 'Yearly Dated Subfolders', 'month': 'Year and Month Subfolders'}
+    timezone_offset = StringProperty()
 
     def __init__(self, **kwargs):
         super(ImportPresetArea, self).__init__(**kwargs)
@@ -1349,6 +1382,7 @@ class ImportPresetArea(GridLayout):
         import_preset['delete_originals'] = self.delete_originals
         import_preset['import_from'] = self.import_from
         import_preset['single_folder'] = self.single_folder
+        import_preset['timezone_offset'] = self.timezone_offset
         app.imports[self.index] = import_preset
         self.owner.owner.selected_import = self.index
 
@@ -1358,6 +1392,12 @@ class ImportPresetArea(GridLayout):
             self.update_preset()
             self.owner.data['title'] = instance.text
             self.owner.update_title()
+
+    def set_timezone_offset(self, instance):
+        if not instance.focus:
+            self.timezone_offset = instance.text
+            self.update_preset()
+            self.owner.data['timezone_offset'] = instance.text
 
     def test_naming_method(self, string, *_):
         return "".join(i for i in string if i not in "#%&*{}\\/:?<>+|\"=][;")
@@ -1443,7 +1483,7 @@ class ImportPreset(ExpandableButton):
     def on_data(self, *_):
         import_preset = self.data
         naming_method = import_preset['naming_method']
-        self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=import_preset['import_to'], naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], owner=self)
+        self.content = ImportPresetArea(index=self.index, title=import_preset['title'], import_to=import_preset['import_to'], naming_method=naming_method, naming_example=naming(naming_method), last_naming_method=naming_method, single_folder=import_preset['single_folder'], delete_originals=import_preset['delete_originals'], import_from=import_preset['import_from'], timezone_offset=import_preset['timezone_offset'], owner=self)
         self.update_title()
 
     def update_title(self, *_):

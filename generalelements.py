@@ -1,6 +1,7 @@
 import os
 import re
 import time
+from datetime import datetime
 import math
 from io import BytesIO
 import PIL
@@ -830,7 +831,7 @@ Builder.load_string("""
 
 <PhotoRecycleThumbWide>:
     PhotoThumbLabel:
-        text: root.title
+        text: root.title+"\\n"+root.modified_date
 
 <RecycleTreeViewButton>:
     orientation: 'vertical'
@@ -1846,7 +1847,13 @@ class PhotoRecycleThumb(DragBehavior, BoxLayout, RecycleDataViewBehavior):
 
 
 class PhotoRecycleThumbWide(PhotoRecycleThumb):
-    pass
+    modified_date = StringProperty()
+
+    def on_photoinfo(self, *_):
+        if self.photoinfo:
+            self.modified_date = datetime.fromtimestamp(self.photoinfo[3]).strftime("%Y-%m-%d\n%H:%M:%S")
+        else:
+            self.modified_date = ''
 
 
 class RecycleTreeViewButton(ButtonBehavior, RecycleItem):

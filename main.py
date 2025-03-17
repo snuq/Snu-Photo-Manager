@@ -1512,13 +1512,18 @@ class PhotoManager(App):
                             import_from = import_from_folders.split('|')
                         else:
                             import_from = []
+                        try:
+                            timezone_offset = str(float(import_preset['timezone_offset']))
+                        except:
+                            timezone_offset = ''
                         self.imports.append({
                             'title': import_title,
                             'import_to': import_to,
                             'naming_method': naming_method,
                             'delete_originals': delete_originals,
                             'single_folder': single_folder,
-                            'import_from': import_from})
+                            'import_from': import_from,
+                            'timezone_offset': timezone_offset})
                     except:
                         pass
             except:
@@ -1589,16 +1594,6 @@ class PhotoManager(App):
                         pass
             except:
                 pass
-
-    def export_preset_update(self, index, preset):
-        """Updates a specific export preset, and saves all presets.
-        Arguments:
-            index: Index of preset to update.
-            preset: Preset data, List containing.
-        """
-
-        self.exports[index] = preset
-        self.export_preset_write()
 
     def export_preset_new(self):
         """Create a new blank export preset."""
@@ -1678,16 +1673,6 @@ class PhotoManager(App):
             return
         self.import_preset_write()
 
-    def import_preset_update(self, index, preset):
-        """Overwrite a specific import preset, and save presets.
-        Arguments:
-            index: Integer, index of the preset to overwrite.
-            preset: Dictionary, the new preset settings.
-        """
-
-        self.imports[index] = preset
-        self.import_preset_write()
-
     def import_preset_new(self):
         """Create a new import preset with the default settings."""
 
@@ -1696,7 +1681,7 @@ class PhotoManager(App):
             import_to = databases[0]
         else:
             import_to = ''
-        preset = {'title': 'Import Preset '+str(len(self.imports)+1), 'import_to': import_to, 'naming_method': naming_method_default, 'delete_originals': False, 'single_folder': 'formatted', 'import_from': []}
+        preset = {'title': 'Import Preset '+str(len(self.imports)+1), 'import_to': import_to, 'naming_method': naming_method_default, 'delete_originals': False, 'single_folder': 'formatted', 'import_from': [], 'timezone_offset': ''}
         self.imports.append(preset)
 
     def import_preset_write(self):
@@ -1713,6 +1698,7 @@ class PhotoManager(App):
             configfile.set(section, 'single_folder', str(preset['single_folder']))
             import_from = agnostic_path('|'.join(preset['import_from']))
             configfile.set(section, 'import_from', import_from)
+            configfile.set(section, 'timezone_offset', preset['timezone_offset'])
 
         with open(os.path.join(self.data_directory, 'imports.ini'), 'w') as config:
             configfile.write(config)
