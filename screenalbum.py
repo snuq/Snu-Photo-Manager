@@ -3061,18 +3061,25 @@ class ConversionScreen(Screen):
         return [True, command, output_filename]
 
     def delete_output(self, output_file, timeout=20):
-        """Continuously try to delete a file until its done."""
+        """Try to delete a file multiple times up to a timeout"""
 
-        start_time = time.time()
-        while os.path.isfile(output_file):
+        def try_delete():
             try:
                 os.remove(output_file)
-            except:
-                time.sleep(0.25)
-            if timeout != 0:
-                elapsed = time.time() - start_time
-                if elapsed > timeout:
-                    return False
+                return not os.path.isfile(output_file)  #Return True if file exists, False if not
+            except FileNotFoundError:
+                return True  #File already gone! no issues
+            except Exception as e:
+                return False  #Some other error, file still exists
+
+        deleted = try_delete()  #always try at least once
+        start_time = time.time()
+        while not deleted:
+            elapsed = time.time() - start_time
+            if elapsed > timeout:
+                return False
+            time.sleep(0.25)
+            deleted = try_delete()
         return True
 
     def new_framerate(self, codec, framerate):
@@ -3492,11 +3499,12 @@ class ConversionScreen(Screen):
 
             #encoding completed
             new_photoinfo = list(photoinfo)
+            copystat(input_file, output_temp_file)
 
             #Deal with original file if needed
             if not self.advanced_encode or (photoinfo and (not export_file or (output_file_folder == input_file_folder and output_basename == input_basename))):
                 #File is in database, not being exported to a different file
-                #edit_image.close_video()
+                edit_image.close_video()
                 new_original_file = os.path.join(input_file_folder, '.originals', input_filename)
                 new_original_file_relative = os.path.join('.originals', input_filename)
                 if not os.path.isdir(os.path.join(input_file_folder, '.originals')):
@@ -3507,7 +3515,7 @@ class ConversionScreen(Screen):
                 if not os.path.isfile(new_original_file):
                     try:
                         os.rename(input_file, new_original_file)
-                    except:
+                    except Exception as e:
                         self.export_folder = output_file_folder_reencode
                         message = 'Could not replace video, converted video left in "reencode" subfolder'
                         self.end_encode(message, end_type='fail')
@@ -3518,12 +3526,12 @@ class ConversionScreen(Screen):
                     deleted = self.delete_output(input_file)
                     if not deleted:
                         self.export_folder = output_file_folder_reencode
-                        message = 'Could not replace video, converted video left in "reencode" subfolder'
+                        message = 'Could not delete original video, converted video left in "reencode" subfolder'
                         self.end_encode(message, end_type='fail')
                         return ["Error", message]
                 try:
                     os.rename(output_temp_file, new_encoded_file)
-                except:
+                except Exception as e:
                     self.export_folder = output_file_folder_reencode
                     message = 'Could not replace video, original file may be deleted, converted video left in "reencode" subfolder'
                     self.end_encode(message, end_type='fail')
@@ -3564,7 +3572,7 @@ class ConversionScreen(Screen):
 
                 try:
                     os.rename(output_temp_file, new_encoded_file)
-                except:
+                except Exception as e:
                     self.export_folder = output_file_folder_reencode
                     message = 'Could not rename video, converted video left in "reencode" subfolder'
                     self.end_encode(message, end_type='fail')
@@ -3595,7 +3603,7 @@ class ConversionScreen(Screen):
             return ["Error", message]
         if no_audio:
             self.append_log("[WARNING] : Could not encode audio element, file may not have audio.")
-        copystat(new_original_file, new_encoded_file)
+        #copystat(new_original_file, new_encoded_file)
         return_prefix = "Complete"
         return_text = "Completed encoding file to: "+new_encoded_file
         self.end_encode(return_text, end_type='info')
