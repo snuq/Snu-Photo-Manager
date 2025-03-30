@@ -384,7 +384,10 @@ class PhotoManager(App):
         self.setup_database()  #Import or set up databases
 
         #Parse open with commands and see if file is valid
-        for possible_photo in sys.argv:
+        possible_arguments = sys.argv[1:]
+        possible_arguments.append(" ".join(sys.argv[1:]))
+        Logger.info(possible_arguments)
+        for possible_photo in possible_arguments:
             if '.' in possible_photo:
                 extension = '.' + possible_photo.lower().split('.')[-1]
                 if extension in self.imagetypes or extension in self.movietypes:
