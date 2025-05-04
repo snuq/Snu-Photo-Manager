@@ -3685,7 +3685,7 @@ class ConversionScreen(Screen):
                 os.remove(photo_file)
         if not os.path.isfile(photo_file):
             if replace and os.path.isfile(backup_photo_file):
-                copy2(backup_photo_file, photo_file)
+                copy2(backup_photo_file, photo_file_original)
                 if os.path.isfile(photo_file):
                     os.remove(backup_photo_file)
                     app.popup_message(text='Could not save edited photo, resored backup', title='Warning')
