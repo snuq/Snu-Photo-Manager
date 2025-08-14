@@ -2841,6 +2841,7 @@ class ImageEditor(EventDispatcher):
     All editing variables are watched by the class and it will automatically update the preview when they are changed.
     """
 
+    image_loaded = BooleanProperty(False)
     image_bytes = ObjectProperty(allownone=True)  #optional cache of image byte data to load instead of from disk
     sequence = ListProperty()
     framerate_override = NumericProperty(0)  #Externally set the framerate for image sequences
@@ -2965,20 +2966,27 @@ class ImageEditor(EventDispatcher):
             self.start_seconds = self.length * self.start_point
             self.first_frame = self.seek_player(self.start_seconds, precise=True)
 
-    def wait_frame(self):
+    def wait_frame(self, timeout=10):
         #Ensures that a frame is gotten
         frame = None
+        start_time = time.time()
         while not frame:
             frame, value = self.player.get_frame(force_refresh=True)
+            if (time.time() - start_time) > timeout:
+                return None
         return frame
 
     def start_seek(self, seek):
         #tell the player to seek to a position
+        if not self.player:
+            return
         self.player.set_pause(False)
         self.player.seek(pts=seek, relative=False, accurate=True)
         self.player.set_pause(True)
 
     def seek_player(self, seek, precise=False):
+        if not self.player:
+            return
         if precise:
             max_loops = 60
             seek_distance = 1
@@ -3001,16 +3009,19 @@ class ImageEditor(EventDispatcher):
                 loops = 0
             #check if seek has gotten within a couple frames yet
             frame = self.wait_frame()
-            current_seek = frame[1]
-            current_seek_frame = current_seek * framerate
-            frame_distance = abs(target_seek_frame - current_seek_frame)
-            if frame_distance < seek_distance or total_loops >= max_loops:
-                #seek has finished, or give up after a lot of tries to not freeze the program...
-                break
+            if frame is not None:
+                current_seek = frame[1]
+                current_seek_frame = current_seek * framerate
+                frame_distance = abs(target_seek_frame - current_seek_frame)
+                if frame_distance < seek_distance or total_loops >= max_loops:
+                    #seek has finished, or give up after a lot of tries to not freeze the program...
+                    break
             time.sleep(0.05)
         return frame
 
     def get_converted_frame(self):
+        if not self.player:
+            return [None, "Video is not loaded"]
         self.player.set_pause(False)
         frame = None
         while not frame:
@@ -3073,12 +3084,18 @@ class ImageEditor(EventDispatcher):
         else:
             self.player = MediaPlayer(self.source, ff_opts={'paused': True, 'ss': 1.0, 'an': True})
         frame = None
+        start_time = time.time()
         while not frame:
             frame, value = self.player.get_frame(force_refresh=True)
+            loading_time = time.time() - start_time
+            if loading_time > 15:
+                self.close_video()
+                return False
         data = self.player.get_metadata()
         self.length = data['duration']
         self.framerate = data['frame_rate']
         self.pixel_format = data['src_pix_fmt']
+        return True
 
     def on_sharpen(self, *_):
         self.update_preview()
@@ -3178,13 +3195,18 @@ class ImageEditor(EventDispatcher):
         if self.sequence:
             self.video = True
         if self.video:
-            self.open_video()
+            opened = self.open_video()
+            self.image_loaded = opened
+        else:
+            self.image_loaded = True
         self.reload_edit_image()
 
     def on_position(self, *_):
         self.reload_video_edit_image()
 
     def reload_video_edit_image(self):
+        if not self.player:
+            return
         location = self.length * self.position
         frame = self.seek_player(location)
         self.reload_edit_image(image=self.frame_to_image(frame[0]))
@@ -3242,6 +3264,8 @@ class ImageEditor(EventDispatcher):
 
         if image is None:
             image = self.get_original_image()
+        if image is None:
+            return
         image_width = Window.width * .75
         width = int(image_width)
         height = int(image_width*(image.size[1]/image.size[0]))
@@ -3812,7 +3836,7 @@ class CustomImage(KivyImage, ImageEditor):
 
         width = 1 - self.crop_left - self.crop_right
         height = 1 - self.crop_top - self.crop_bottom
-        if height == 0:
+        if height == 0 or self.original_height == 0 or aspect_y == 0:
             return
         if aspect_x is not None and aspect_y is not None:
             self.aspect = aspect_x / aspect_y
@@ -3894,7 +3918,10 @@ class CustomImage(KivyImage, ImageEditor):
             new_aspect = new_width / new_height
         else:
             new_aspect = 0
-        old_aspect = self.original_width / self.original_height
+        if self.original_height != 0:
+            old_aspect = self.original_width / self.original_height
+        else:
+            old_aspect = 0
         self.crop_text = "Size: "+str(int(new_width))+"x"+str(int(new_height))+", Aspect: "+str(round(new_aspect, 2))+" (Original: "+str(round(old_aspect, 2))+")"
 
     def get_texture_size(self):
@@ -4051,8 +4078,15 @@ class CustomImage(KivyImage, ImageEditor):
         if self.sequence:
             self.video = True
         if self.video:
-            self.open_video()
+            opened = self.open_video()
+            self.image_loaded = opened
+            if not opened:
+                app.message("Unable to open video: "+self.source)
+        else:
+            self.image_loaded = True
         self.reload_edit_image()
+        if not self.edit_image:
+            return
         self.update_texture(self.edit_image)
         self.update_aspect()
         #self.update_preview()

@@ -2550,8 +2550,12 @@ class CoreVideo(KivyCoreVideo):
 
         #Wait for first frame to load before playing so audio doesnt get out of sync too badly
         frame = None
+        wait_start = time.time()
         while frame is None:
             frame, value = ffplayer.get_frame(force_refresh=True)
+            waited_time = time.time() - wait_start
+            if waited_time > 10:
+                break
             sleep(0.1)
 
         # fast path, if the source video is yuv420p, we'll use a glsl shader
@@ -3226,6 +3230,12 @@ class ConversionScreen(Screen):
             start_point = self.viewer.start_point
         if end_point is None:
             end_point = self.viewer.end_point
+
+        if not edit_image.image_loaded:
+            #video failed to load, unable to convert
+            message = 'File not encoded, could not be loaded'
+            self.end_encode(message, end_type='fail')
+            return ['Error', message]
 
         #get general variables
         self.encoding = True
@@ -4360,8 +4370,8 @@ class VideoConverterScreen(ConversionScreen):
             self.sequence = []
             self.folder = path
             self.target = file
+            app.message('Loading file: '+file)
             self.photo = os.path.join(path, file)
-            app.message('Loaded file: '+file)
             return
         app.message('Warning: File type not supported')
 
@@ -4462,7 +4472,11 @@ class VideoConverterScreen(ConversionScreen):
             edit_panel_container.clear_widgets()
             #Start edit mode
             self.viewer.edit_mode = edit_panel
-            self.viewer.init_edit_mode()
+            #self.viewer.init_edit_mode()
+            if not self.viewer.edit_image:
+                self.clear_edit()
+                self.photo = ''
+                return
             self.viewer.bypass = True
             self.edit_panel_object = EditPanelConvert(owner=self, viewer=self.viewer, image=self.viewer.edit_image)
             self.viewer.edit_image.bind(histogram=self.edit_panel_object.draw_histogram)
@@ -4480,6 +4494,8 @@ class VideoConverterScreen(ConversionScreen):
         for node in nodes:
             info_panel.remove_node(node)
 
+        if not self.viewer:
+            return
         if isfile2(self.photo):
             #Add basic info
             filename = self.target
@@ -4497,13 +4513,14 @@ class VideoConverterScreen(ConversionScreen):
             info_panel.add_node(TreeViewInfo(title='File Size: ' + file_size))
 
             video = self.viewer.edit_image
-            length = time_index(video.length)
-            info_panel.add_node(TreeViewInfo(title='Duration: ' + length))
-            image_x = video.original_width
-            image_y = video.original_height
-            resolution = str(image_x) + ' * ' + str(image_y)
-            megapixels = round(((image_x * image_y) / 1000000), 2)
-            info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
+            if video:
+                length = time_index(video.length)
+                info_panel.add_node(TreeViewInfo(title='Duration: ' + length))
+                image_x = video.original_width
+                image_y = video.original_height
+                resolution = str(image_x) + ' * ' + str(image_y)
+                megapixels = round(((image_x * image_y) / 1000000), 2)
+                info_panel.add_node(TreeViewInfo(title='Resolution: ' + str(megapixels) + 'MP (' + resolution + ')'))
 
     def save_log(self):
         app = App.get_running_app()
@@ -7092,6 +7109,12 @@ class VideoViewer(FloatLayout):
         Adds the edit image widget, and overlay if need be, and sets them up."""
 
         self.init_edit_mode()
+        if not self.edit_image:
+            return
+        if not self.edit_image.image_loaded:
+            self.close()
+            self.edit_image = None
+            return
         overlay_container = self.ids['overlay']
         player = self.ids['player']
         viewer = self.ids['photoShow']

@@ -39,14 +39,14 @@ def save_current_crashlog(location):
 def save_crashlog():
     """Saves the just-generated crashlog to the current default location"""
     import traceback
+    traceback_text = traceback.format_exc()
+    print(traceback_text)
     crashlog = get_crashlog()
     log_history = reversed(LoggerHistory.history)
     crashlog_file = open(crashlog, 'w')
     for log_line in log_history:
-        log_line = log_line.msg
+        log_line = str(log_line.msg)
         crashlog_file.write(log_line+'\n')
-    traceback_text = traceback.format_exc()
-    print(traceback_text)
     crashlog_file.write(traceback_text)
     crashlog_file.close()
 
