@@ -1,5 +1,6 @@
 import sys
 import PIL
+import math
 from PIL import Image, ImageEnhance, ImageOps, ImageChops, ImageDraw, ImageFilter, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import os
@@ -3398,6 +3399,8 @@ class ConversionScreen(Screen):
                         return ["Error", message]
                 frame_number = frame_number+1
                 scanning_percentage = ((pts - start_seconds)/length) * 95
+                if math.isnan(scanning_percentage):
+                    scanning_percentage = 100
                 self.popup.scanning_percentage = scanning_percentage
                 elapsed_time = time.time() - start_time
 
