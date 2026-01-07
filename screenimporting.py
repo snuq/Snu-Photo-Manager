@@ -438,7 +438,7 @@ class ImportScreen(Screen):
         else:
             databases = []
         if preset['import_to'] not in databases:
-            app.message("Please Set A Database Directory To Import To.")
+            app.message("Please Set A Photo Directory To Import To.")
             return
         app.importing_screen.import_to = preset['import_to']
         app.importing_screen.naming_method = preset['naming_method']
@@ -500,7 +500,7 @@ class ImportScreen(Screen):
                 presets.add_widget(preset)
         else:
             new_preset_button.disabled = True
-            presets.add_widget(NormalLabel(text="You Must Set Up A Database Directory Before Importing Photos"))
+            presets.add_widget(NormalLabel(text="You Must Set Up A Photo Directory Before Importing Photos"))
 
     def has_popup(self):
         """Detects if the current screen has a popup active.

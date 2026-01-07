@@ -1256,15 +1256,15 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "multidirectory",
-            "title": "Database Directories",
-            "desc": "Folders Where Images Are Stored",
+            "title": "Photo Directories",
+            "desc": "Folders where images are stored and imported to",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "databaseimport",
-            "title": "Rescan Database Directory",
-            "desc": "Check all database directories: if changes were made on disk, add missing files and update current ones",
+            "title": "Rescan Photo Directory",
+            "desc": "Check all photo directories: if changes were made on disk, add missing files and update current ones",
             "section": "Database Directories",
             "key": "paths"
         })
@@ -1298,7 +1298,7 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "bool",
-            "title": "Rescan Photo Database On Startup",
+            "title": "Rescan Photo Directories On Startup",
             "desc": "Automatically scan and update the photo database on each restart.  Prevents editing functions from being done until finished.",
             "section": "Settings",
             "key": "rescanstartup"
@@ -1306,7 +1306,7 @@ class PhotoManager(App):
         settingspanel.append({
             "type": "bool",
             "title": "Backup Photo Database On Startup",
-            "desc": "Automatically make a copy of the photo database on each restart.  Will increase startup time when large databases are loaded.",
+            "desc": "Automatically make a copy of the photo database files on each restart.  Will increase startup time when large databases are loaded.",
             "section": "Settings",
             "key": "backupdatabase"
         })
@@ -1326,7 +1326,7 @@ class PhotoManager(App):
         settingspanel.append({
             "type": "numeric",
             "title": "Button Size Percent",
-            "desc": "Scale Percentage Of Interface Buttons.  Defaults to 100",
+            "desc": "Scale percentage of interface buttons.  Defaults to 100",
             "section": "Settings",
             "key": "buttonsize"
         })
@@ -1346,7 +1346,7 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "numeric",
-            "title": "Database Thumbs Scale",
+            "title": "Database Screen Thumbs Scale",
             "desc": "Default scale for thumbnails in the database screen.  Defaults to 1.0",
             "section": "Settings",
             "key": "databasescale"
@@ -1354,7 +1354,7 @@ class PhotoManager(App):
         settingspanel.append({
             "type": "bool",
             "title": "Simplify Interface For Smaller Screens",
-            "desc": "Removes some redundant components of the interface.  Intended for phones or touch screen devices.",
+            "desc": "Removes some redundant components of the interface.  Intended for smaller touch screen devices",
             "section": "Settings",
             "key": "simpleinterface"
         })

@@ -134,7 +134,7 @@ Builder.load_string("""
 
 <SettingDatabaseImport>:
     WideButton:
-        text: 'Rescan Database Directory'
+        text: 'Rescan Photo Directory'
         size: root.size
         pos: root.pos
         font_size: '15sp'
