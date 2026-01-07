@@ -126,7 +126,7 @@ Builder.load_string("""
 
 <SettingsThemeButton>:
     WideButton:
-        text: 'Theme Settings'
+        text: 'Color Theme Settings'
         size: root.size
         pos: root.pos
         font_size: '15sp'
@@ -134,7 +134,7 @@ Builder.load_string("""
 
 <SettingDatabaseImport>:
     WideButton:
-        text: 'Import/Rescan Database'
+        text: 'Rescan Database Directory'
         size: root.size
         pos: root.pos
         font_size: '15sp'
@@ -152,7 +152,7 @@ Builder.load_string("""
 
 <SettingDatabaseRestore>:
     WideButton:
-        text: 'Restore Database Backup'
+        text: 'Restore Photo Database Backup'
         size: root.size
         pos: root.pos
         font_size: '15sp'
@@ -169,7 +169,7 @@ Builder.load_string("""
 
 <SettingDatabaseBackup>:
     WideButton:
-        text: 'Backup Photo Database'
+        text: 'Backup Stored Photo Database'
         size: root.size
         pos: root.pos
         font_size: '15sp'

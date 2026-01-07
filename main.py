@@ -1257,41 +1257,42 @@ class PhotoManager(App):
         settingspanel.append({
             "type": "multidirectory",
             "title": "Database Directories",
-            "desc": "Folders For Image Database",
+            "desc": "Folders Where Images Are Stored",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "databaseimport",
-            "title": "",
+            "title": "Rescan Database Directory",
+            "desc": "Check all database directories: if changes were made on disk, add missing files and update current ones",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "databaseclean",
-            "title": "",
-            "desc": "Remove all missing files in database.  Warning: Make sure all remote directories are accessible",
+            "title": "Deep Clean Database",
+            "desc": "Clean all missing files in photo database.  Warning: Make sure all remote directories are accessible",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "databasebackup",
-            "title": "",
-            "desc": "Creates a backup of the current photo databases",
+            "title": "Backup Stored Photo Database",
+            "desc": "Creates a backup of the current photo database files.  This will not affect your photos themselves",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "databaserestore",
-            "title": "",
-            "desc": "Restore and reload database backups from previous run if they exist",
+            "title": "Restore Photo Database Backup",
+            "desc": "Restore and reload database file backups from previous run if they exist.  This will not affect your photos themselves",
             "section": "Database Directories",
             "key": "paths"
         })
         settingspanel.append({
             "type": "numeric",
             "title": "Auto-Rescan Database Interval In Minutes",
-            "desc": "Auto-rescan database every number of minutes.  0 will never auto-scan.  Setting this too low will slow the system down.",
+            "desc": "Auto-rescan database every number of minutes.  0 will never auto-scan.  Setting this too low will slow the system down",
             "section": "Settings",
             "key": "autoscan"
         })
@@ -1317,42 +1318,43 @@ class PhotoManager(App):
         })
         settingspanel.append({
             "type": "themescreen",
-            "title": "",
+            "title": "Color Theme Settings",
+            "desc": "Open the theme editor to adjust interface colors",
             "section": "Settings",
             "key": "photoinfo"
         })
         settingspanel.append({
             "type": "numeric",
             "title": "Button Size Percent",
-            "desc": "Scale Percentage Of Interface Buttons",
+            "desc": "Scale Percentage Of Interface Buttons.  Defaults to 100",
             "section": "Settings",
             "key": "buttonsize"
         })
         settingspanel.append({
             "type": "numeric",
             "title": "Text Size Percent",
-            "desc": "Scale percentage of interface text",
+            "desc": "Scale percentage of interface text.  Defaults to 100",
             "section": "Settings",
             "key": "textsize"
         })
         settingspanel.append({
             "type": "numeric",
             "title": "Thumbnail Size",
-            "desc": "Size in pixels of generated thumbnails",
+            "desc": "Size in pixels of generated thumbnails.  Defaults to 256",
             "section": "Settings",
             "key": "thumbsize"
         })
         settingspanel.append({
             "type": "numeric",
             "title": "Database Thumbs Scale",
-            "desc": "Default pecentage scale for thumbnails in the database screen",
+            "desc": "Default scale for thumbnails in the database screen.  Defaults to 1.0",
             "section": "Settings",
             "key": "databasescale"
         })
         settingspanel.append({
             "type": "bool",
             "title": "Simplify Interface For Smaller Screens",
-            "desc": "Removes some components of the interface.  Intended for phones or touch screen devices.",
+            "desc": "Removes some redundant components of the interface.  Intended for phones or touch screen devices.",
             "section": "Settings",
             "key": "simpleinterface"
         })
