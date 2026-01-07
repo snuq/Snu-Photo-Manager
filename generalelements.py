@@ -2136,11 +2136,16 @@ class PhotoListRecycleView(RecycleView):
     selected_index = NumericProperty(0)
 
     def update_selected(self, *_):
+        if not self.data:
+            return
         for child in self.children[0].children:
-            child_data = self.data[child.index]
-            new_selected = child_data['selected']
-            if child.selected != new_selected:
-                child.selected = new_selected
+            try:
+                child_data = self.data[child.index]
+                new_selected = child_data['selected']
+                if child.selected != new_selected:
+                    child.selected = new_selected
+            except:
+                pass  #sometimes this will refresh before the children of the recycleview do
 
     def scroll_to_selected(self):
         box = self.children[0]
