@@ -2527,6 +2527,8 @@ class CoreVideo(KivyCoreVideo):
             'out_fmt': self._out_fmt,
             'sn': True,
             'volume': self._volume,
+            'ac': '2',  #forces audio output to be stereo
+            'af': "aresample=async=1:first_pts=0,aformat=sample_fmts=s16:channel_layouts=stereo",  #hack to enable proper playback of lpcm audio in mp4
         }
         self._ffplayer = MediaPlayer(self._filename, callback=self._player_callback, thread_lib='SDL', loglevel='info', ff_opts=ff_opts)
 
