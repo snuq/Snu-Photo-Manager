@@ -4346,7 +4346,18 @@ class AsyncThumbnail(KivyImage):
                 def dont_close_bytesio():
                     pass
                 self.image_bytes.close = dont_close_bytesio  #override the close function to prevent pillow from closing this stream
-                self._coreimage = CoreImage(self.image_bytes, ext='jpg')
+                try:
+                    self._coreimage = CoreImage(self.image_bytes, ext='jpg')
+                except:
+                    self.image_bytes = None
+                    #unable to load image, might be corrupted, try fallback
+                    image = Image.open(self.source)
+                    if image.mode != 'RGB':
+                        image = image.convert('RGB')
+                    image_bytes = BytesIO()
+                    image.save(image_bytes, 'jpeg')
+                    image_bytes.seek(0)
+                    self._coreimage = CoreImage(image_bytes, ext='jpg')
                 #self._coreimage = KivyImage(source=self.source)
         else:
             #load and rescale image
