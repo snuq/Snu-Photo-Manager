@@ -650,7 +650,7 @@ class ImportingScreen(Screen):
                         photo_info = get_file_info(file_info, import_mode=True)
                         is_in_database = app.in_database(photo_info, time_offset=self.timezone_offset)
                         if not is_in_database:
-                            is_in_imported = app.in_imported(photo_info)
+                            is_in_imported = app.in_imported(photo_info, time_offset=self.timezone_offset)
                             if not is_in_imported:
                                 #Non-imported file encountered
                                 self.total_size = self.total_size+photo_info[4]
