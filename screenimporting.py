@@ -648,7 +648,7 @@ class ImportingScreen(Screen):
                     extension = os.path.splitext(file_info[0])[1].lower()
                     if extension in app.imagetypes or extension in app.movietypes:
                         photo_info = get_file_info(file_info, import_mode=True)
-                        is_in_database = app.in_database(photo_info)
+                        is_in_database = app.in_database(photo_info, time_offset=self.timezone_offset)
                         if not is_in_database:
                             is_in_imported = app.in_imported(photo_info)
                             if not is_in_imported:

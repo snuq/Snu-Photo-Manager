@@ -1130,13 +1130,14 @@ class PhotoManager(App):
                     if isdir(full_path):
                         self.save_photoinfo(target=folder, save_location=full_path)
 
-    def in_database(self, photo_info):
+    def in_database(self, photo_info, time_offset=0):
         """Checks the photo database to see if any matches are found for the given file.
         Argument:
             photo_info: List, a photoinfo object.
         Returns: List of photoinfo matches, or False if none found.
         """
 
+        time_offset = float(time_offset)
         photo_info = agnostic_photoinfo(photo_info)
         original_file = photo_info[10]
         filename_matches = list(self.photos.select('SELECT * FROM photos WHERE OriginalFile = ?', (original_file,)))
@@ -1146,6 +1147,11 @@ class PhotoManager(App):
                 if photo_info[3] == filename_match[3]:
                     #date match found
                     return local_photoinfo(list(filename_match))
+                elif time_offset:
+                    #check for date match with time offset
+                    time_seconds = time_offset * 60 * 60
+                    if photo_info[3]+time_seconds == filename_match[3]:
+                        return local_photoinfo(list(filename_match))
         return False
 
     def in_imported(self, photo_info):
