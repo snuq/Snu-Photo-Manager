@@ -815,27 +815,40 @@ class ImportingScreen(Screen):
                         try:
                             copy2(old_full_filename, new_full_filename)
                         except:
+                            if os.path.isfile(new_full_filename):
+                                os.remove(new_full_filename)
                             failed_files = failed_files + 1
                             imported_size = imported_size + photo[4]
                         else:
-                            try:
-                                timezone_offset = float(self.timezone_offset)
-                            except:
-                                timezone_offset = 0.0
-                            if timezone_offset:
-                                new_cre, new_mod = offset_file_time(new_full_filename, timezone_offset)
-                                photo[3] = new_mod
-                            if self.delete_originals:
+                            #photo appears to have been copied, double check its file size to be sure!
+                            new_file_size = int(os.path.getsize(new_full_filename))
+                            if photo[4] == new_file_size:
+                                try:
+                                    timezone_offset = float(self.timezone_offset)
+                                except:
+                                    timezone_offset = 0.0
+                                if timezone_offset:
+                                    new_cre, new_mod = offset_file_time(new_full_filename, timezone_offset)
+                                    photo[3] = new_mod
+                                if self.delete_originals:
+                                    if os.path.isfile(new_full_filename):
+                                        if os.path.getsize(new_full_filename) == os.path.getsize(old_full_filename):
+                                            os.remove(old_full_filename)
+                                app.database_add(photo)
+                                app.database_imported_add(photo[0], photo[10], photo[3])
+                                if thumbnail_data:
+                                    thumbnail = thumbnail_data[2]
+                                    app.database_thumbnail_write(photo[0], int(time.time()), thumbnail, photo[13])
+                                imported_size = imported_size+photo[4]
+                                imported_files = imported_files + 1
+                            else:
                                 if os.path.isfile(new_full_filename):
-                                    if os.path.getsize(new_full_filename) == os.path.getsize(old_full_filename):
-                                        os.remove(old_full_filename)
-                            app.database_add(photo)
-                            app.database_imported_add(photo[0], photo[10], photo[3])
-                            if thumbnail_data:
-                                thumbnail = thumbnail_data[2]
-                                app.database_thumbnail_write(photo[0], int(time.time()), thumbnail, photo[13])
-                            imported_size = imported_size+photo[4]
-                            imported_files = imported_files + 1
+                                    try:
+                                        os.remove(new_full_filename)
+                                    except:
+                                        pass
+                                failed_files = failed_files + 1
+                                imported_size = imported_size + photo[4]
                     else:
                         failed_files = failed_files + 1
                         imported_size = imported_size + photo[4]
@@ -854,10 +867,10 @@ class ImportingScreen(Screen):
         else:
             failed = ''
         if not self.cancel_scanning:
-            if imported_files:
+            if imported_files or failed_files:
                 app.message("Finished importing "+str(imported_files)+" files."+failed)
         else:
-            if imported_files:
+            if imported_files or failed_files:
                 app.message("Canceled importing, "+str(imported_files)+" files were imported."+failed)
             else:
                 app.message("Canceled importing, no files were imported.")
