@@ -85,6 +85,7 @@ version = sys.version_info
 kivy.require('1.10.0')
 lock = threading.Lock()
 
+#Config.set('kivy', 'log_level', 'info')
 if desktop:
     Config.set('input', 'mouse', 'mouse,disable_multitouch')
     #Config.set('kivy', 'keyboard_mode', 'system')
@@ -1136,8 +1137,10 @@ class PhotoManager(App):
             photo_info: List, a photoinfo object.
         Returns: List of photoinfo matches, or False if none found.
         """
-
-        time_offset = float(time_offset)
+        try:
+            time_offset = float(time_offset)
+        except:
+            time_offset = 0.0
         photo_info = agnostic_photoinfo(photo_info)
         original_file = photo_info[10]
         filename_matches = list(self.photos.select('SELECT * FROM photos WHERE OriginalFile = ?', (original_file,)))
@@ -1160,8 +1163,10 @@ class PhotoManager(App):
             photo_info: List, a photoinfo object.
         Returns: True if matches, or False if none found.
         """
-
-        time_offset = float(time_offset)
+        try:
+            time_offset = float(time_offset)
+        except:
+            time_offset = 0.0
         photo_info = agnostic_photoinfo(photo_info)
         original_file = photo_info[10]
         filename_matches = list(self.imported.select('SELECT * FROM imported WHERE File = ?', (original_file,)))
@@ -2589,16 +2594,19 @@ class PhotoManager(App):
             database_folder = agnostic_path(database_folder)
             folder_items = list(self.photos.select('SELECT Folder FROM photos WHERE DatabaseFolder = ? GROUP BY Folder', (database_folder, )))
             for item in folder_items:
-                folders.append(local_path(item[0]))
+                if item[0] is not None:
+                    folders.append(local_path(item[0]))
         else:
             if quick:
                 folder_items = list(self.folders.select('SELECT Path FROM folders'))
                 for item in folder_items:
-                    folders.append(local_path(item[0]))
+                    if item[0] is not None:
+                        folders.append(local_path(item[0]))
             else:
                 folder_items = list(self.photos.select('SELECT Folder FROM photos GROUP BY Folder'))
                 for item in folder_items:
-                    folders.append(local_path(item[0]))
+                    if item[0] is not None:
+                        folders.append(local_path(item[0]))
 
                 directories = self.config.get('Database Directories', 'paths')
                 directories = local_path(directories)
@@ -2710,8 +2718,9 @@ class PhotoManager(App):
         #remove referenced files if the database that contained them is no longer loaded
         found_databases = list(self.photos.select('SELECT DatabaseFolder FROM photos GROUP BY DatabaseFolder'))
         for database in found_databases:
-            if local_path(database[0]) not in databases:
-                self.photos.execute('DELETE FROM photos WHERE DatabaseFolder = ?', (database[0], ))
+            if database[0] is not None:
+                if local_path(database[0]) not in databases:
+                    self.photos.execute('DELETE FROM photos WHERE DatabaseFolder = ?', (database[0], ))
 
         #remove references if the photos are not found
         for database in databases:
@@ -2727,15 +2736,16 @@ class PhotoManager(App):
         #remove folder references if the folder is not in any database folder
         folders = list(self.folders.select('SELECT * FROM folders'))
         for folder in folders:
-            folder_renamed = local_path(folder[0])
-            check = len(databases)
-            for database in databases:
-                if os.path.isdir(database) or deep:
-                    full_folder = os.path.join(database, folder_renamed)
-                    if not os.path.isdir(full_folder):
-                        check = check - 1
-            if check == 0:
-                self.folders.execute('DELETE FROM folders WHERE Path = ?', (folder[0], ))
+            if folder[0] is not None:
+                folder_renamed = local_path(folder[0])
+                check = len(databases)
+                for database in databases:
+                    if os.path.isdir(database) or deep:
+                        full_folder = os.path.join(database, folder_renamed)
+                        if not os.path.isdir(full_folder):
+                            check = check - 1
+                if check == 0:
+                    self.folders.execute('DELETE FROM folders WHERE Path = ?', (folder[0], ))
 
         Clock.schedule_once(lambda *dt: self.screen_manager.current_screen.on_enter())
 
