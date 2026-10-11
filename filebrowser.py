@@ -394,8 +394,15 @@ class FileBrowser(FloatLayout):
             files = sort_nicely(files)
             for file in files:
                 fullpath = os.path.join(self.path, file)
-                file_size = int(os.path.getsize(fullpath))
-                modified = int(os.path.getmtime(fullpath))
+                try:
+                    file_size = int(os.path.getsize(fullpath))
+                except:
+                    file_size = 0
+                try:
+                    modified = int(os.path.getmtime(fullpath))
+                    modified_text = datetime.datetime.fromtimestamp(modified).strftime('%Y-%m-%d, %I:%M%p')
+                except:
+                    modified_text = ''
                 data.append({
                     'text': file,
                     'fullpath': fullpath,
@@ -408,7 +415,7 @@ class FileBrowser(FloatLayout):
                     'multiselect': self.multiselect,
                     'selectable': True,
                     'file_size': format_size(file_size),
-                    'modified': datetime.datetime.fromtimestamp(modified).strftime('%Y-%m-%d, %I:%M%p')
+                    'modified': modified_text
                 })
 
         file_list.data = data
